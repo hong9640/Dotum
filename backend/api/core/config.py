@@ -4,8 +4,11 @@ class Settings(BaseSettings):
     """Application settings."""
 
     PROJECT_NAME: str = "init"
-    # DATABASE_URL: str
+    DB_URL: str
     DEBUG: bool = False
+    DB_ID: str
+    DB_PW: str
+    DB_NAME: str
 
     # JWT Settings
     JWT_SECRET: str
