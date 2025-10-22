@@ -6,7 +6,7 @@ from api.utils.migrations import run_migrations
 
 setup_logging()
 
-# run_migrations() DB 설정 후 주석 해제할 것것
+run_migrations()
 
 # Set up logger for this module
 logger = get_logger(__name__)
