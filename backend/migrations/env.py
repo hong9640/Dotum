@@ -1,13 +1,11 @@
-import os
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from alembic import context
 from sqlmodel import SQLModel
-from dotenv import load_dotenv
 
-# Load .env file
-load_dotenv()
+# Import settings to get DB_URL
+from api.core.config import settings
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -18,12 +16,11 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Override sqlalchemy.url with environment variable if it exists
-db_url = os.getenv("DB_URL")
-if db_url:
-    if db_url.startswith("postgresql+asyncpg://"):
-        db_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
-    config.set_main_option("sqlalchemy.url", db_url)
+# Get DB_URL from settings and convert for Alembic compatibility
+# asyncpg (used by FastAPI) → psycopg2 (used by Alembic)
+db_url = settings.DB_URL
+if db_url.startswith("postgresql+asyncpg://"):
+    db_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
 
 # add your model's MetaData object here
 # for 'autogenerate' support
@@ -50,9 +47,9 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option(db_url)
+    # Use db_url from settings (already converted above)
     context.configure(
-        url=url,
+        url=db_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -69,13 +66,9 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    # URL을 직접 가져와서 사용
-    url = config.get_main_option("sqlalchemy.url")
-    if not url:
-        raise Exception("No sqlalchemy.url found in configuration")
-    
+    # Use db_url from settings (already converted above)
     connectable = engine_from_config(
-        {"sqlalchemy.url": url},
+        {"sqlalchemy.url": db_url},
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
