@@ -27,10 +27,11 @@ services:
       - "8000:8000"
     environment:
       - TZ=Asia/Seoul
-      - DB_URL=postgresql+asyncpg://${DB_ID}:${DB_PW}@postgres:5432/${DB_NAME}
+      - DB_NETWORK=postgres
       - DB_ID=${DB_ID}
       - DB_PW=${DB_PW}
       - DB_NAME=${DB_NAME}
+      - DB_PORT=${DB_PORT}
       - JWT_SECRET=${JWT_SECRET}
     depends_on:
       postgres:
@@ -41,7 +42,8 @@ services:
       - ./alembic.ini:/code/alembic.ini
     networks:
       - app-network
-    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+    #back-end 로그 추적을 위해 override
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --log-level debug
 
 volumes:
   postgres_data:

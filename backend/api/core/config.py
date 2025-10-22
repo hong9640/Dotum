@@ -1,14 +1,19 @@
+from pydantic import computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class Settings(BaseSettings):
     """Application settings."""
 
     PROJECT_NAME: str = "init"
-    DB_URL: str
     DEBUG: bool = False
+    
+    # Database settings
     DB_ID: str
     DB_PW: str
     DB_NAME: str
+    DB_NETWORK: str
+    DB_PORT: int
 
     # JWT Settings
     JWT_SECRET: str
@@ -19,6 +24,11 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
     )
+
+    @computed_field
+    @property
+    def DB_URL(self) -> str:
+        return f"postgresql+asyncpg://{self.DB_ID}:{self.DB_PW}@{self.DB_NETWORK}:{self.DB_PORT}/{self.DB_NAME}"
 
 
 settings = Settings()
