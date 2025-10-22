@@ -4,6 +4,10 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from alembic import context
 from sqlmodel import SQLModel
+from dotenv import load_dotenv
+
+# Load .env file
+load_dotenv()
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -17,12 +21,14 @@ if config.config_file_name is not None:
 # Override sqlalchemy.url with environment variable if it exists
 db_url = os.getenv("DB_URL")
 if db_url:
+    if db_url.startswith("postgresql+asyncpg://"):
+        db_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
     config.set_main_option("sqlalchemy.url", db_url)
 
 # add your model's MetaData object here
 # for 'autogenerate' support
 # Import all models here to ensure they are registered with SQLModel
-# from api.models import *  # Uncomment when you have models
+from api.src.train.models import TrainResults, TrainWords, TrainSentences
 
 target_metadata = SQLModel.metadata
 
@@ -44,7 +50,7 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
+    url = config.get_main_option(db_url)
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -63,8 +69,13 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    # URL을 직접 가져와서 사용
+    url = config.get_main_option("sqlalchemy.url")
+    if not url:
+        raise Exception("No sqlalchemy.url found in configuration")
+    
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        {"sqlalchemy.url": url},
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )

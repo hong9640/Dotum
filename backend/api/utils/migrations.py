@@ -15,12 +15,15 @@ def run_migrations():
         current_dir = os.path.dirname(os.path.abspath(__file__))
         sys.path.insert(0, current_dir)
 
+        env = os.environ.copy()
+        
         # Use sys.executable to run the Alembic module
         result = subprocess.run(
             [sys.executable, "-m", "alembic", "upgrade", "head"],
             capture_output=True,
             text=True,
             check=True,
+            env=env,  # 환경변수 전달
         )
 
         # Print the output if there's any
