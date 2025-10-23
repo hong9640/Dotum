@@ -80,5 +80,5 @@ async def delete_sentence(
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Sentence not found"
+            detail="문장을 찾을 수 없습니다."
         )

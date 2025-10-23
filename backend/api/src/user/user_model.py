@@ -4,7 +4,7 @@ from sqlmodel import Field, SQLModel, Relationship
 from sqlalchemy.orm import foreign
 from .user_enum import UserRoleEnum
 if TYPE_CHECKING:
-    from api.src.train.models import TrainResults
+    from api.src.train.models import WordTrainResults, SentenceTrainResults
 
 KST = timezone(timedelta(hours=9))
 
@@ -25,10 +25,16 @@ class User(SQLModel, table=True):
     deleted_at: Optional[datetime] = Field(default=None, nullable=True)
 
     # Realtionship(후에 다른 기능 추가되면 추가할 예정!)
-    train_results: list["TrainResults"] = Relationship(
+    word_train_results: list["WordTrainResults"] = Relationship(
         back_populates="user",
         sa_relationship_kwargs={
-            "primaryjoin": "User.id==foreign(TrainResults.user_id)",
+            "primaryjoin": "User.id==foreign(WordTrainResults.user_id)",
+        }
+    )
+    sentence_train_results: list["SentenceTrainResults"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={
+            "primaryjoin": "User.id==foreign(SentenceTrainResults.user_id)",
         }
     )
     

@@ -6,15 +6,12 @@ from ..models import TrainSentences
 
 
 class SentenceRepository(BaseRepository[TrainSentences]):
-    """문장 전용 Repository"""
     
     def __init__(self, db: AsyncSession):
         super().__init__(db, TrainSentences)
     
-    async def get_by_word_id(self, word_id: int, limit: int = 10) -> List[TrainSentences]:
-        """특정 단어 ID에 속한 문장들 조회"""
+    async def get_by_text(self, sentence: str) -> Optional[TrainSentences]:
         result = await self.db.execute(
-            select(TrainSentences)
-            .limit(limit)
+            select(TrainSentences).where(TrainSentences.sentence == sentence)
         )
-        return result.scalars().all()
+        return result.scalar_one_or_none()

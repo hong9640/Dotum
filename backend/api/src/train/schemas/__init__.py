@@ -8,6 +8,14 @@ from .sentences import (
     TrainSentenceUpdate,
     TrainSentenceResponse,
 )
+from .results import (
+    WordTrainResultCreate,
+    WordTrainResultUpdate,
+    WordTrainResultResponse,
+    SentenceTrainResultCreate,
+    SentenceTrainResultUpdate,
+    SentenceTrainResultResponse,
+)
 
 __all__ = [
     "TrainWordCreate",
@@ -16,5 +24,11 @@ __all__ = [
     "TrainSentenceCreate",
     "TrainSentenceUpdate",
     "TrainSentenceResponse",
+    "WordTrainResultCreate",
+    "WordTrainResultUpdate",
+    "WordTrainResultResponse",
+    "SentenceTrainResultCreate",
+    "SentenceTrainResultUpdate",
+    "SentenceTrainResultResponse",
 ]
 
