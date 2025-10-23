@@ -1,4 +1,5 @@
 import os
+from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Union
 from pydantic import BaseModel, EmailStr
@@ -26,6 +27,7 @@ from .auth_schema import (
     VerifyEmailResponse
     )
 from api.core.exception import AlreadyExistsException
+load_dotenv()
 
 # ---jwt 등 보안 관련 설정---
 SECRET_KEY = os.getenv("JWT_SECRET")

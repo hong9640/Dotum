@@ -11,6 +11,7 @@ def get_current_kst_time():
     return datetime.now(KST)
 
 class User(SQLModel, table=True):
+    __tablename__ = "users"
     id: Optional[int] = Field(default=None, primary_key=True)
     username: str = Field(max_length=30, nullable=False, unique=True) 
     password: str = Field(nullable=True)

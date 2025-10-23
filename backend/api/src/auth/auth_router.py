@@ -30,7 +30,6 @@ from .auth_schema import (
     )
 
 router = APIRouter(
-    prefix="/api/v1/auth",
     tags=["auth"],
 )
 
