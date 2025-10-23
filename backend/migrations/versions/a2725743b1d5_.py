@@ -1,0 +1,31 @@
+"""
+
+Revision ID: a2725743b1d5
+Revises: faecf8630527
+Create Date: 2025-10-23 17:02:18.336691
+
+"""
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+
+import sqlmodel
+
+
+
+# revision identifiers, used by Alembic.
+revision: str = 'a2725743b1d5'
+down_revision: Union[str, Sequence[str], None] = 'faecf8630527'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    """Upgrade schema."""
+    pass
+
+
+def downgrade() -> None:
+    """Downgrade schema."""
+    pass

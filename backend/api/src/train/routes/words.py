@@ -15,11 +15,11 @@ async def get_service(db: AsyncSession = Depends(get_session)) -> WordService:
 
 
 @router.get("", response_model=list[TrainWordResponse])
-async def get_train_list_words(
+async def get_random_words(
     limit: int = 1,
     service: WordService = Depends(get_service)
 ):
-    return await service.get_all_words(limit=limit)
+    return await service.get_random_words(limit=limit)
 
 
 @router.get("/{word_id}", response_model=TrainWordResponse)
@@ -31,7 +31,7 @@ async def get_train_detail_word(
     if not word:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Word not found"
+            detail="단어를 찾을 수 없습니다."
         )
     return word
 
@@ -61,7 +61,7 @@ async def update_train_word(
         if not updated_word:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Word not found"
+                detail="단어를 찾을 수 없습니다."
             )
         return updated_word
     except ValueError as e:
@@ -80,5 +80,5 @@ async def delete_train_word(
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Word not found"
+            detail="단어를 찾을 수 없습니다."
         )
