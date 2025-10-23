@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from typing import Literal
-from api.src.users.user_enum import UserRoleEnum
+from api.src.user.user_enum import UserRoleEnum
 from typing import Optional
 from datetime import datetime
 
@@ -49,7 +49,7 @@ class FailResponse(BaseModel):
 class UserLogoutRequest(BaseModel):
     refresh_token: str
 
-class UserLogoutSuccess(BaseModel):
+class UserLogoutSuccessResponse(BaseModel):
     status: str = "SUCCESS"
     message: str
 
@@ -95,3 +95,16 @@ class SignoutResponse(BaseModel):
     status: str = "SUCCESS"
     message: str
     data: SignoutData
+
+# ---verify---
+
+class VerifyInfo(BaseModel):
+    email: EmailStr
+    is_duplicate: bool
+    message: str
+    class Config:
+        from_attributes = True
+
+class VerifyEmailResponse(BaseModel):
+    status: str 
+    data: VerifyInfo

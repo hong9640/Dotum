@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.core.database import get_session
 
 # model
-from api.src.users import user_model
+from api.src.user import user_model
 
 router = APIRouter(
     prefix="/api/v1/user",
