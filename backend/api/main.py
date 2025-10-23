@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from api.core.config import settings
 from api.core.logging import get_logger, setup_logging
 from api.utils.migrations import run_migrations
+from api.src.train.routes import router as train_router
 
 setup_logging()
 
@@ -15,7 +16,9 @@ app = FastAPI(
     title=settings.PROJECT_NAME,
     debug=settings.DEBUG,
 )
+
 # Include routers
+app.include_router(train_router, prefix="/api/v1/train", tags=["train"])
 
 @app.get("/health")
 async def health_check():
