@@ -13,11 +13,3 @@ class TrainWords(SQLModel, table=True):
     word: str = Field(unique=True, index=True)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
-    
-    #역참조 관계
-    train_sentences: list["TrainSentences"] = Relationship(
-        back_populates="train_word",
-        sa_relationship_kwargs={
-            "primaryjoin": "TrainWords.id==foreign(TrainSentences.train_words_id)",
-        }
-    )

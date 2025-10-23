@@ -1,6 +1,7 @@
 from typing import Optional, TYPE_CHECKING
 from datetime import datetime, timezone, timedelta
 from sqlmodel import Field, SQLModel, Relationship
+from sqlalchemy.orm import foreign
 from .user_enum import UserRoleEnum
 if TYPE_CHECKING:
     from api.src.train.models import TrainResults
@@ -24,5 +25,10 @@ class User(SQLModel, table=True):
     deleted_at: Optional[datetime] = Field(default=None, nullable=True)
 
     # Realtionship(후에 다른 기능 추가되면 추가할 예정!)
-    train_results: list["TrainResults"] = Relationship(back_populates="user")
+    train_results: list["TrainResults"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={
+            "primaryjoin": "User.id==foreign(TrainResults.user_id)",
+        }
+    )
     

@@ -15,11 +15,11 @@ async def get_service(db: AsyncSession = Depends(get_session)) -> WordService:
 
 
 @router.get("", response_model=list[TrainWordResponse])
-async def get_train_list_words(
+async def get_random_words(
     limit: int = 1,
     service: WordService = Depends(get_service)
 ):
-    return await service.get_all_words(limit=limit)
+    return await service.get_random_words(limit=limit)
 
 
 @router.get("/{word_id}", response_model=TrainWordResponse)
