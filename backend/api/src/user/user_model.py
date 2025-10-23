@@ -1,7 +1,9 @@
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from datetime import datetime, timezone, timedelta
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, SQLModel, Relationship
 from .user_enum import UserRoleEnum
+if TYPE_CHECKING:
+    from api.src.train.models import TrainResults
 
 KST = timezone(timedelta(hours=9))
 
@@ -18,5 +20,8 @@ class User(SQLModel, table=True):
     gender: str = Field(nullable=False)
     created_at: datetime = Field(default_factory=get_current_kst_time, nullable=False)
     updated_at: datetime = Field(default_factory=get_current_kst_time, nullable=True)
+    deleted_at: Optional[datetime] = Field(default=None, nullable=True)
 
-# Realtionship(후에 다른 기능 추가되면 추가할 예정!)
+    # Realtionship(후에 다른 기능 추가되면 추가할 예정!)
+    train_results: list["TrainResults"] = Relationship(back_populates="user")
+    
