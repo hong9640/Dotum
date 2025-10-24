@@ -18,7 +18,6 @@ from api.src.user.user_enum import UserRoleEnum
 from api.src.user.user_model import User
 from api.src.user.user_schema import UserUpdateRequest
 from api.src.auth.auth_service import hash_password
-KST = timezone(timedelta(hours=9))
 
 async def update_user_profile(
     user_to_update: User, 
@@ -33,29 +32,10 @@ async def update_user_profile(
             setattr(user_to_update, field, hashed_password)
         else:
             setattr(user_to_update, field, value)
-    user_to_update.updated_at = datetime.now(KST)
+    user_to_update.updated_at = datetime.now()
     
     db.add(user_to_update)
     await db.commit()
     await db.refresh(user_to_update)
     
     return user_to_update
-
-async def upload_file_to_gcs(
-    file: UploadFile,
-    username: str,
-    bucket_name: str
-) -> str:
-    
-    """파일을 GCS에 업로드하고 public URL을 반환하는 서비스"""
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(bucket_name)
-    destination_blob_name = f"images/{username}/{file.filename}"
-    blob = bucket.blob(destination_blob_name)
-    contents = await file.read()
-    await asyncio.to_thread(
-        blob.upload_from_string,
-        contents,
-        content_type=file.content_type
-    )
-    return blob.public_url

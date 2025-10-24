@@ -79,37 +79,3 @@ async def update_my_profile(
             content=error_response.model_dump()
         )
 
-
-# 업로드 수정 필요
-# @router.put(
-#     "/files/upload",
-#     response_model=FileUploadResponse,
-#     status_code=status.HTTP_200_OK,
-# )
-# async def upload_image(
-#     file: UploadFile = File(...),
-#     current_user: User = Depends(get_current_user),
-#     settings: Settings = Depends(get_settings)
-# ):
-#     try:
-#         file_url = await upload_file_to_gcs(
-#             file=file,
-#             username=current_user.username,
-#             bucket_name=settings.GCS_BUCKET_NAME
-#         )
-        
-#         return {
-#             "data": {
-#                 "file_url": file_url,
-#                 "message": "파일이 성공적으로 업로드되었습니다."
-#             }
-#         }
-#     except Exception as e:
-#         error_response = FailResponse(
-#             status="FAIL",
-#             error=ErrorDetail(code="FILE_UPLOAD_FAILED", message=str(e))
-#         )
-#         return JSONResponse(
-#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-#             content=error_response.model_dump()
-#         )
