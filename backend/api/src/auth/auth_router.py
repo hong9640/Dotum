@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, status
+from typing import Annotated
 from pydantic import BaseModel, EmailStr
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from fastapi.responses import JSONResponse
@@ -13,7 +15,8 @@ from .auth_service import (
     CredentialsException,
     login_user,
     get_current_user,
-    soft_delete_user
+    soft_delete_user,
+    add_token_to_blacklist
     )
 from .auth_schema import (
     UserLoginRequest, 
@@ -67,9 +70,16 @@ async def usersignup(user_data: SignupRequest, db: AsyncSession = Depends(get_se
     responses={401: {"model": FailResponse}},
     status_code=status.HTTP_200_OK
 )
-async def userlogin(user_data: UserLoginRequest, db: AsyncSession = Depends(get_session)):
+async def userlogin(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    db: AsyncSession = Depends(get_session)
+):
+    user_data_for_service = UserLoginRequest(
+        username=form_data.username,
+        password=form_data.password
+    )
     try:
-        login_result = await login_user(user_data=user_data, db=db)
+        login_result = await login_user(user_data=user_data_for_service, db=db)
         
         return {
             "data": {
@@ -94,13 +104,17 @@ async def userlogin(user_data: UserLoginRequest, db: AsyncSession = Depends(get_
             status_code=status.HTTP_401_UNAUTHORIZED,
             content=error_response.model_dump()
         )
-
+    
 @router.post(
     "/logout",
     response_model=UserLogoutSuccessResponse,
     status_code=status.HTTP_200_OK
 )
-async def userlogout(current_user: User = Depends(get_current_user)):
+async def userlogout(
+    request_body: UserLogoutRequest,
+    current_user: User = Depends(get_current_user)
+):
+    await add_token_to_blacklist(request_body.refresh_token)
     return {"message": "성공적으로 로그아웃되었습니다."}
 
 @router.delete(
