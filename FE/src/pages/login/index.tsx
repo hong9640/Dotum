@@ -3,12 +3,23 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 
-const LoginPage: React.FC = () => {
+interface LoginPageProps {
+  onLogin: () => void;
+}
+
+const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
+  const navigate = useNavigate();
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // 로그인 로직 처리
     console.log('로그인 시도');
+    
+    // 로그인 성공 시
+    onLogin();
+    navigate('/'); // 홈페이지로 리다이렉트
   };
 
   return (
