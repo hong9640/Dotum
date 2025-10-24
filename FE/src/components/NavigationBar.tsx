@@ -24,12 +24,12 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ isLoggedIn, onLogout }) =
 
           {/* 네비게이션 메뉴 섹션 */}
           <div className="flex items-center space-x-4 md:space-x-6">
-            <a
-              href="#"
+            <Link
+              to="/practice"
               className="px-3 py-2 text-xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 md:text-3xl"
             >
               발음 훈련
-            </a>
+            </Link>
             <a
               href="#"
               className="px-3 py-2 text-xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 md:text-3xl"

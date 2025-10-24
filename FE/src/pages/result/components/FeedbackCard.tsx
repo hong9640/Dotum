@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BarChart, RotateCcw, Activity } from "lucide-react";
@@ -10,7 +11,16 @@ import FeedbackSummary from "./FeedbackSummary";
  * 발음 평가 피드백 카드 컴포넌트
  */
 const FeedbackCard: React.FC = () => {
+  const navigate = useNavigate();
   const similarity = 87; // 피드백 점수 (예시)
+
+  const handleFeedbackDetail = () => {
+    navigate("/result-detail");
+  };
+
+  const handleRetake = () => {
+    navigate("/practice");
+  };
 
   return (
     // 사용자가 요청한 p-7을 CardHeader와 CardContent의 p-7로 구현
@@ -37,6 +47,7 @@ const FeedbackCard: React.FC = () => {
         <Button
           variant="default"
           size="lg"
+          onClick={handleFeedbackDetail}
           // 사용자가 요청한 text-3xl을 반응형으로 적용
           className="w-full md:w-auto h-auto min-h-10 px-6 py-4 bg-green-500 text-white hover:bg-green-600 rounded-xl text-xl md:text-3xl font-semibold leading-9"
         >
@@ -47,6 +58,7 @@ const FeedbackCard: React.FC = () => {
         <Button
           variant="outline"
           size="lg"
+          onClick={handleRetake}
           className="w-full md:w-auto h-auto min-h-10 px-6 py-4 bg-white text-slate-700 border-slate-200 border-2 hover:bg-slate-100 hover:text-slate-700 rounded-xl text-xl md:text-3xl font-semibold leading-9"
         >
           {/* lucide-react 'RotateCcw' 아이콘으로 교체 */}
