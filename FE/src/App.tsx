@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import NavigationBar from '@/components/NavigationBar';
 import HomePage from '@/pages/home';
 import PracticePage from '@/pages/practice';
+import LoginPage from '@/pages/login';
 
 const App: React.FC = () => {
   return (
@@ -14,6 +15,7 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/practice" element={<PracticePage />} />
+            <Route path="/login" element={<LoginPage />} />
           </Routes>
         </main>
       </div>
