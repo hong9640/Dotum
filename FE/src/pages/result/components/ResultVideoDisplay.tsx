@@ -1,80 +1,8 @@
 import React from "react";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { MonitorPlay, Camera, Play, Settings2, Expand, User } from "lucide-react";
+import { MonitorPlay, User } from "lucide-react";
+import VideoPlayerCard from "./VideoPlayerCard";
+import LargeVideoPlayer from "./LargeVideoPlayer";
 
-// --- VideoPlayerCard 컴포넌트 (신규) ---
-/**
- * 비디오 플레이어 카드 컴포넌트
- * @param title 카드 제목
- * @param icon 카드 제목 옆에 표시될 아이콘 (ReactNode)
- * @param videoSrc 비디오/이미지 플레이스홀더 URL
- */
-interface VideoPlayerCardProps {
-  title: string;
-  icon: React.ReactNode;
-  videoSrc?: string;
-}
-
-const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
-  title,
-  icon,
-  videoSrc,
-}) => {
-  return (
-    // shadcn/ui Card를 기반으로, 사용자가 요청한 w-[560px]를 반응형으로 적용합니다.
-    <Card className="w-full lg:w-[560px] shadow-lg rounded-xl">
-      {/* 사용자가 요청한 px-6 pt-7 pb-6의 p-6과 유사합니다. */}
-      <CardHeader>
-        {/* pb-5 적용 */}
-        <CardTitle
-          className="flex items-center gap-2.5 text-2xl md:text-3xl font-semibold font-['Pretendard'] text-slate-800"
-        >
-          {icon}
-          {title}
-        </CardTitle>
-      </CardHeader>
-      {/* CardContent는 기본 p-6 pt-0 이므로, 패딩을 조절합니다. */}
-      <CardContent className="px-6 pb-4">
-        {/* 비디오 플레이스홀더 영역 (h-80) */}
-        <div className="w-full h-80 bg-gray-100 rounded-xl overflow-hidden">
-          <img
-            className="w-full h-full object-cover"
-            src={
-              videoSrc ||
-              'https://placehold.co/510x323/e2e8f0/64748b?text=Video+Stream'
-            }
-            alt={title}
-          />
-        </div>
-      </CardContent>
-      {/* 컨트롤러 영역 (h-10, gap-5) */}
-      <CardFooter className="h-auto min-h-10 flex justify-center items-center gap-5 px-6 pb-6">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-slate-600 w-7 h-7"
-        >
-          <Play className="w-full h-full" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-slate-600 w-7 h-7"
-        >
-          <Settings2 className="w-full h-full" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-slate-600 w-7 h-7"
-        >
-          <Expand className="w-full h-full" />
-        </Button>
-      </CardFooter>
-    </Card>
-  );
-};
 
 // --- ResultVideoDisplay 컴포넌트 ---
 /**
@@ -89,10 +17,26 @@ const ResultVideoDisplay: React.FC = () => {
       <VideoPlayerCard
         title="정확한 발음 (wav2lip)"
         icon={<MonitorPlay className="w-7 h-7 text-blue-600" />}
+        dialogContent={
+          <LargeVideoPlayer
+            title="정확한 발음 (wav2lip)"
+            icon={<MonitorPlay className="w-8 h-8 mr-2.5 text-blue-600" strokeWidth={2} />}
+            videoSrc=""
+            posterSrc="https://placehold.co/867x549/e2e8f0/64748b?text=Wav2Lip+Video"
+          />
+        }
       />
       <VideoPlayerCard
         title="현재 내 발음 (사용자 녹화 영상)"
         icon={<User className="w-7 h-7 text-green-500" />}
+        dialogContent={
+          <LargeVideoPlayer
+            title="현재 내 발음 (사용자 녹화 영상)"
+            icon={<User className="w-8 h-8 mr-2.5 text-green-500" strokeWidth={2} />}
+            videoSrc=""
+            posterSrc="https://placehold.co/867x549/e2e8f0/64748b?text=User+Video"
+          />
+        }
       />
     </div>
   );
