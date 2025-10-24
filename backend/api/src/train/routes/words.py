@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from ..schemas import TrainWordCreate, TrainWordUpdate, TrainWordResponse
+from ..schemas import TrainWordCreate, TrainWordUpdate, TrainWordResponse, DeleteSuccessResponse
 from ..services import WordService
 from api.core.database import get_session
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -71,7 +71,7 @@ async def update_train_word(
         )
 
 
-@router.delete("/{word_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{word_id}", response_model=DeleteSuccessResponse, status_code=status.HTTP_200_OK)
 async def delete_train_word(
     word_id: int,
     service: WordService = Depends(get_service)
@@ -82,3 +82,4 @@ async def delete_train_word(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="단어를 찾을 수 없습니다."
         )
+    return DeleteSuccessResponse()
