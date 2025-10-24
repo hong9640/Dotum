@@ -1,11 +1,13 @@
 from .words import TrainWords
 from .sentences import TrainSentences
-from .results import WordTrainResults, SentenceTrainResults
+from .training_session import TrainingSession, TrainingType, TrainingSessionStatus
+from .training_item import TrainingItem
 
 __all__ = [
     "TrainWords",
     "TrainSentences",
-    "WordTrainResults",
-    "SentenceTrainResults",
+    "TrainingSession",
+    "TrainingType",
+    "TrainingSessionStatus",
+    "TrainingItem"
 ]
-

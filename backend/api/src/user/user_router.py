@@ -12,7 +12,7 @@ from api.src.auth.auth_schema import (
     FailResponse, 
     ErrorDetail,
     )
-from api.src.user.user_service import UserUpdateRequest, update_user_profile, upload_file_to_gcs
+from api.src.user.user_service import UserUpdateRequest, update_user_profile
 from api.src.user.user_schema import FileUploadResponse
 router = APIRouter(
     tags=["user"],
