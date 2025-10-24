@@ -26,13 +26,13 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ isLoggedIn, onLogout }) =
           <div className="flex items-center space-x-4 md:space-x-6">
             <a
               href="#"
-              className="px-3 py-2 text-xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 font-['Pretendard'] md:text-3xl"
+              className="px-3 py-2 text-xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 md:text-3xl"
             >
               발음 훈련
             </a>
             <a
               href="#"
-              className="px-3 py-2 text-xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 font-['Pretendard'] md:text-3xl"
+              className="px-3 py-2 text-xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 md:text-3xl"
             >
               훈련기록
             </a>
@@ -41,7 +41,7 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ isLoggedIn, onLogout }) =
               <button
                 type="button"
                 onClick={onLogout}
-                className="flex items-center gap-2 px-3 py-2 text-xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 font-['Pretendard'] md:text-3xl"
+                className="flex items-center gap-2 px-3 py-2 text-xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 md:text-3xl"
               >
                 <LogOut className="h-7 w-7 md:h-8 md:w-8" strokeWidth={2.5} />
                 <span>로그아웃</span>
@@ -49,7 +49,7 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ isLoggedIn, onLogout }) =
             ) : (
               <Link
                 to="/login"
-                className="flex items-center gap-2 px-3 py-2 text-xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 font-['Pretendard'] md:text-3xl"
+                className="flex items-center gap-2 px-3 py-2 text-xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 md:text-3xl"
               >
                 <LogIn className="h-7 w-7 md:h-8 md:w-8" strokeWidth={2.5} />
                 <span>로그인</span>

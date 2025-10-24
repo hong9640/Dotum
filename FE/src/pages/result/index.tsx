@@ -3,6 +3,7 @@ import { usePracticeStore } from "@/stores/practiceStore";
 import ProgressHeader from "@/components/ProgressHeader";
 import WordDisplay from "@/components/WordDisplay";
 import ResultVideoDisplay from "@/pages/result/components/ResultVideoDisplay";
+import FeedbackCard from "@/pages/result/components/FeedbackCard";
 
 const PracticePage: React.FC = () => {
   // 상태 관리
@@ -24,6 +25,7 @@ const PracticePage: React.FC = () => {
           {/* 발음할 단어 표시 */}
           <WordDisplay targetWord={currentWord} />
           <ResultVideoDisplay />
+          <FeedbackCard />
         </div>
       </div>
     </div>
