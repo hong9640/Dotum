@@ -4,6 +4,7 @@ import NavigationBar from '@/components/NavigationBar';
 import HomePage from '@/pages/home';
 import PracticePage from '@/pages/practice';
 import LoginPage from '@/pages/login';
+import ResultPage from '@/pages/result';
 
 const App: React.FC = () => {
   // 전역 로그인 상태 관리
@@ -27,6 +28,7 @@ const App: React.FC = () => {
             <Route path="/" element={<HomePage />} />
             <Route path="/practice" element={<PracticePage />} />
             <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+            <Route path="/result" element={<ResultPage />} />
           </Routes>
         </main>
       </div>
