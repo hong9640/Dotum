@@ -1,7 +1,14 @@
 import React from 'react';
-import { LogOut } from 'lucide-react';
+import { LogOut, LogIn } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
-const NavigationBar: React.FC = () => {
+interface NavigationBarProps {
+  isLoggedIn: boolean;
+  onLogout: () => void;
+}
+
+const NavigationBar: React.FC<NavigationBarProps> = ({ isLoggedIn, onLogout }) => {
+
   return (
     <nav className="w-full bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border-b border-gray-200">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -29,13 +36,25 @@ const NavigationBar: React.FC = () => {
             >
               훈련기록
             </a>
-            <button
-              type="button"
-              className="flex items-center gap-2 px-3 py-2 text-xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 font-['Pretendard'] md:text-3xl"
-            >
-              <LogOut className="h-7 w-7 md:h-8 md:w-8" strokeWidth={2.5} />
-              <span>로그아웃</span>
-            </button>
+            {/* 로그인 상태에 따른 버튼 렌더링 */}
+            {isLoggedIn ? (
+              <button
+                type="button"
+                onClick={onLogout}
+                className="flex items-center gap-2 px-3 py-2 text-xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 font-['Pretendard'] md:text-3xl"
+              >
+                <LogOut className="h-7 w-7 md:h-8 md:w-8" strokeWidth={2.5} />
+                <span>로그아웃</span>
+              </button>
+            ) : (
+              <Link
+                to="/login"
+                className="flex items-center gap-2 px-3 py-2 text-xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 font-['Pretendard'] md:text-3xl"
+              >
+                <LogIn className="h-7 w-7 md:h-8 md:w-8" strokeWidth={2.5} />
+                <span>로그인</span>
+              </Link>
+            )}
           </div>
         </div>
       </div>
