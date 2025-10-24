@@ -16,6 +16,7 @@ from .results import (
     SentenceTrainResultUpdate,
     SentenceTrainResultResponse,
 )
+from .common import DeleteSuccessResponse
 
 __all__ = [
     "TrainWordCreate",
@@ -30,5 +31,6 @@ __all__ = [
     "SentenceTrainResultCreate",
     "SentenceTrainResultUpdate",
     "SentenceTrainResultResponse",
+    "DeleteSuccessResponse",
 ]
 

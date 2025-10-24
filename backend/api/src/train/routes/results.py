@@ -6,6 +6,7 @@ from ..schemas import (
     SentenceTrainResultCreate,
     SentenceTrainResultUpdate,
     SentenceTrainResultResponse,
+    DeleteSuccessResponse,
 )
 from ..services import WordTrainResultService, SentenceTrainResultService
 from api.core.database import get_session
@@ -68,7 +69,7 @@ async def update_word_result(
     return updated_result
 
 
-@word_results_router.delete("/{result_id}", status_code=status.HTTP_204_NO_CONTENT)
+@word_results_router.delete("/{result_id}", response_model=DeleteSuccessResponse, status_code=status.HTTP_200_OK)
 async def delete_word_result(
     result_id: int,
     service: WordTrainResultService = Depends(get_word_service)
@@ -79,6 +80,7 @@ async def delete_word_result(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="단어 훈련 결과를 찾을 수 없습니다."
         )
+    return DeleteSuccessResponse()
 
 
 # Sentence Train Results Router
@@ -138,7 +140,7 @@ async def update_sentence_result(
     return updated_result
 
 
-@sentence_results_router.delete("/{result_id}", status_code=status.HTTP_204_NO_CONTENT)
+@sentence_results_router.delete("/{result_id}", response_model=DeleteSuccessResponse, status_code=status.HTTP_200_OK)
 async def delete_sentence_result(
     result_id: int,
     service: SentenceTrainResultService = Depends(get_sentence_service)
@@ -149,4 +151,5 @@ async def delete_sentence_result(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="문장 훈련 결과를 찾을 수 없습니다."
         )
+    return DeleteSuccessResponse()
 
