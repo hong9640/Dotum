@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from ..schemas import TrainSentenceCreate, TrainSentenceUpdate, TrainSentenceResponse, DeleteSuccessResponse
+from ..schemas import TrainSentenceCreate, TrainSentenceUpdate, TrainSentenceResponse
 from ..services import SentenceService
 from api.core.database import get_session
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,7 +31,7 @@ async def get_sentence_detail(
     if not sentence:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Sentence not found"
+            detail="문장을 찾을 수 없습니다."
         )
     return sentence
 
@@ -61,7 +61,7 @@ async def update_sentence(
         if not updated_sentence:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Sentence not found"
+                detail="문장을 찾을 수 없습니다."
             )
         return updated_sentence
     except ValueError as e:
@@ -71,7 +71,7 @@ async def update_sentence(
         )
 
 
-@router.delete("/{sentence_id}", response_model=DeleteSuccessResponse, status_code=status.HTTP_200_OK)
+@router.delete("/{sentence_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_sentence(
     sentence_id: int,
     service: SentenceService = Depends(get_service)
@@ -82,4 +82,3 @@ async def delete_sentence(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="문장을 찾을 수 없습니다."
         )
-    return DeleteSuccessResponse()
