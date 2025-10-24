@@ -1,7 +1,7 @@
 import React from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MonitorPlay, Camera, Play, Settings2, Expand } from "lucide-react";
+import { MonitorPlay, Camera, Play, Settings2, Expand, User } from "lucide-react";
 
 // --- VideoPlayerCard 컴포넌트 (신규) ---
 /**
@@ -28,7 +28,7 @@ const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
       <CardHeader>
         {/* pb-5 적용 */}
         <CardTitle
-          className="flex items-center gap-2.5 text-2xl md:text-3xl font-semibold font-['Pretendard'] text-slate-800 pb-5"
+          className="flex items-center gap-2.5 text-2xl md:text-3xl font-semibold font-['Pretendard'] text-slate-800"
         >
           {icon}
           {title}
@@ -49,7 +49,7 @@ const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
         </div>
       </CardContent>
       {/* 컨트롤러 영역 (h-10, gap-5) */}
-      <CardFooter className="h-10 flex justify-center items-center gap-5 px-6 pb-6">
+      <CardFooter className="h-auto min-h-10 flex justify-center items-center gap-5 px-6 pb-6">
         <Button
           variant="ghost"
           size="icon"
@@ -92,7 +92,7 @@ const ResultVideoDisplay: React.FC = () => {
       />
       <VideoPlayerCard
         title="현재 내 발음 (사용자 녹화 영상)"
-        icon={<Camera className="w-7 h-7 text-green-500" />}
+        icon={<User className="w-7 h-7 text-green-500" />}
       />
     </div>
   );
