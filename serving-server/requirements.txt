@@ -1,0 +1,40 @@
+# FastAPI and core dependencies
+fastapi==0.104.1
+uvicorn==0.24.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# GCP SDK
+google-cloud-storage==2.10.0
+google-cloud-speech==2.21.0
+google-cloud-texttospeech==2.14.1
+
+# PyTorch CUDA 12.1
+torch==2.3.1+cu121
+torchvision==0.18.1+cu121
+torchaudio==2.3.1+cu121
+
+# 과학 스택
+numpy==1.26.4
+scipy==1.11.4
+
+# JIT 스택 (Py3.12 호환)
+llvmlite==0.43.0
+numba==0.60.0
+
+# 오디오/유틸/영상
+librosa==0.10.1
+soundfile==0.12.1
+audioread==3.0.1
+opencv-python==4.8.0.76
+matplotlib==3.8.4
+tqdm==4.67.1
+requests==2.32.4
+setuptools
+webrtcvad
+torchcrepe==0.0.23
+pyworld==0.3.4
+
+# Additional utilities
+python-multipart==0.0.6
+aiofiles==23.2.1
