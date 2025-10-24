@@ -1,6 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Circle, Square, RotateCcw, Upload } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface RecordingControlsProps {
   recordingState: "idle" | "recording" | "processing" | "error";
@@ -19,6 +20,14 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   onRetake,
   onViewResults,
 }) => {
+  const navigate = useNavigate();
+
+  const handleViewResults = () => {
+    if (onViewResults) {
+      onViewResults();
+    }
+    navigate('/result');
+  };
   return (
     <div className="flex justify-center gap-3 sm:gap-4">
       {recordingState === "idle" && !blobUrl && (
@@ -49,7 +58,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
               size="lg" 
               variant="default" 
               className="px-8 py-6 text-xl flex items-center gap-3" 
-              onClick={onViewResults}
+              onClick={handleViewResults}
             >
               <Upload className="size-6 text-white" />
               영상 제출
