@@ -1,5 +1,5 @@
 import React from 'react';
-import { Video, History } from 'lucide-react';
+import { PlayIcon, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 
@@ -13,19 +13,19 @@ const HomePage: React.FC = () => {
           <div className="pb-6">
             <img
               className="w-52 h-48"
-              src="https://placehold.co/204x198/e2e8f0/64748b?text=Image"
+              src="./src/assets/도드미_안경.png"
               alt="발음 교정 서비스"
             />
           </div>
           {/* 메인 헤딩 */}
           <div className="pb-4">
-            <h1 className="text-center text-slate-800 text-5xl font-extrabold font-['Pretendard'] leading-[48px]">
+            <h1 className="text-center text-slate-800 text-5xl font-extrabold">
               발음 교정 서비스
             </h1>
           </div>
           {/* 서브 헤딩 */}
           <div>
-            <p className="text-center text-slate-600 text-2xl font-semibold font-['Pretendard'] leading-8">
+            <p className="text-center text-slate-600 text-2xl font-semibold">
               정상 발화 영상과 비교하며 발음을 교정해보세요.
             </p>
           </div>
@@ -36,9 +36,10 @@ const HomePage: React.FC = () => {
           {/* 발음 연습 시작 버튼 (Primary) */}
           <Link to="/practice">
             <Button
-              className="w-72 h-auto min-h-10 px-6 py-4 bg-green-500 text-white hover:bg-green-600 text-3xl font-semibold font-['Pretendard'] leading-9"
+              size="lg"
+              className="w-72 bg-green-500 text-white hover:bg-green-600"
             >
-              <Video className="w-8 h-8 mr-2" strokeWidth={2.5} />
+              <PlayIcon size={32} className="mr-2" strokeWidth={2.5} />
               발음 연습 시작
             </Button>
           </Link>
@@ -46,9 +47,10 @@ const HomePage: React.FC = () => {
           {/* 훈련 기록 버튼 (Outline) */}
           <Button
             variant="outline"
-            className="w-72 h-auto min-h-10 px-6 py-4 bg-white text-slate-800 border-slate-200 border-2 hover:bg-slate-100 hover:text-slate-800 text-3xl font-semibold font-['Pretendard'] leading-9"
+            size="lg"
+            className="w-72 bg-white text-gray-800 border-slate-200 border-2 hover:bg-gray-100 hover:text-gray-800"
           >
-            <History className="w-8 h-8 mr-2" strokeWidth={2.5} />
+            <ClipboardList size={32} className="mr-2" strokeWidth={2.5} />
             훈련 기록
           </Button>
         </div>
