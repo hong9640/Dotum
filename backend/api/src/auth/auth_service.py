@@ -1,9 +1,9 @@
 import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Union
+from typing import Annotated
 from pydantic import BaseModel, EmailStr
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -38,7 +38,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login", auto_error=True)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+BLACKLIST = set()
 
 # ---커스텀 예외 클래스---
 
@@ -127,6 +128,10 @@ async def login_user(user_data: UserLoginRequest, db: AsyncSession) -> dict:
     token_data = {"sub": user.username}
     access_token = create_access_token(data=token_data)
     refresh_token = create_refresh_token(data=token_data)
+    try:
+        payload = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
+    except Exception as e:
+        print(f"    - 생성 직후 디코딩 실패: {e}")
 
     return {
         "user": user,
@@ -135,18 +140,32 @@ async def login_user(user_data: UserLoginRequest, db: AsyncSession) -> dict:
         "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60
     }
 
-async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_session)) -> User:
+async def add_token_to_blacklist(token: str) -> None:
+    """토큰을 블랙리스트에 추가합니다."""
+    BLACKLIST.add(token)
+
+async def get_current_user(
+    token: Annotated[str, Depends(oauth2_scheme)],
+    db: AsyncSession = Depends(get_session)
+) -> User:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
+        print(username)
         if username is None:
-            raise CredentialsException()
+            raise credentials_exception
     except JWTError:
-        raise CredentialsException()
+        raise credentials_exception
     
     user = await get_user_by_email(email=username, db=db)
+    print(user)
     if user is None:
-        raise CredentialsException()
+        raise credentials_exception
         
     return user
 
@@ -158,7 +177,7 @@ async def soft_delete_user(user: User, password: str, db: AsyncSession):
         raise InvalidCredentialsError("비밀번호가 일치하지 않습니다.")
     
     # 2. deleted_at 필드에 현재 시간을 기록합니다.
-    user.deleted_at = datetime.now(KST)
+    user.deleted_at = datetime.now()
     db.add(user)
     await db.commit()
     await db.refresh(user)
