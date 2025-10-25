@@ -84,6 +84,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           </p>
           <Button
             variant="link"
+            onClick={() => navigate('/signup')}
             className="p-0 text-lg font-semibold text-blue-600 md:text-2xl"
           >
             회원가입
