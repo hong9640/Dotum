@@ -4,6 +4,7 @@ import NavigationBar from '@/components/NavigationBar';
 import HomePage from '@/pages/home';
 import PracticePage from '@/pages/practice';
 import LoginPage from '@/pages/login';
+import SignupPage from '@/pages/signup';
 import ResultPage from '@/pages/result';
 
 const App: React.FC = () => {
@@ -18,6 +19,10 @@ const App: React.FC = () => {
     setIsLoggedIn(false);
   };
 
+  const handleSignup = () => {
+    setIsLoggedIn(true);
+  };
+
   return (
     <Router>
       <div className="min-h-screen bg-gray-50">
@@ -28,6 +33,7 @@ const App: React.FC = () => {
             <Route path="/" element={<HomePage />} />
             <Route path="/practice" element={<PracticePage />} />
             <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+            <Route path="/signup" element={<SignupPage onSignup={handleSignup} />} />
             <Route path="/result" element={<ResultPage />} />
           </Routes>
         </main>
