@@ -5,6 +5,7 @@ from sqlalchemy.orm import foreign
 from .user_enum import UserRoleEnum
 if TYPE_CHECKING:
     from api.src.train.models import TrainingSession
+    from api.src.train.models.media import MediaFile
 
 class User(SQLModel, table=True):
     __tablename__ = "users"
@@ -23,7 +24,15 @@ class User(SQLModel, table=True):
     training_sessions: list["TrainingSession"] = Relationship(
         sa_relationship_kwargs={
             "primaryjoin": "User.id==foreign(TrainingSession.user_id)",
-            "backref": "user",
+            "foreign_keys": "[TrainingSession.user_id]",
+        }
+    )
+    
+    # 미디어 파일
+    media_files: list["MediaFile"] = Relationship(
+        sa_relationship_kwargs={
+            "primaryjoin": "User.id==foreign(MediaFile.user_id)",
+            "foreign_keys": "[MediaFile.user_id]",
         }
     )
     

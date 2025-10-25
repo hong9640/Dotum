@@ -119,6 +119,7 @@ class TrainingItemRepository(BaseRepository[TrainingItem]):
         self, 
         item_id: int, 
         video_url: str,
+        media_file_id: Optional[int] = None,
         is_completed: bool = True
     ) -> Optional[TrainingItem]:
         """아이템 완료 처리"""
@@ -128,10 +129,27 @@ class TrainingItemRepository(BaseRepository[TrainingItem]):
         
         item.is_completed = is_completed
         item.video_url = video_url
+        item.media_file_id = media_file_id
         item.completed_at = datetime.now() if is_completed else None
         item.updated_at = datetime.now()
         
         return item
+    
+    async def get_current_item(
+        self, 
+        session_id: int,
+        include_relations: bool = True
+    ) -> Optional[TrainingItem]:
+        """현재 세션의 진행 중인 아이템 조회"""
+        stmt = self._get_base_query(include_relations)
+        stmt = stmt.where(
+            TrainingItem.training_session_id == session_id,
+            TrainingItem.is_completed == False
+        )
+        stmt = stmt.order_by(TrainingItem.item_index).limit(1)
+        
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def get_completion_stats(self, session_id: int) -> dict:
         """세션 완료 통계 조회"""

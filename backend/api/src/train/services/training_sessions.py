@@ -180,20 +180,49 @@ class TrainingSessionService:
         session_id: int, 
         item_id: int, 
         video_url: str, 
+        media_file_id: Optional[int],
         is_completed: bool,
         user_id: int
     ) -> Optional[TrainingSession]:
         """훈련 아이템 완료 처리 (자동 진행률 업데이트)"""
         # 아이템 완료 처리
-        await self.repo.complete_item(session_id, item_id, video_url, is_completed)
+        await self.item_repo.complete_item(item_id, video_url, media_file_id, is_completed)
         
         # 세션 진행률 자동 업데이트
         completed_count = await self.repo.get_completed_items_count(session_id)
         await self.repo.update_progress(session_id, completed_count)
         
+        # 다음 아이템으로 이동
+        await self.repo.move_to_next_item(session_id)
+        
         await self.db.commit()
         
         return await self.get_training_session(session_id, user_id)
+    
+    async def get_current_item(
+        self,
+        session_id: int,
+        user_id: int
+    ):
+        """현재 세션의 진행 중인 아이템 조회"""
+        # 세션 소유권 확인
+        session = await self.get_training_session(session_id, user_id)
+        if not session:
+            return None
+        
+        # 현재 아이템 조회
+        current_item = await self.item_repo.get_current_item(session_id, include_relations=True)
+        
+        if not current_item:
+            return None
+        
+        # 다음 아이템 존재 여부 확인
+        has_next = await self.item_repo.get_next_item(session_id, current_item.item_index) is not None
+        
+        return {
+            'item': current_item,
+            'has_next': has_next
+        }
     
     async def delete_training_session(
         self, 

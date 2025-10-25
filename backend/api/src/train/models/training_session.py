@@ -55,12 +55,11 @@ class TrainingSession(SQLModel, table=True):
     started_at: Optional[datetime] = Field(default=None, description="시작 시간")
     completed_at: Optional[datetime] = Field(default=None, description="완료 시간")
     
-    # Relationships
+    # Relationships (논리 FK)
     training_items: List["TrainingItem"] = Relationship(
         sa_relationship_kwargs={
             "primaryjoin": "TrainingSession.id==foreign(TrainingItem.training_session_id)",
-            "backref": "training_session",
-            "cascade": "all, delete-orphan"
+            "foreign_keys": "[TrainingItem.training_session_id]",
         }
     )
     

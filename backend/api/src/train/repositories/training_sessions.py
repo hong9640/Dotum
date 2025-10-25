@@ -242,3 +242,36 @@ class TrainingSessionRepository(BaseRepository[TrainingSession]):
         result = await self.db.execute(session_stmt)
         
         return result.rowcount > 0
+    
+    async def get_completed_items_count(self, session_id: int) -> int:
+        """완료된 아이템 수 조회"""
+        stmt = select(func.count(TrainingItem.id)).where(
+            TrainingItem.training_session_id == session_id,
+            TrainingItem.is_completed == True
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one() or 0
+    
+    async def move_to_next_item(self, session_id: int) -> bool:
+        """다음 아이템으로 이동"""
+        # 현재 아이템 인덱스 조회
+        session = await self.get_session_by_id(session_id)
+        if not session:
+            return False
+        
+        # 완료된 아이템 수로 다음 인덱스 계산
+        completed_count = await self.get_completed_items_count(session_id)
+        next_index = completed_count
+        
+        update_data = {
+            'current_item_index': next_index,
+            'updated_at': func.now()
+        }
+        
+        result = await self.db.execute(
+            update(TrainingSession)
+            .where(TrainingSession.id == session_id)
+            .values(**update_data)
+        )
+        
+        return result.rowcount > 0

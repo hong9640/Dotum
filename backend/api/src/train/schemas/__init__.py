@@ -9,7 +9,17 @@ from .training_sessions import (
     DailyTrainingResponse,
     CreateSuccessResponse
 )
-from .training_items import TrainingItemResponse
+from .training_items import TrainingItemResponse, CurrentItemResponse, CompleteItemRequest
+from .media import (
+    MediaCreate,
+    MediaResponse,
+    MediaUpdate,
+    MediaListResponse,
+    MediaUploadUrlResponse,
+    MediaProgressResponse,
+    MediaFilter
+)
+from ..models.media import MediaType, MediaStatus
 
 __all__ = [
     "TrainWordCreate",
@@ -25,5 +35,16 @@ __all__ = [
     "CalendarResponse",
     "DailyTrainingResponse",
     "CreateSuccessResponse",
-    "TrainingItemResponse"
+    "TrainingItemResponse",
+    "CurrentItemResponse",
+    "CompleteItemRequest",
+    "MediaCreate",
+    "MediaResponse",
+    "MediaUpdate",
+    "MediaListResponse",
+    "MediaUploadUrlResponse",
+    "MediaProgressResponse",
+    "MediaFilter",
+    "MediaType",
+    "MediaStatus"
 ]

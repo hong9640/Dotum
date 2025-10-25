@@ -234,3 +234,15 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.toptal.com/developers/gitignore/api/python,visualstudiocode,windows,linux
+
+# GCS Credentials
+key.json
+
+# media files
+*.mp4
+
+# claude.md
+claude.md
+
+# test files
+test_*.py

@@ -2,6 +2,7 @@ from .words import TrainWords
 from .sentences import TrainSentences
 from .training_session import TrainingSession, TrainingType, TrainingSessionStatus
 from .training_item import TrainingItem
+from .media import MediaFile, MediaType, MediaStatus
 
 __all__ = [
     "TrainWords",
@@ -9,5 +10,8 @@ __all__ = [
     "TrainingSession",
     "TrainingType",
     "TrainingSessionStatus",
-    "TrainingItem"
+    "TrainingItem",
+    "MediaFile",
+    "MediaType",
+    "MediaStatus"
 ]
