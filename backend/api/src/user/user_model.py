@@ -4,7 +4,8 @@ from sqlmodel import Field, SQLModel, Relationship
 from sqlalchemy.orm import foreign
 from .user_enum import UserRoleEnum
 if TYPE_CHECKING:
-    from api.src.train.models import WordTrainResults, SentenceTrainResults
+    from api.src.train.models import TrainingSession
+    from api.src.train.models.media import MediaFile
 
 class User(SQLModel, table=True):
     __tablename__ = "users"
@@ -19,17 +20,19 @@ class User(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.now, nullable=True)
     deleted_at: Optional[datetime] = Field(default=None, nullable=True)
 
-    # Realtionship(후에 다른 기능 추가되면 추가할 예정!)
-    word_train_results: list["WordTrainResults"] = Relationship(
-        back_populates="user",
+    # 통합 훈련 세션
+    training_sessions: list["TrainingSession"] = Relationship(
         sa_relationship_kwargs={
-            "primaryjoin": "User.id==foreign(WordTrainResults.user_id)",
+            "primaryjoin": "User.id==foreign(TrainingSession.user_id)",
+            "foreign_keys": "[TrainingSession.user_id]",
         }
     )
-    sentence_train_results: list["SentenceTrainResults"] = Relationship(
-        back_populates="user",
+    
+    # 미디어 파일
+    media_files: list["MediaFile"] = Relationship(
         sa_relationship_kwargs={
-            "primaryjoin": "User.id==foreign(SentenceTrainResults.user_id)",
+            "primaryjoin": "User.id==foreign(MediaFile.user_id)",
+            "foreign_keys": "[MediaFile.user_id]",
         }
     )
     

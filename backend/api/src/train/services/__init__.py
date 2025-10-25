@@ -1,11 +1,11 @@
 from .words import WordService
 from .sentences import SentenceService
-from .results import WordTrainResultService, SentenceTrainResultService
+from .training_sessions import TrainingSessionService
+from .media import MediaService
 
 __all__ = [
     "WordService",
-    "SentenceService",
-    "WordTrainResultService",
-    "SentenceTrainResultService",
+    "SentenceService", 
+    "TrainingSessionService",
+    "MediaService"
 ]
-

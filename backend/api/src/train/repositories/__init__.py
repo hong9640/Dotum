@@ -1,13 +1,14 @@
 from .base import BaseRepository
 from .words import WordRepository
 from .sentences import SentenceRepository
-from .results import WordTrainResultRepository, SentenceTrainResultRepository
+from .training_sessions import TrainingSessionRepository
+from .training_items import TrainingItemRepository
 
 __all__ = [
     "BaseRepository",
     "WordRepository",
     "SentenceRepository",
-    "WordTrainResultRepository",
-    "SentenceTrainResultRepository",
+    "TrainingSessionRepository",
+    "TrainingItemRepository"
 ]
 

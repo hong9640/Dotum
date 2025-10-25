@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION: int = 30  # 분단위
 
+    # Google Cloud Storage Settings
+    GCS_BUCKET_NAME: str
+    GCS_PROJECT_ID: str
+    GCS_CREDENTIALS_PATH: str = ""  # 서비스 계정 키 파일 경로 (선택사항)
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

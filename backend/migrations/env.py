@@ -25,7 +25,14 @@ if db_url.startswith("postgresql+asyncpg://"):
 # add your model's MetaData object here
 # for 'autogenerate' support
 # Import all models here to ensure they are registered with SQLModel
-from api.src.train.models import WordTrainResults, SentenceTrainResults, TrainWords, TrainSentences
+from api.src.train.models import (
+    TrainWords, 
+    TrainSentences, 
+    TrainingSession,
+    TrainingType,
+    TrainingSessionStatus,
+    TrainingItem
+)
 from api.src.user.user_model import User
 
 target_metadata = SQLModel.metadata

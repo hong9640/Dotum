@@ -1,0 +1,229 @@
+import os
+import uuid
+from datetime import datetime, timedelta
+from typing import Optional
+from google.cloud import storage
+from google.cloud.exceptions import NotFound
+from api.core.config import Settings
+from api.utils.utils import sanitize_username_for_path, generate_file_path
+
+
+class GCSService:
+    """GCS 파일 관리 서비스"""
+    
+    def __init__(self, settings: Settings):
+        self.bucket_name = settings.GCS_BUCKET_NAME
+        self.project_id = settings.GCS_PROJECT_ID
+        self.credentials_path = settings.GCS_CREDENTIALS_PATH
+        
+        # GCS 클라이언트 초기화
+        if self.credentials_path and os.path.exists(self.credentials_path):
+            os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = self.credentials_path
+        
+        self.client = storage.Client(project=self.project_id)
+        self.bucket = self.client.bucket(self.bucket_name)
+    
+    def generate_video_path(self, username: str, filename: str) -> str:
+        """
+        동영상 파일 경로 생성
+        형식: videos/{username}/{YYYY-MM-DD}/{filename}
+        """
+        return generate_file_path(
+            base_path="videos",
+            username=username,
+            filename=filename
+        )
+    
+    def generate_unique_filename(self, original_filename: str) -> str:
+        """
+        고유한 파일명 생성
+        """
+        from api.utils.utils import generate_unique_filename as gen_unique_name
+        return gen_unique_name(original_filename)
+    
+    async def upload_video(
+        self, 
+        file_content: bytes, 
+        username: str, 
+        original_filename: str,
+        content_type: str = "video/mp4"
+    ) -> dict:
+        """
+        동영상 파일을 GCS에 업로드
+        
+        Args:
+            file_content: 파일 바이너리 데이터
+            username: 사용자명
+            original_filename: 원본 파일명
+            content_type: MIME 타입
+            
+        Returns:
+            dict: 업로드 결과 정보
+        """
+        try:
+            # 고유한 파일명 생성
+            unique_filename = self.generate_unique_filename(original_filename)
+            
+            # GCS 경로 생성
+            object_path = self.generate_video_path(username, unique_filename)
+            
+            # GCS 객체 생성
+            blob = self.bucket.blob(object_path)
+            
+            # 메타데이터 설정
+            blob.metadata = {
+                "username": username,
+                "original_filename": original_filename,
+                "upload_date": datetime.now().isoformat(),
+                "file_type": "video"
+            }
+            
+            # 파일 업로드
+            blob.upload_from_string(
+                file_content,
+                content_type=content_type
+            )
+            
+            # 공개 URL 생성 (필요시)
+            public_url = f"https://storage.googleapis.com/{self.bucket_name}/{object_path}"
+            
+            return {
+                "success": True,
+                "object_path": object_path,
+                "public_url": public_url,
+                "filename": unique_filename,
+                "file_size": len(file_content),
+                "content_type": content_type
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "object_path": None
+            }
+    
+    async def download_video(self, object_path: str) -> Optional[bytes]:
+        """
+        GCS에서 동영상 파일 다운로드
+        
+        Args:
+            object_path: GCS 객체 경로
+            
+        Returns:
+            bytes: 파일 바이너리 데이터 또는 None
+        """
+        try:
+            blob = self.bucket.blob(object_path)
+            if not blob.exists():
+                return None
+            
+            return blob.download_as_bytes()
+            
+        except NotFound:
+            return None
+        except Exception as e:
+            print(f"다운로드 오류: {e}")
+            return None
+    
+    async def delete_video(self, object_path: str) -> bool:
+        """
+        GCS에서 동영상 파일 삭제
+        
+        Args:
+            object_path: GCS 객체 경로
+            
+        Returns:
+            bool: 삭제 성공 여부
+        """
+        try:
+            blob = self.bucket.blob(object_path)
+            blob.delete()
+            return True
+            
+        except NotFound:
+            return False
+        except Exception as e:
+            print(f"삭제 오류: {e}")
+            return False
+    
+    async def get_signed_url(
+        self, 
+        object_path: str, 
+        expiration_hours: int = 1
+    ) -> Optional[str]:
+        """
+        서명된 URL 생성 (임시 접근용)
+        
+        Args:
+            object_path: GCS 객체 경로
+            expiration_hours: 만료 시간 (시간)
+            
+        Returns:
+            str: 서명된 URL 또는 None
+        """
+        try:
+            blob = self.bucket.blob(object_path)
+            if not blob.exists():
+                return None
+            
+            expiration = datetime.utcnow() + timedelta(hours=expiration_hours)
+            return blob.generate_signed_url(expiration=expiration)
+            
+        except Exception as e:
+            print(f"서명된 URL 생성 오류: {e}")
+            return None
+    
+    async def list_user_videos(
+        self, 
+        username: str, 
+        date_filter: Optional[str] = None
+    ) -> list:
+        """
+        사용자의 동영상 파일 목록 조회
+        
+        Args:
+            username: 사용자명
+            date_filter: 날짜 필터 (YYYY-MM-DD 형식)
+            
+        Returns:
+            list: 동영상 파일 정보 목록
+        """
+        try:
+            safe_username = sanitize_username_for_path(username)
+            prefix = f"videos/{safe_username}/"
+            
+            if date_filter:
+                prefix += f"{date_filter}/"
+            
+            blobs = self.client.list_blobs(self.bucket_name, prefix=prefix)
+            
+            videos = []
+            for blob in blobs:
+                if blob.name.endswith(('.mp4', '.avi', '.mov', '.mkv', '.webm')):
+                    videos.append({
+                        "object_path": blob.name,
+                        "filename": blob.name.split('/')[-1],
+                        "size": blob.size,
+                        "created": blob.time_created,
+                        "content_type": blob.content_type,
+                        "metadata": blob.metadata or {}
+                    })
+            
+            return videos
+            
+        except Exception as e:
+            print(f"파일 목록 조회 오류: {e}")
+            return []
+
+
+# 전역 GCS 서비스 인스턴스
+_gcs_service: Optional[GCSService] = None
+
+
+def get_gcs_service(settings: Settings) -> GCSService:
+    """GCS 서비스 인스턴스 반환 (싱글톤 패턴)"""
+    global _gcs_service
+    if _gcs_service is None:
+        _gcs_service = GCSService(settings)
+    return _gcs_service
