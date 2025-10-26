@@ -34,6 +34,7 @@ from api.src.train.models import (
     TrainingItem
 )
 from api.src.user.user_model import User
+from api.src.token.token_model import RefreshToken
 
 target_metadata = SQLModel.metadata
 

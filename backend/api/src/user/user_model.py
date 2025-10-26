@@ -6,6 +6,7 @@ from .user_enum import UserRoleEnum
 if TYPE_CHECKING:
     from api.src.train.models import TrainingSession
     from api.src.train.models.media import MediaFile
+    from backend.api.src.token.token_model import RefreshToken
 
 class User(SQLModel, table=True):
     __tablename__ = "users"
@@ -33,6 +34,14 @@ class User(SQLModel, table=True):
         sa_relationship_kwargs={
             "primaryjoin": "User.id==foreign(MediaFile.user_id)",
             "foreign_keys": "[MediaFile.user_id]",
+        }
+    )
+
+    # 리프레시 토큰
+    refresh_tokens: list["RefreshToken"] = Relationship(
+        sa_relationship_kwargs={
+            "primaryjoin": "User.id==foreign(RefreshToken.user_id)",
+            "foreign_keys": "[RefreshToken.user_id]",
         }
     )
     

@@ -1,4 +1,5 @@
 import os
+import hashlib
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
@@ -9,24 +10,15 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
-from sqlalchemy.orm import selectinload
+from sqlmodel import select,delete
 from api.core.database import get_session
 from api.src.user.user_enum import UserRoleEnum
 from api.src.user.user_model import User
+from api.src.token.token_model import RefreshToken
 from .auth_schema import (
     UserLoginRequest, 
-    LoginSuccessResponse, 
-    FailResponse, 
-    UserLogoutRequest,
-    UserLogoutSuccessResponse,
     SignupRequest,
-    SignupSuccessResponse,
-    SignoutRequest,
-    SignoutResponse,
-    VerifyEmailResponse
     )
-from api.core.exception import AlreadyExistsException
 load_dotenv()
 
 # ---jwt 등 보안 관련 설정---
@@ -39,7 +31,6 @@ REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
-BLACKLIST = set()
 
 # ---커스텀 예외 클래스---
 
@@ -55,7 +46,6 @@ class InvalidCredentialsError(Exception):
     pass
 
 # ---비밀번호, 토큰 관련 함수---
-KST = timezone(timedelta(hours=9))
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
@@ -63,16 +53,19 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
+def hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
 def create_access_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.now(KST) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 def create_refresh_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.now(KST) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = datetime.now() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -124,14 +117,38 @@ async def login_user(user_data: UserLoginRequest, db: AsyncSession) -> dict:
 
     if not user or not verify_password(user_data.password, user.password):
         raise InvalidCredentialsError()
-
+    
     token_data = {"sub": user.username}
     access_token = create_access_token(data=token_data)
     refresh_token = create_refresh_token(data=token_data)
+
+    hashed_refresh_token = hash_token(refresh_token)
+
     try:
-        payload = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_exp": False})
+        expires_at = datetime.fromtimestamp(payload["exp"])
+    except JWTError:
+        expires_at = datetime.now() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+
+    new_refresh_token_entry = RefreshToken(
+        token_hash=hashed_refresh_token,
+        expires_at=expires_at,
+        user_id=user.id
+    )
+
+    db.add(new_refresh_token_entry)
+
+    try:
+        await db.commit()
+        await db.refresh(new_refresh_token_entry)
+        print(f"새 리프레시 토큰 DB 저장 성공 (User ID: {user.id})")
+    except IntegrityError:
+        await db.rollback()
+        print(f"리프레시 토큰 해시 충돌 발생 (User ID: {user.id})")
     except Exception as e:
-        print(f"    - 생성 직후 디코딩 실패: {e}")
+        await db.rollback()
+        print(f"리프레시 토큰 DB 저장 중 에러: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save refresh token.")
 
     return {
         "user": user,
@@ -140,9 +157,6 @@ async def login_user(user_data: UserLoginRequest, db: AsyncSession) -> dict:
         "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60
     }
 
-async def add_token_to_blacklist(token: str) -> None:
-    """토큰을 블랙리스트에 추가합니다."""
-    BLACKLIST.add(token)
 
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
@@ -169,6 +183,28 @@ async def get_current_user(
         
     return user
 
+async def logout_user(
+    refresh_token: str, user_id: int, db: AsyncSession
+) -> bool:
+    if not refresh_token:
+        return False
+
+    hashed_token = hash_token(refresh_token)
+    stmt = delete(RefreshToken).where(
+        RefreshToken.token_hash == hashed_token,
+        RefreshToken.user_id == user_id
+    )
+    result = await db.execute(stmt)
+    await db.commit()
+    deleted_count = result.rowcount
+    
+    if deleted_count > 0:
+        print(f"로그아웃 성공: 리프레시 토큰 DB에서 삭제 (User ID: {user_id})")
+        return True
+    else:
+        print(f"로그아웃 시도: DB에 해당 리프레시 토큰 없음 (User ID: {user_id})") 
+        return False
+
 async def soft_delete_user(user: User, password: str, db: AsyncSession):
     """사용자 소프트 딜리트 서비스"""
     
@@ -183,3 +219,63 @@ async def soft_delete_user(user: User, password: str, db: AsyncSession):
     await db.refresh(user)
 
     return user
+
+async def refresh_access_token(
+    refresh_token: str, db: AsyncSession
+) -> tuple[str, str]:
+
+    invalid_token_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid or expired refresh token",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    hashed_refresh_token = hash_token(refresh_token)
+    stmt = select(RefreshToken).where(RefreshToken.token_hash == hashed_refresh_token)
+    result = await db.execute(stmt)
+    token_entry = result.scalar_one_or_none()
+
+    if not token_entry:
+        print("래프래시 실패: DB에 토큰 값이 없습니다.")
+        raise invalid_token_exception
+    if token_entry.expires_at < datetime.now():
+        print("리프래시 실패: 토큰이 DB에 없습니다.") 
+        await db.delete(token_entry)
+        await db.commit()
+        raise invalid_token_exception
+
+    try:
+        payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            print("리프래시 실패: 'sub'가 없습니다.") 
+            raise invalid_token_exception
+    except JWTError as e:
+        print(f"리프래시 실패: Original token JWTError ({e})")
+        await db.delete(token_entry)
+        await db.commit()
+        raise invalid_token_exception
+
+    user_id = token_entry.user_id
+    await db.delete(token_entry)
+
+    new_access_token = create_access_token(data={"sub": username})
+    new_refresh_token = create_refresh_token(data={"sub": username})
+    hashed_new_refresh = hash_token(new_refresh_token)
+    try:
+        new_payload = jwt.decode(new_refresh_token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_exp": False})
+        new_expires_at = datetime.fromtimestamp(new_payload["exp"])
+    except JWTError:
+        new_expires_at = datetime.now() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+
+    new_token_db_entry = RefreshToken(
+        token_hash=hashed_new_refresh,
+        expires_at=new_expires_at,
+        user_id=user_id
+    )
+    db.add(new_token_db_entry)
+
+    await db.commit()
+    print(f"토큰 로테이션 성공: 이전 토큰 삭제, 새 토큰 DB 저장 (User ID: {user_id})")
+
+    return new_access_token, new_refresh_token
