@@ -1,6 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Circle, Square, RotateCcw, Upload } from "lucide-react";
+import { Square, RotateCcw, Upload } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface RecordingControlsProps {

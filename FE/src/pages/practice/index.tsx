@@ -14,7 +14,6 @@ const PracticePage: React.FC = () => {
     currentStep, 
     totalSteps, 
     currentWord, 
-    nextStep, 
     addRecordedVideo 
   } = usePracticeStore();
 
@@ -31,7 +30,6 @@ const PracticePage: React.FC = () => {
     permissionError,
     elapsed,
     blobUrl,
-    deviceInfo,
     startRecording,
     stopRecording,
     retake,

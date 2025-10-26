@@ -11,7 +11,6 @@ const PracticePage: React.FC = () => {
     currentStep, 
     totalSteps, 
     currentWord, 
-    nextStep, 
   } = usePracticeStore();
 
 

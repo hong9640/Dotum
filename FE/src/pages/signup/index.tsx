@@ -7,16 +7,28 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { toast } from 'sonner';
+
+// 에러 매핑 테이블
+const ERROR_MAPPING = {
+  USERNAME_ALREADY_EXISTS: "이미 등록된 이메일입니다.",
+  INVALID_PHONE_NUMBER: "올바른 전화번호를 입력해주세요.",
+  INVALID_GENDER: "성별을 선택해주세요.",
+} as const;
 
 // Zod 유효성 검사 스키마
 const signupSchema = z
   .object({
-    email: z.string().nonempty("필수 입력 항목입니다").email("유효한 이메일 형식이 아닙니다."),
-    password: z.string().nonempty("필수 입력 항목입니다").min(8, "비밀번호는 8자 이상이어야 합니다."),
-    confirmPassword: z.string().nonempty("필수 입력 항목입니다"),
+    username: z.string().email("유효한 이메일 형식이 아닙니다."),
+    password: z.string().min(8, "비밀번호는 8자 이상이어야 합니다."),
+    confirmPassword: z.string(),
+    name: z.string().min(1, "이름을 입력해주세요."),
+    phone_number: z.string().min(1, "전화번호를 입력해주세요."),
+    gender: z.enum(["MALE", "FEMALE"], { message: "성별을 선택해주세요." })
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: "입력한 비밀번호와 다릅니다.",
+    message: "비밀번호가 일치하지 않습니다.",
     path: ["confirmPassword"],
   });
 
@@ -29,29 +41,63 @@ interface SignupPageProps {
 const SignupPage: React.FC<SignupPageProps> = ({ onSignup }) => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
-      email: '',
+      username: '',
       password: '',
       confirmPassword: '',
+      name: '',
+      phone_number: '',
+      gender: undefined,
     },
   });
 
-  const { register, handleSubmit, formState: { errors } } = form;
+  const { register, handleSubmit, formState: { errors }, watch, setValue } = form;
+
+  // 전화번호 포맷팅 함수
+  const formatPhoneDisplay = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    if (numbers.length <= 3) return numbers;
+    if (numbers.length <= 7) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+    return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`;
+  };
+
+  const phoneValue = watch("phone_number") || "";
 
   const onSubmit = async (data: SignupFormValues) => {
     setIsLoading(true);
+    setApiError(null);
+    
     try {
-      // 회원가입 로직 처리
-      console.log('회원가입 시도:', data);
+      const response = await fetch('/api/v1/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: data.username,
+          password: data.password,
+          name: data.name,
+          phone_number: data.phone_number,
+          gender: data.gender
+        })
+      });
       
-      // 회원가입 성공 시
-      onSignup();
-      navigate('/login'); // 로그인 페이지로 리다이렉트
-    } catch (error) {
-      console.error('회원가입 실패:', error);
+      const result = await response.json();
+      
+      if (response.ok && result.status === "SUCCESS") {
+        toast.success("회원가입이 완료되었습니다!");
+        onSignup();
+        navigate('/login');
+      } else {
+        const errorMessage = ERROR_MAPPING[result.error?.code as keyof typeof ERROR_MAPPING] || result.error?.message || "회원가입에 실패했습니다.";
+        setApiError(errorMessage);
+      }
+    } catch {
+      setApiError("네트워크 오류가 발생했습니다. 다시 시도해주세요.");
     } finally {
       setIsLoading(false);
     }
@@ -62,12 +108,12 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignup }) => {
   };
 
   // 에러 메시지 컴포넌트
-  const ErrorMessage = ({ message }: { message?: string }) => (
+  const ErrorMessage = ({ message, id }: { message?: string; id?: string }) => (
     <>
     {message && (
     <div className="h-7 flex items-start">
       {message && (
-        <div className="text-red-500 text-xl font-semibold">
+        <div id={id} className="text-red-500 text-xl font-semibold">
           {message}
         </div>
       )}
@@ -85,38 +131,113 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignup }) => {
           </CardTitle>
         </CardHeader>
         <CardContent className="pb-0">
+          {/* API 에러 메시지 */}
+          {apiError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+              <div className="text-red-700 font-medium text-xl">{apiError}</div>
+            </div>
+          )}
+          
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
             {/* 이메일 필드 */}
             <div className="space-y-3">
               <Label
-                htmlFor="email"
+                htmlFor="username"
                 className="text-2xl font-semibold text-slate-800 md:text-3xl"
               >
                 이메일
               </Label>
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <Input
-                    type="email"
-                    id="email"
-                    placeholder="이메일을 입력하세요"
-                    {...register("email")}
-                    disabled={isLoading}
-                    className={`h-16 rounded-xl border-2 text-xl font-normal md:text-3xl placeholder:text-slate-300 px-6 ${
-                      errors.email ? 'border-red-500' : 'border-slate-200'
-                    }`}
-                  />
+              <Input
+                type="email"
+                id="username"
+                placeholder="이메일을 입력하세요"
+                {...register("username")}
+                disabled={isLoading}
+                aria-invalid={!!errors.username}
+                aria-describedby={errors.username ? "username-error" : undefined}
+                className={`h-16 rounded-xl border-2 text-xl font-normal md:text-3xl placeholder:text-slate-300 px-6 ${
+                  errors.username ? 'border-red-500' : 'border-slate-200'
+                }`}
+              />
+              <ErrorMessage message={errors.username?.message} id="username-error" />
+            </div>
+
+            {/* 이름 필드 */}
+            <div className="space-y-3">
+              <Label
+                htmlFor="name"
+                className="text-2xl font-semibold text-slate-800 md:text-3xl"
+              >
+                이름
+              </Label>
+              <Input
+                type="text"
+                id="name"
+                placeholder="이름을 입력하세요"
+                {...register("name")}
+                disabled={isLoading}
+                aria-invalid={!!errors.name}
+                aria-describedby={errors.name ? "name-error" : undefined}
+                className={`h-16 rounded-xl border-2 text-xl font-normal md:text-3xl placeholder:text-slate-300 px-6 ${
+                  errors.name ? 'border-red-500' : 'border-slate-200'
+                }`}
+              />
+              <ErrorMessage message={errors.name?.message} id="name-error" />
+            </div>
+
+            {/* 전화번호 필드 */}
+            <div className="space-y-3">
+              <Label
+                htmlFor="phone_number"
+                className="text-2xl font-semibold text-slate-800 md:text-3xl"
+              >
+                전화번호
+              </Label>
+              <Input
+                type="tel"
+                id="phone_number"
+                placeholder="010-1234-5678"
+                value={formatPhoneDisplay(phoneValue)}
+                onChange={(e) => {
+                  const numbers = e.target.value.replace(/\D/g, '');
+                  setValue("phone_number", numbers);
+                }}
+                disabled={isLoading}
+                aria-invalid={!!errors.phone_number}
+                aria-describedby={errors.phone_number ? "phone-error" : undefined}
+                className={`h-16 rounded-xl border-2 text-xl font-normal md:text-3xl placeholder:text-slate-300 px-6 ${
+                  errors.phone_number ? 'border-red-500' : 'border-slate-200'
+                }`}
+              />
+              <ErrorMessage message={errors.phone_number?.message} id="phone-error" />
+            </div>
+
+            {/* 성별 필드 */}
+            <div className="space-y-3">
+              <Label className="text-2xl font-semibold text-slate-800 md:text-3xl">
+                성별
+              </Label>
+              <RadioGroup
+                {...register("gender")}
+                disabled={isLoading}
+                aria-invalid={!!errors.gender}
+                aria-describedby={errors.gender ? "gender-error" : undefined}
+                className="flex gap-6"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="MALE" id="male" />
+                  <Label htmlFor="male" className="text-xl font-normal md:text-2xl">
+                    남성
+                  </Label>
                 </div>
-                <Button
-                  type="button"
-                  disabled={isLoading}
-                  size="md"
-                  className="w-40 bg-green-500 hover:bg-green-600 text-white"
-                >
-                  인증
-                </Button>
-              </div>
-              <ErrorMessage message={errors.email?.message} />
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="FEMALE" id="female" />
+                  <Label htmlFor="female" className="text-xl font-normal md:text-2xl">
+                    여성
+                  </Label>
+                </div>
+              </RadioGroup>
+              <ErrorMessage message={errors.gender?.message} id="gender-error" />
             </div>
 
             {/* 비밀번호 필드 */}
@@ -133,11 +254,13 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignup }) => {
                 placeholder="비밀번호를 입력하세요"
                 {...register("password")}
                 disabled={isLoading}
+                aria-invalid={!!errors.password}
+                aria-describedby={errors.password ? "password-error" : undefined}
                 className={`h-16 rounded-xl border-2 text-xl font-normal md:text-3xl placeholder:text-slate-300 px-6 ${
                   errors.password ? 'border-red-500' : 'border-slate-200'
                 }`}
               />
-              <ErrorMessage message={errors.password?.message} />
+              <ErrorMessage message={errors.password?.message} id="password-error" />
             </div>
 
             {/* 비밀번호 확인 필드 */}
@@ -154,11 +277,13 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignup }) => {
                 placeholder="비밀번호를 입력하세요"
                 {...register("confirmPassword")}
                 disabled={isLoading}
+                aria-invalid={!!errors.confirmPassword}
+                aria-describedby={errors.confirmPassword ? "confirm-password-error" : undefined}
                 className={`h-16 rounded-xl border-2 text-xl font-normal md:text-3xl placeholder:text-slate-300 px-6 ${
                   errors.confirmPassword ? 'border-red-500' : 'border-slate-200'
                 }`}
               />
-              <ErrorMessage message={errors.confirmPassword?.message} />
+              <ErrorMessage message={errors.confirmPassword?.message} id="confirm-password-error" />
             </div>
 
             {/* 회원가입 버튼 */}
