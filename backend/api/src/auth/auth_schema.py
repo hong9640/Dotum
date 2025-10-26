@@ -20,7 +20,6 @@ class UserInfo(BaseModel):
 
 class TokenInfo(BaseModel):
     access_token: str
-    refresh_token: str
     token_type: str
     expires_in: int
 
@@ -108,3 +107,9 @@ class VerifyInfo(BaseModel):
 class VerifyEmailResponse(BaseModel):
     status: str 
     data: VerifyInfo
+
+# ---tocken---
+class TokenRefreshResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
