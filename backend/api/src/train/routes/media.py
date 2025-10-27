@@ -145,20 +145,27 @@ async def upload_video(
     response_model=List[MediaListResponse],
     status_code=status.HTTP_200_OK,
     summary="사용자 동영상 목록 조회",
-    description="현재 사용자의 동영상 파일 목록을 조회합니다."
+    description="현재 로그인한 사용자의 동영상 파일 목록을 조회합니다. JWT 토큰에서 사용자 정보를 자동으로 추출합니다."
 )
 async def get_user_videos(
     media_type: Optional[MediaType] = None,
     status: Optional[MediaStatus] = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),  # JWT 토큰에서 자동으로 현재 사용자 추출
     db: AsyncSession = Depends(get_session)
 ):
-    """사용자 동영상 목록 조회"""
+    """
+    사용자 동영상 목록 조회
+    
+    설명:
+    - Authorization 헤더에 Bearer 토큰을 포함해야 합니다
+    - JWT 토큰에서 사용자 정보를 자동으로 추출합니다
+    - 현재 로그인한 사용자의 동영상만 조회 가능합니다
+    """
     
     try:
         media_service = MediaService(db)
         videos = await media_service.get_user_media_files(
-            user_id=current_user.id,
+            user_id=current_user.id,  # JWT 토큰에서 추출한 사용자 ID 사용
             media_type=media_type,
             status=status
         )
@@ -188,52 +195,8 @@ async def get_user_videos(
         )
 
 
-@router.get(
-    "/download/{media_id}",
-    status_code=status.HTTP_200_OK,
-    summary="동영상 파일 다운로드",
-    description="지정된 동영상 파일을 다운로드합니다."
-)
-async def download_video(
-    media_id: int,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_session),
-):
-    """동영상 파일 다운로드"""
-    
-    try:
-        # 미디어 파일 조회 및 권한 확인
-        media_file = await get_media_file_with_permission_check(media_id, current_user, db)
-        
-        # GCS에서 파일 다운로드
-        gcs_service = get_gcs_service(settings)
-        file_content = await gcs_service.download_video(media_file.object_key)
-        
-        if not file_content:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="파일을 찾을 수 없습니다."
-            )
-        
-        # 스트리밍 응답 생성
-        file_stream = io.BytesIO(file_content)
-        
-        return StreamingResponse(
-            io.BytesIO(file_content),
-            media_type="video/mp4",
-            headers={
-                "Content-Disposition": f"attachment; filename={media_file.file_name}",
-                "Content-Length": str(len(file_content))
-            }
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"파일 다운로드 중 오류가 발생했습니다: {str(e)}"
-        )
+# 이유: 서버를 통한 릴레이 방식은 비효율적입니다 (GCS → 서버 → 클라이언트)
+# 대신 /signed-url/{media_id} 엔드포인트를 사용하여 클라이언트가 직접 GCS에서 다운로드하세요.
 
 
 @router.delete(
@@ -282,8 +245,8 @@ async def delete_video(
     "/signed-url/{media_id}",
     response_model=MediaUploadUrlResponse,
     status_code=status.HTTP_200_OK,
-    summary="동영상 임시 접근 URL 생성",
-    description="동영상 파일에 대한 임시 접근 URL을 생성합니다."
+    summary="동영상 임시 접근 URL 생성 (다운로드 및 시청)",
+    description="동영상 파일에 대한 임시 접근 URL을 생성합니다. 이 URL을 사용하여 다운로드이거나 시청할 수 있습니다."
 )
 async def get_signed_url(
     media_id: int,
@@ -291,8 +254,6 @@ async def get_signed_url(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_session),
 ):
-    """동영상 임시 접근 URL 생성"""
-    
     try:
         # 미디어 파일 조회 및 권한 확인
         media_file = await get_media_file_with_permission_check(media_id, current_user, db)

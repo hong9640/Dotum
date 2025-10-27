@@ -1,6 +1,14 @@
 from .words import TrainWordCreate, TrainWordUpdate, TrainWordResponse
 from .sentences import TrainSentenceCreate, TrainSentenceUpdate, TrainSentenceResponse
-from .common import DeleteSuccessResponse
+from .common import (
+    DeleteSuccessResponse,
+    ErrorDetail,
+    ErrorResponse,
+    NotFoundErrorResponse,
+    ConflictErrorResponse,
+    BadRequestErrorResponse,
+    UnauthorizedErrorResponse
+)
 from .training_sessions import (
     TrainingSessionCreate,
     TrainingSessionResponse,
@@ -29,6 +37,12 @@ __all__ = [
     "TrainSentenceUpdate",
     "TrainSentenceResponse",
     "DeleteSuccessResponse",
+    "ErrorDetail",
+    "ErrorResponse",
+    "NotFoundErrorResponse",
+    "ConflictErrorResponse",
+    "BadRequestErrorResponse",
+    "UnauthorizedErrorResponse",
     "TrainingSessionCreate",
     "TrainingSessionResponse",
     "TrainingSessionStatusUpdate",
