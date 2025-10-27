@@ -25,9 +25,9 @@ export interface EmailCheckResponse {
 }
 
 // 에러 매핑 테이블
-const ERROR_MAPPING = {
+const ERROR_MAPPING: Record<string, string> = {
   USERNAME_ALREADY_EXISTS: "이미 등록된 이메일입니다.",
-} as const;
+};
 
 /**
  * 회원가입 API 호출
@@ -73,9 +73,6 @@ export const GetErrorMessage = (
 ): string => {
   if (!errorCode) return defaultMessage;
   
-  return (
-    ERROR_MAPPING[errorCode as keyof typeof ERROR_MAPPING] ||
-    defaultMessage
-  );
+  return ERROR_MAPPING[errorCode] || defaultMessage;
 };
 
