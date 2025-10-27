@@ -130,11 +130,10 @@ pipeline {
                     
                     sh """
                         cd ${WORKSPACE}
-                        # 기존 backend, frontend 컨테이너 강제 재생성
-                        ${DOCKER_COMPOSE} up -d --force-recreate --no-deps backend frontend || true
-                        # 실패 시 기존 컨테이너 제거 후 재시작
+                        # 기존 backend, frontend 컨테이너 제거
                         docker rm -f backend frontend 2>/dev/null || true
-                        ${DOCKER_COMPOSE} up -d backend frontend
+                        # backend와 frontend만 다시 시작 (postgres는 건드리지 않음)
+                        ${DOCKER_COMPOSE} up -d --no-deps backend frontend
                     """
                 }
             }
@@ -145,8 +144,10 @@ pipeline {
         success {
             echo '✅ 배포 성공!'
             script {
+                echo "🔍 Webhook URL 확인: ${env.MATTERMOST_WEBHOOK_URL ?: '설정되지 않음'}"
                 // Mattermost 알림 (Webhook URL이 설정된 경우)
                 if (env.MATTERMOST_WEBHOOK_URL) {
+                    echo "📤 Mattermost 알림 발송 중..."
                     def payload = """
                     {
                         "username": "Jenkins",
@@ -173,14 +174,19 @@ pipeline {
                             -H 'Content-Type: application/json' \\
                             -d '${payload}' || true
                     """
+                    echo "✅ 알림 발송 완료"
+                } else {
+                    echo "⚠️ Webhook URL이 설정되지 않아 알림을 발송하지 않습니다"
                 }
             }
         }
         failure {
             echo '❌ 배포 실패!'
             script {
+                echo "🔍 Webhook URL 확인: ${env.MATTERMOST_WEBHOOK_URL ?: '설정되지 않음'}"
                 // Mattermost 알림 (Webhook URL이 설정된 경우)
                 if (env.MATTERMOST_WEBHOOK_URL) {
+                    echo "📤 Mattermost 알림 발송 중..."
                     def payload = """
                     {
                         "username": "Jenkins",
@@ -207,6 +213,9 @@ pipeline {
                             -H 'Content-Type: application/json' \\
                             -d '${payload}' || true
                     """
+                    echo "✅ 알림 발송 완료"
+                } else {
+                    echo "⚠️ Webhook URL이 설정되지 않아 알림을 발송하지 않습니다"
                 }
             }
         }
