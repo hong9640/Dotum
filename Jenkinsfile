@@ -36,6 +36,19 @@ pipeline {
                         fi
                     '''
                     
+                    // .env 파일에서 MATTERMOST_WEBHOOK_URL 읽기
+                    if (fileExists('.env')) {
+                        def envFile = readFile('.env')
+                        def lines = envFile.split('\n')
+                        for (String line : lines) {
+                            if (line.startsWith('MATTERMOST_WEBHOOK_URL=')) {
+                                env.MATTERMOST_WEBHOOK_URL = line.split('=', 2)[1].trim()
+                                echo "📢 Mattermost Webhook URL 설정됨"
+                                break
+                            }
+                        }
+                    }
+                    
                     // 변경된 파일 확인
                     def changedFiles = sh(
                         script: 'git diff --name-only HEAD~1 HEAD',
@@ -117,8 +130,11 @@ pipeline {
                     
                     sh """
                         cd ${WORKSPACE}
-                        ${DOCKER_COMPOSE} down
-                        ${DOCKER_COMPOSE} up -d
+                        # 기존 backend, frontend 컨테이너 강제 재생성
+                        ${DOCKER_COMPOSE} up -d --force-recreate --no-deps backend frontend || true
+                        # 실패 시 기존 컨테이너 제거 후 재시작
+                        docker rm -f backend frontend 2>/dev/null || true
+                        ${DOCKER_COMPOSE} up -d backend frontend
                     """
                 }
             }
