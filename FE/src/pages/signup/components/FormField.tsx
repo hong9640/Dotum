@@ -1,6 +1,5 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { ErrorMessage } from "./ErrorMessage";
 import { cn } from "@/lib/utils";
 import type { SignupFormValues } from "@/hooks/signup";
 import type { UseFormRegister } from "react-hook-form";
@@ -25,26 +24,22 @@ export const FormField = ({
   disabled,
 }: FormFieldProps) => (
   <div className="space-y-3">
-    <Label
-      htmlFor={id}
-      className="text-2xl font-semibold text-slate-800 md:text-3xl"
-    >
+    <Label className="text-2xl md:text-3xl font-semibold">
       {label}
     </Label>
     <Input
       type={type}
-      id={id}
       placeholder={placeholder}
       {...register(id)}
       disabled={disabled}
-      aria-invalid={error ? "true" : "false"}
-      aria-describedby={error ? `${id}-error` : undefined}
       className={cn(
-        "h-16 rounded-xl border-2 text-xl font-normal md:text-3xl placeholder:text-slate-300 px-6",
-        error ? "border-red-500" : "border-slate-200"
+        "text-xl md:text-3xl h-16",
+        error && "border-red-500"
       )}
     />
-    <ErrorMessage message={error} id={`${id}-error`} />
+    {error && (
+      <p className="text-xl font-semibold text-red-500">{error}</p>
+    )}
   </div>
 );
 

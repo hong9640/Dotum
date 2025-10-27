@@ -4,9 +4,6 @@ import { apiClient } from "../axios";
 export interface SignupRequest {
   username: string;
   password: string;
-  name: string;
-  phone_number: string;
-  gender: "MALE" | "FEMALE";
 }
 
 export interface SignupResponse {
@@ -17,11 +14,19 @@ export interface SignupResponse {
   };
 }
 
+// 이메일 중복 확인 API 타입 정의
+export interface EmailCheckResponse {
+  status: "SUCCESS" | "Duplicate";
+  data: {
+    email: string;
+    is_duplicate: boolean;
+    message: string;
+  };
+}
+
 // 에러 매핑 테이블
 const ERROR_MAPPING = {
   USERNAME_ALREADY_EXISTS: "이미 등록된 이메일입니다.",
-  INVALID_PHONE_NUMBER: "올바른 전화번호를 입력해주세요.",
-  INVALID_GENDER: "성별을 선택해주세요.",
 } as const;
 
 /**
@@ -29,16 +34,29 @@ const ERROR_MAPPING = {
  * @param data 회원가입 폼 데이터
  * @returns 회원가입 결과
  */
-export const signup = async (
+export const Signup = async (
   data: SignupRequest
 ): Promise<SignupResponse> => {
   const response = await apiClient.post<SignupResponse>("/auth/signup", {
     username: data.username,
     password: data.password,
-    name: data.name,
-    phone_number: data.phone_number,
-    gender: data.gender,
+    name: ""
   });
+
+  return response.data;
+};
+
+/**
+ * 이메일 중복 확인 API 호출
+ * @param email 확인할 이메일 주소
+ * @returns 이메일 중복 확인 결과
+ */
+export const CheckEmailDuplication = async (
+  email: string
+): Promise<EmailCheckResponse> => {
+  const response = await apiClient.get<EmailCheckResponse>(
+    `/auth/emails/${email}`
+  );
 
   return response.data;
 };
@@ -49,7 +67,7 @@ export const signup = async (
  * @param defaultMessage 기본 에러 메시지
  * @returns 사용자 친화적인 에러 메시지
  */
-export const getErrorMessage = (
+export const GetErrorMessage = (
   errorCode?: string,
   defaultMessage: string = "회원가입에 실패했습니다."
 ): string => {

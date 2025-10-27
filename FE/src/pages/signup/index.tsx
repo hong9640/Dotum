@@ -19,13 +19,12 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignup }) => {
     register,
     handleSubmit,
     errors,
-    setValue,
     isLoading,
     apiError,
-    phoneValue,
-    formatPhoneDisplay,
     onSubmit,
     handleToggleMode,
+    handleEmailVerification,
+    emailVerificationStatus,
   } = useSignup({ onSignup });
 
   return (
@@ -42,11 +41,10 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignup }) => {
             register={register}
             handleSubmit={handleSubmit}
             errors={errors}
-            setValue={setValue}
             isLoading={isLoading}
-            phoneValue={phoneValue}
-            formatPhoneDisplay={formatPhoneDisplay}
             onSubmit={onSubmit}
+            onEmailVerification={handleEmailVerification}
+            emailVerificationStatus={emailVerificationStatus}
           />
         </CardContent>
         <CardFooter className="flex-col sm:flex-row justify-center items-baseline pt-8">
