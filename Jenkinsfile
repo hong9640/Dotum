@@ -127,16 +127,47 @@ stage('Deploy') {
         script {
             echo '🚀 배포 중...'
             
+            // 변경된 서비스 확인
+            def backendChanged = env.BACKEND_CHANGED == 'true'
+            def frontendChanged = env.FRONTEND_CHANGED == 'true'
+            def fullDeploy = env.FULL_DEPLOY == 'true'
+            
+            def deployBackend = backendChanged || fullDeploy
+            def deployFrontend = frontendChanged || fullDeploy
+            
+            echo "📦 배포 대상 - Backend: ${deployBackend}, Frontend: ${deployFrontend}"
+            
             sh """
                 cd ${WORKSPACE}
                 
-                # dotum-backend, dotum-frontend 컨테이너 제거
-                ${DOCKER_COMPOSE} stop backend frontend 2>/dev/null || true
-                ${DOCKER_COMPOSE} rm -f backend frontend 2>/dev/null || true
-                docker rm -f dotum-backend dotum-frontend 2>/dev/null || true
+                # 배포 대상 컨테이너만 선택적으로 처리
+                DEPLOY_SERVICES=""
                 
-                # backend와 frontend 재시작 (postgres는 건드리지 않음)
-                ${DOCKER_COMPOSE} up -d --no-deps --force-recreate backend frontend
+                if [ "${deployBackend}" = "true" ]; then
+                    DEPLOY_SERVICES="\${DEPLOY_SERVICES} backend"
+                fi
+                
+                if [ "${deployFrontend}" = "true" ]; then
+                    DEPLOY_SERVICES="\${DEPLOY_SERVICES} frontend"
+                fi
+                
+                echo "📦 배포 대상: \${DEPLOY_SERVICES}"
+                
+                # 1단계: 기존 컨테이너 확실히 제거
+                echo "🗑️ 기존 컨테이너 제거 중..."
+                for service in \${DEPLOY_SERVICES}; do
+                    echo "  - dotum-\${service} 제거"
+                    docker stop dotum-\${service} 2>/dev/null || true
+                    docker rm -f dotum-\${service} 2>/dev/null || true
+                done
+                
+                # 2단계: 컨테이너 재생성 (새 이미지 적용)
+                echo "🚀 새 컨테이너 생성 중..."
+                ${DOCKER_COMPOSE} up -d --no-deps \${DEPLOY_SERVICES}
+                
+                # 3단계: 상태 확인
+                echo "✅ 배포된 컨테이너 상태:"
+                docker ps --filter "name=dotum-" --format "table {{.Names}}\\t{{.Status}}\\t{{.Ports}}"
             """
         }
     }
