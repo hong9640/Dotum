@@ -3,9 +3,7 @@ pipeline {
     
     environment {
         DOCKER_COMPOSE = 'docker-compose'
-        PROJECT_NAME = 's13p31s201'
-        // GitLab webhook을 위한 credentials ID
-        GITLAB_CREDENTIALS_ID = 'gitlab-token'
+        PROJECT_NAME = 'dotum'
     }
     
     triggers {
@@ -121,7 +119,7 @@ pipeline {
                     echo '🏥 Health Check 중...'
                     sleep(time: 10, unit: 'SECONDS')
                     sh """
-                        curl -f https://k13s201.p.ssafy.io/health || exit 1
+                        curl -f https://k13s201.p.ssafy.io/ || exit 1
                         curl -f https://k13s201.p.ssafy.io || exit 1
                     """
                 }
