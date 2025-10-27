@@ -153,25 +153,16 @@ stage('Deploy') {
                 
                 echo "📦 배포 대상: \${DEPLOY_SERVICES}"
                 
-                # 1단계: 기존 컨테이너 확실히 제거
-                echo "🗑️ 기존 컨테이너 제거 중..."
-                for service in \${DEPLOY_SERVICES}; do
-                    echo "  - dotum-\${service} 제거"
-                    # xargs로 모든 컨테이너 ID 제거
-                    docker ps -a --filter "name=dotum-\${service}" --format "{{.ID}}" | xargs -r docker rm -f || true
-                done
+                # 배포: 컨테이너 재시작
+                echo "🔄 컨테이너 재시작 중..."
                 
-                # 제거 확인
-                echo "🔍 제거 후 남은 컨테이너:"
-                docker ps -a --filter "name=dotum-" --format "{{.Names}}" || echo "없음"
+                docker-compose -p dotum stop \${DEPLOY_SERVICES} 2>/dev/null || true
+                docker-compose -p dotum rm -f \${DEPLOY_SERVICES} 2>/dev/null || true
+                docker-compose -p dotum up -d --no-deps \${DEPLOY_SERVICES}
                 
-                # 2단계: 컨테이너 재생성
-                echo "🚀 새 컨테이너 생성 중..."
-                ${DOCKER_COMPOSE} up -d --no-deps \${DEPLOY_SERVICES}
-                
-                # 3단계: 상태 확인
+                # 상태 확인
                 echo "✅ 배포된 컨테이너 상태:"
-                docker ps --filter "name=dotum-" --format "table {{.Names}}\\t{{.Status}}\\t{{.Ports}}"
+                ${DOCKER_COMPOSE} ps
             """
         }
     }
