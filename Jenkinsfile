@@ -130,14 +130,12 @@ stage('Deploy') {
             sh """
                 cd ${WORKSPACE}
                 
+                # dotum-backend, dotum-frontend 컨테이너 제거
                 ${DOCKER_COMPOSE} stop backend frontend 2>/dev/null || true
                 ${DOCKER_COMPOSE} rm -f backend frontend 2>/dev/null || true
+                docker rm -f dotum-backend dotum-frontend 2>/dev/null || true
                 
-                docker rm -f backend frontend 2>/dev/null || true
-                
-                docker rm -f ${PROJECT_NAME}-backend-1 ${PROJECT_NAME}-frontend-1 2>/dev/null || true
-                docker rm -f ${PROJECT_NAME}_backend_1 ${PROJECT_NAME}_frontend_1 2>/dev/null || true
-                
+                # backend와 frontend 재시작 (postgres는 건드리지 않음)
                 ${DOCKER_COMPOSE} up -d --no-deps --force-recreate backend frontend
             """
         }
