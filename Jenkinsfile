@@ -57,6 +57,9 @@ pipeline {
                     echo "📝 변경된 파일:"
                     echo changedFiles
                     
+                    // 변경된 파일을 환경 변수에 저장 (알림용)
+                    env.CHANGED_FILES = changedFiles ?: '없음'
+                    
                     // 변경 감지
                     env.BACKEND_CHANGED = 'false'
                     env.FRONTEND_CHANGED = 'false'
@@ -135,6 +138,22 @@ stage('Deploy') {
             def deployBackend = backendChanged || fullDeploy
             def deployFrontend = frontendChanged || fullDeploy
             
+            // 배포 정보 저장
+            def deployedServices = []
+            if (deployBackend) {
+                deployedServices.add('Backend')
+                env.DEPLOYED_BACKEND = 'true'
+            } else {
+                env.DEPLOYED_BACKEND = 'false'
+            }
+            if (deployFrontend) {
+                deployedServices.add('Frontend')
+                env.DEPLOYED_FRONTEND = 'true'
+            } else {
+                env.DEPLOYED_FRONTEND = 'false'
+            }
+            env.DEPLOYED_SERVICES = deployedServices.join(', ') ?: '없음'
+            
             echo "📦 배포 대상 - Backend: ${deployBackend}, Frontend: ${deployFrontend}"
             
             sh """
@@ -183,7 +202,22 @@ stage('Deploy') {
                 
                 echo "🔍 Backend 컨테이너 로그 확인:"
                 docker-compose -p dotum logs --tail=20 backend 2>/dev/null || true
+                
+                # 컨테이너 상태 저장
+                echo "💾 컨테이너 상태 저장 중..."
+                docker-compose -p dotum ps > /tmp/dotum_containers.txt 2>/dev/null || true
             """
+            
+            // 컨테이너 상태를 환경 변수에 저장
+            try {
+                def containerStatus = sh(
+                    script: 'cat /tmp/dotum_containers.txt 2>/dev/null || echo "상태 정보 없음"',
+                    returnStdout: true
+                ).trim()
+                env.CONTAINER_STATUS = containerStatus.take(500) // 최대 500자
+            } catch (Exception e) {
+                env.CONTAINER_STATUS = '상태 정보 없음'
+            }
         }
     }
 }
@@ -198,6 +232,23 @@ stage('Deploy') {
                 // Mattermost 알림 (Webhook URL이 설정된 경우)
                 if (env.MATTERMOST_WEBHOOK_URL) {
                     echo "📤 Mattermost 알림 발송 중..."
+                    
+                    // 변경된 파일 목록 정리
+                    def changedFilesList = env.CHANGED_FILES ?: '없음'
+                    if (changedFilesList.length() > 200) {
+                        changedFilesList = changedFilesList.substring(0, 200) + '...'
+                    }
+                    
+                    // 배포 정보 정리
+                    def deployedInfo = []
+                    if (env.DEPLOYED_BACKEND == 'true') {
+                        deployedInfo.add('✅ Backend')
+                    }
+                    if (env.DEPLOYED_FRONTEND == 'true') {
+                        deployedInfo.add('✅ Frontend')
+                    }
+                    def deployedServicesInfo = deployedInfo.join('\\n') ?: '없음'
+                    
                     def payload = """
                     {
                         "username": "Jenkins",
@@ -215,6 +266,14 @@ stage('Deploy') {
                                 "short": true,
                                 "title": "빌드 번호",
                                 "value": "#${env.BUILD_NUMBER}"
+                            }, {
+                                "short": false,
+                                "title": "배포된 서비스",
+                                "value": "${deployedServicesInfo}"
+                            }, {
+                                "short": false,
+                                "title": "변경된 파일",
+                                "value": "${changedFilesList}"
                             }]
                         }]
                     }
@@ -237,6 +296,26 @@ stage('Deploy') {
                 // Mattermost 알림 (Webhook URL이 설정된 경우)
                 if (env.MATTERMOST_WEBHOOK_URL) {
                     echo "📤 Mattermost 알림 발송 중..."
+                    
+                    // 변경된 파일 목록 정리
+                    def changedFilesList = env.CHANGED_FILES ?: '없음'
+                    if (changedFilesList.length() > 200) {
+                        changedFilesList = changedFilesList.substring(0, 200) + '...'
+                    }
+                    
+                    // 배포 정보 정리
+                    def deployedInfo = []
+                    if (env.DEPLOYED_BACKEND == 'true') {
+                        deployedInfo.add('Backend (시도)')
+                    }
+                    if (env.DEPLOYED_FRONTEND == 'true') {
+                        deployedInfo.add('Frontend (시도)')
+                    }
+                    def deployedServicesInfo = deployedInfo.join(', ') ?: '없음'
+                    
+                    // 실패한 단계 확인
+                    def failedStage = env.STAGE_NAME ?: '알 수 없음'
+                    
                     def payload = """
                     {
                         "username": "Jenkins",
@@ -245,7 +324,7 @@ stage('Deploy') {
                         "attachments": [{
                             "color": "danger",
                             "title": "${env.PROJECT_NAME} - 빌드 #${env.BUILD_NUMBER}",
-                            "text": "❌ 배포 중 오류가 발생했습니다.\\n\\n🔗 [Jenkins Build](${env.BUILD_URL})",
+                            "text": "❌ 배포 중 오류가 발생했습니다.\\n\\n**실패한 단계:** ${failedStage}\\n\\n🔗 [Jenkins Build](${env.BUILD_URL})",
                             "fields": [{
                                 "short": true,
                                 "title": "브랜치",
@@ -254,6 +333,14 @@ stage('Deploy') {
                                 "short": true,
                                 "title": "빌드 번호",
                                 "value": "#${env.BUILD_NUMBER}"
+                            }, {
+                                "short": false,
+                                "title": "배포 시도한 서비스",
+                                "value": "${deployedServicesInfo}"
+                            }, {
+                                "short": false,
+                                "title": "변경된 파일",
+                                "value": "${changedFilesList}"
                             }]
                         }]
                     }
