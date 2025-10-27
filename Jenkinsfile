@@ -26,6 +26,17 @@ pipeline {
                     echo '🔄 Git에서 코드 체크아웃 중...'
                     checkout scm
                     
+                    // 호스트의 .env 파일을 workspace로 복사
+                    sh '''
+                        if [ -f /home/ubuntu/.env ]; then
+                            mkdir -p backend
+                            cp /home/ubuntu/.env backend/.env
+                            echo "✅ .env 파일 복사 완료"
+                        else
+                            echo "⚠️ /home/ubuntu/.env 파일이 없습니다"
+                        fi
+                    '''
+                    
                     // 변경된 파일 확인
                     def changedFiles = sh(
                         script: 'git diff --name-only HEAD~1 HEAD',
@@ -104,13 +115,6 @@ pipeline {
             steps {
                 script {
                     echo '🚀 배포 중...'
-                    
-                    // .env 파일 확인
-                    if (fileExists("${WORKSPACE}/.env")) {
-                        echo "✅ .env 파일 발견됨"
-                    } else {
-                        echo "⚠️ .env 파일이 없습니다. backend/.env 확인"
-                    }
                     
                     sh """
                         cd ${WORKSPACE}
