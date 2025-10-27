@@ -101,9 +101,6 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend/api:/code/api
-      - ./backend/migrations:/code/migrations
-      - ./backend/alembic.ini:/code/alembic.ini
       - ./backend/credentials:/app/credentials
     depends_on:
       postgres:
