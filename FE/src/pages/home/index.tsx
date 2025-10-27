@@ -45,14 +45,16 @@ const HomePage: React.FC = () => {
           </Link>
 
           {/* 훈련 기록 버튼 (Outline) */}
-          <Button
-            variant="outline"
-            size="lg"
-            className="w-72 bg-white text-gray-800 border-slate-200 border-2 hover:bg-gray-100 hover:text-gray-800"
-          >
-            <ClipboardList size={32} className="mr-2" strokeWidth={2.5} />
-            훈련 기록
-          </Button>
+          <Link to="/training-history">
+            <Button
+              variant="outline"
+              size="lg"
+              className="w-72 bg-white text-gray-800 border-slate-200 border-2 hover:bg-gray-100 hover:text-gray-800"
+            >
+              <ClipboardList size={32} className="mr-2" strokeWidth={2.5} />
+              훈련 기록
+            </Button>
+          </Link>
         </div>
       </div>
     </section>
