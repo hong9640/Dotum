@@ -140,17 +140,40 @@ stage('Deploy') {
             sh """
                 cd ${WORKSPACE}
                 
-                echo "🔄 backend, frontend 재시작 중..."
+                echo "🔍 기존 컨테이너 상태 확인..."
+                docker-compose -p dotum ps || true
                 
+                # Postgres 컨테이너가 실행 중인지 확인
+                POSTGRES_STATUS=\$(docker-compose -p dotum ps -q postgres)
+                if [ -z "\$POSTGRES_STATUS" ]; then
+                    echo "⚠️ Postgres 컨테이너가 없습니다. Postgres를 먼저 시작합니다..."
+                    docker-compose -p dotum up -d postgres
+                    echo "⏳ Postgres 시작 대기..."
+                    sleep 2
+                else
+                    echo "✅ Postgres가 이미 실행 중입니다."
+                fi
+                
+                echo "🛑 기존 backend, frontend 컨테이너 중지..."
                 docker-compose -p dotum stop backend frontend 2>/dev/null || true
-                docker-compose -p dotum rm -f backend frontend 2>/dev/null || true
-
-                sleep 5
                 
-                docker-compose -p dotum up -d backend frontend
+                echo "🗑️ 기존 backend, frontend 컨테이너 제거..."
+                docker-compose -p dotum rm -f backend frontend 2>/dev/null || true
+                
+                echo "⏳ 대기 중..."
+                sleep 1
+                
+                echo "🚀 backend, frontend 시작..."
+                docker-compose -p dotum up -d --no-deps backend frontend
+                
+                echo "⏳ 컨테이너 시작 대기..."
+                sleep 2
                 
                 echo "✅ 배포된 컨테이너 상태:"
                 docker-compose -p dotum ps
+                
+                echo "🔍 컨테이너 로그 확인:"
+                docker-compose -p dotum logs --tail=20 backend || true
             """
         }
     }
