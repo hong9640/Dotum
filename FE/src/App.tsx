@@ -6,6 +6,7 @@ import PracticePage from '@/pages/practice';
 import LoginPage from '@/pages/login';
 import SignupPage from '@/pages/signup';
 import ResultPage from '@/pages/result';
+import TrainingHistoryPage from '@/pages/training-history';
 
 const App: React.FC = () => {
   // 전역 로그인 상태 관리
@@ -35,6 +36,7 @@ const App: React.FC = () => {
             <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
             <Route path="/signup" element={<SignupPage onSignup={handleSignup} />} />
             <Route path="/result" element={<ResultPage />} />
+            <Route path="/training-history" element={<TrainingHistoryPage />} />
           </Routes>
         </main>
       </div>
