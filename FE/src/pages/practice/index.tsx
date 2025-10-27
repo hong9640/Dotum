@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useMediaRecorder } from "@/hooks/useMediaRecorder";
 import { usePracticeStore } from "@/stores/practiceStore";
@@ -9,12 +10,17 @@ import RecordingControls from "@/pages/practice/components/RecordingControls";
 import RecordingTips from "@/pages/practice/components/RecordingTips";
 
 const PracticePage: React.FC = () => {
+  const navigate = useNavigate();
+  
   // 상태 관리
   const { 
     currentStep, 
     totalSteps, 
     currentWord, 
-    addRecordedVideo 
+    currentWordIndex,
+    addRecordedVideo,
+    goToNextWord,
+    goToPreviousWord
   } = usePracticeStore();
 
   const handleSave = (file: File, blobUrl: string) => {
@@ -36,8 +42,18 @@ const PracticePage: React.FC = () => {
   } = useMediaRecorder({ onSave: handleSave });
 
   const handleViewResults = () => {
-    // TODO: 결과 보기 로직 구현
-    console.log("결과 보기");
+    // 녹화 완료 후 결과 페이지로 이동
+    navigate('/result');
+  };
+
+  const handleNextWord = () => {
+    // 다음 단어로 이동
+    goToNextWord();
+  };
+
+  const handlePreviousWord = () => {
+    // 이전 단어로 이동
+    goToPreviousWord();
   };
 
 
@@ -49,7 +65,13 @@ const PracticePage: React.FC = () => {
           <ProgressHeader step={currentStep} totalSteps={totalSteps} />
 
           {/* 발음할 단어 표시 */}
-          <WordDisplay targetWord={currentWord} />
+          <WordDisplay 
+            targetWord={currentWord}
+            onNext={handleNextWord}
+            onPrevious={handlePreviousWord}
+            showNext={currentWordIndex < totalSteps - 1}
+            showPrevious={currentWordIndex > 0}
+          />
 
           {/* 녹화 미리보기 */}
           <RecordingPreview

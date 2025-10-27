@@ -1,18 +1,40 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { usePracticeStore } from "@/stores/practiceStore";
 import ProgressHeader from "@/components/ProgressHeader";
 import WordDisplay from "@/components/WordDisplay";
 import ResultVideoDisplay from "@/pages/result/components/ResultVideoDisplay";
 import FeedbackCard from "@/pages/result/components/FeedbackCard";
 
-const PracticePage: React.FC = () => {
+const ResultPage: React.FC = () => {
+  const navigate = useNavigate();
+  
   // 상태 관리
   const { 
     currentStep, 
     totalSteps, 
-    currentWord, 
+    currentWord,
+    currentWordIndex,
+    goToNextWord,
+    goToPreviousWord
   } = usePracticeStore();
 
+  const handleNextWord = () => {
+    // 다음 단어로 이동
+    goToNextWord();
+    navigate('/practice');
+  };
+
+  const handlePreviousWord = () => {
+    // 이전 단어로 이동
+    goToPreviousWord();
+    navigate('/practice');
+  };
+
+  const handleViewAllResults = () => {
+    // 전체 결과 페이지로 이동
+    navigate('/result-list');
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -22,13 +44,19 @@ const PracticePage: React.FC = () => {
           <ProgressHeader step={currentStep} totalSteps={totalSteps} />
 
           {/* 발음할 단어 표시 */}
-          <WordDisplay targetWord={currentWord} />
+          <WordDisplay 
+            targetWord={currentWord}
+            onNext={handleNextWord}
+            onPrevious={handlePreviousWord}
+            showNext={currentWordIndex < totalSteps - 1}
+            showPrevious={currentWordIndex > 0}
+          />
           <ResultVideoDisplay />
-          <FeedbackCard />
+          <FeedbackCard onViewAllResults={handleViewAllResults} />
         </div>
       </div>
     </div>
   );
 };
 
-export default PracticePage;
+export default ResultPage;
