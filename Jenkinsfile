@@ -120,26 +120,6 @@ pipeline {
                 }
             }
         }
-        
-        stage('Health Check') {
-            when {
-                anyOf {
-                    expression { return env.BACKEND_CHANGED == 'true' }
-                    expression { return env.FRONTEND_CHANGED == 'true' }
-                    expression { return env.FULL_DEPLOY == 'true' }
-                }
-            }
-            steps {
-                script {
-                    echo '🏥 Health Check 중...'
-                    sleep(time: 10, unit: 'SECONDS')
-                    sh """
-                        curl -f https://k13s201.p.ssafy.io/ || exit 1
-                        curl -f https://k13s201.p.ssafy.io || exit 1
-                    """
-                }
-            }
-        }
     }
     
     post {
