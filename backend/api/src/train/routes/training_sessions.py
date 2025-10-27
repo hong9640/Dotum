@@ -5,14 +5,12 @@ from datetime import date
 
 from ..schemas.training_sessions import (
     TrainingSessionCreate,
-    TrainingSessionUpdate,
     TrainingSessionResponse,
     TrainingSessionStatusUpdate,
-    CalendarResponse,
     DailyTrainingResponse,
-    CreateSuccessResponse
 )
 from ..schemas.training_items import CurrentItemResponse, CompleteItemRequest
+from ..schemas.common import NotFoundErrorResponse, BadRequestErrorResponse, UnauthorizedErrorResponse
 from ..services.training_sessions import TrainingSessionService
 from ..models.training_session import TrainingType, TrainingSessionStatus
 from api.core.database import get_session
@@ -30,7 +28,18 @@ async def get_training_service(db: AsyncSession = Depends(get_session)) -> Train
     return TrainingSessionService(db)
 
 
-@router.post("", response_model=TrainingSessionResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=TrainingSessionResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="훈련 세션 생성",
+    description="새로운 훈련 세션을 생성합니다. 세션 이름, 훈련 타입, 아이템 개수 등을 지정할 수 있습니다.",
+    responses={
+        201: {"description": "훈련 세션 생성 성공"},
+        400: {"model": BadRequestErrorResponse, "description": "잘못된 요청"},
+        401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"}
+    }
+)
 async def create_training_session(
     session_data: TrainingSessionCreate,
     current_user: User = Depends(get_current_user),
@@ -48,7 +57,16 @@ async def create_training_session(
         )
 
 
-@router.get("", response_model=List[TrainingSessionResponse])
+@router.get(
+    "",
+    response_model=List[TrainingSessionResponse],
+    summary="사용자 훈련 세션 목록 조회",
+    description="현재 사용자의 훈련 세션 목록을 조회합니다. 타입, 상태, 페이지네이션을 통해 필터링할 수 있습니다.",
+    responses={
+        200: {"description": "조회 성공"},
+        401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"}
+    }
+)
 async def get_user_training_sessions(
     current_user: User = Depends(get_current_user),
     type: Optional[TrainingType] = Query(None, description="훈련 타입 필터"),
@@ -68,7 +86,17 @@ async def get_user_training_sessions(
     return sessions
 
 
-@router.get("/{session_id}", response_model=TrainingSessionResponse)
+@router.get(
+    "/{session_id}",
+    response_model=TrainingSessionResponse,
+    summary="훈련 세션 상세 조회",
+    description="특정 ID의 훈련 세션 상세 정보를 조회합니다. 세션의 진행 상황과 훈련 아이템 목록을 포함합니다.",
+    responses={
+        200: {"description": "조회 성공"},
+        401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"},
+        404: {"model": NotFoundErrorResponse, "description": "세션을 찾을 수 없음"}
+    }
+)
 async def get_training_session(
     session_id: int,
     current_user: User = Depends(get_current_user),
@@ -86,7 +114,18 @@ async def get_training_session(
 
 
 
-@router.post("/{session_id}/complete", response_model=TrainingSessionResponse)
+@router.post(
+    "/{session_id}/complete",
+    response_model=TrainingSessionResponse,
+    summary="훈련 세션 완료",
+    description="진행 중인 훈련 세션을 완료 처리합니다. 모든 아이템이 완료되어야 세션을 완료할 수 있습니다.",
+    responses={
+        200: {"description": "완료 성공"},
+        400: {"model": BadRequestErrorResponse, "description": "잘못된 요청"},
+        401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"},
+        404: {"model": NotFoundErrorResponse, "description": "세션을 찾을 수 없음"}
+    }
+)
 async def complete_training_session(
     session_id: int,
     current_user: User = Depends(get_current_user),
@@ -110,7 +149,18 @@ async def complete_training_session(
 
 
 
-@router.patch("/{session_id}/status", response_model=TrainingSessionResponse)
+@router.patch(
+    "/{session_id}/status",
+    response_model=TrainingSessionResponse,
+    summary="훈련 세션 상태 업데이트",
+    description="훈련 세션의 상태를 업데이트합니다. 상태 전환 사유를 함께 제공할 수 있습니다.",
+    responses={
+        200: {"description": "업데이트 성공"},
+        400: {"model": BadRequestErrorResponse, "description": "잘못된 요청"},
+        401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"},
+        404: {"model": NotFoundErrorResponse, "description": "세션을 찾을 수 없음"}
+    }
+)
 async def update_training_session_status(
     session_id: int,
     status_update: TrainingSessionStatusUpdate,
@@ -133,7 +183,16 @@ async def update_training_session_status(
         )
 
 
-@router.get("/calendar/{year}/{month}", response_model=Dict[str, int])
+@router.get(
+    "/calendar/{year}/{month}",
+    response_model=Dict[str, int],
+    summary="월별 훈련 달력 조회",
+    description="지정된 연도와 월의 훈련 달력을 조회합니다. 날짜별 세션 수를 반환합니다.",
+    responses={
+        200: {"description": "조회 성공"},
+        401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"}
+    }
+)
 async def get_training_calendar(
     year: int,
     month: int,
@@ -145,7 +204,17 @@ async def get_training_calendar(
     return await service.get_training_calendar(current_user.id, year, month, type)
 
 
-@router.get("/daily/{date_str}", response_model=DailyTrainingResponse)
+@router.get(
+    "/daily/{date_str}",
+    response_model=DailyTrainingResponse,
+    summary="일별 훈련 기록 조회",
+    description="특정 날짜(YYYY-MM-DD 형식)의 훈련 기록을 조회합니다. 해당 날짜의 모든 세션 정보를 반환합니다.",
+    responses={
+        200: {"description": "조회 성공"},
+        400: {"model": BadRequestErrorResponse, "description": "잘못된 날짜 형식"},
+        401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"}
+    }
+)
 async def get_daily_training_records(
     date_str: str,
     type: Optional[TrainingType] = Query(None, description="훈련 타입 필터"),
@@ -168,7 +237,17 @@ async def get_daily_training_records(
         )
 
 
-@router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{session_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="훈련 세션 삭제",
+    description="지정된 ID의 훈련 세션을 삭제합니다. 삭제된 세션은 복구할 수 없습니다.",
+    responses={
+        204: {"description": "삭제 성공"},
+        401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"},
+        404: {"model": NotFoundErrorResponse, "description": "세션을 찾을 수 없음"}
+    }
+)
 async def delete_training_session(
     session_id: int,
     current_user: User = Depends(get_current_user),
@@ -184,7 +263,17 @@ async def delete_training_session(
     return
 
 
-@router.get("/{session_id}/current-item", response_model=CurrentItemResponse)
+@router.get(
+    "/{session_id}/current-item",
+    response_model=CurrentItemResponse,
+    summary="현재 진행 중인 아이템 조회",
+    description="세션에서 현재 진행 중인 훈련 아이템을 조회합니다. 단어 또는 문장 정보와 다음 아이템 존재 여부를 반환합니다.",
+    responses={
+        200: {"description": "조회 성공"},
+        401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"},
+        404: {"model": NotFoundErrorResponse, "description": "아이템을 찾을 수 없음"}
+    }
+)
 async def get_current_item(
     session_id: int,
     current_user: User = Depends(get_current_user),
@@ -220,7 +309,18 @@ async def get_current_item(
     )
 
 
-@router.post("/{session_id}/items/{item_id}/complete", response_model=TrainingSessionResponse)
+@router.post(
+    "/{session_id}/items/{item_id}/complete",
+    response_model=TrainingSessionResponse,
+    summary="훈련 아이템 완료 처리",
+    description="특정 훈련 아이템을 완료 처리합니다. 동영상 URL과 미디어 파일 ID를 함께 제공할 수 있습니다.",
+    responses={
+        200: {"description": "완료 성공"},
+        400: {"model": BadRequestErrorResponse, "description": "잘못된 요청"},
+        401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"},
+        404: {"model": NotFoundErrorResponse, "description": "세션을 찾을 수 없음"}
+    }
+)
 async def complete_training_item(
     session_id: int,
     item_id: int,

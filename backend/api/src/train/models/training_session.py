@@ -20,15 +20,11 @@ if TYPE_CHECKING:
 class TrainingType(str, Enum):
     WORD = "word"
     SENTENCE = "sentence"
-    CONVERSATION = "conversation"
-    GRAMMAR = "grammar"
-
 
 class TrainingSessionStatus(str, Enum):
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
-
 
 class TrainingSession(SQLModel, table=True):
     __tablename__ = "training_sessions"

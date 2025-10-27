@@ -109,8 +109,6 @@ class TrainingSessionStats(BaseModel):
     # 타입별 통계
     word_sessions: int
     sentence_sessions: int
-    conversation_sessions: int
-    grammar_sessions: int
     
     # 진행률 통계
     average_progress: float
