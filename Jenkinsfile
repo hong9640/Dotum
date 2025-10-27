@@ -157,9 +157,23 @@ stage('Deploy') {
                 echo "🗑️ 기존 컨테이너 제거 중..."
                 for service in \${DEPLOY_SERVICES}; do
                     echo "  - dotum-\${service} 제거"
+                    # 이름으로 제거 시도
                     docker stop dotum-\${service} 2>/dev/null || true
                     docker rm -f dotum-\${service} 2>/dev/null || true
+                    # 혹시 모를 경우를 위해 컨테이너 ID로도 제거
+                    CONTAINER_ID=\$(docker ps -a --filter "name=dotum-\${service}" --format "{{.ID}}" | head -1)
+                    if [ ! -z "\${CONTAINER_ID}" ]; then
+                        echo "    컨테이너 ID \${CONTAINER_ID} 제거"
+                        docker rm -f \${CONTAINER_ID} 2>/dev/null || true
+                    fi
                 done
+                
+                # 제거 후 확인
+                echo "🔍 제거 후 남은 컨테이너 확인:"
+                docker ps -a --filter "name=dotum-" --format "{{.Names}} ({{.ID}})" || echo "없음"
+                
+                # 대기 시간 추가
+                sleep 2
                 
                 # 2단계: 컨테이너 재생성 (새 이미지 적용)
                 echo "🚀 새 컨테이너 생성 중..."
