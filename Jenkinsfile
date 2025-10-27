@@ -4,8 +4,7 @@ pipeline {
     environment {
         DOCKER_COMPOSE = 'docker-compose'
         PROJECT_NAME = 'dotum'
-        // Mattermost Webhook URL (Optional)
-        MATTERMOST_WEBHOOK_URL = "${env.MATTERMOST_WEBHOOK_URL ?: ''}"
+        // Mattermost Webhook URL은 .env 파일에서 로드됨
     }
     
     triggers {
@@ -130,9 +129,11 @@ pipeline {
                     
                     sh """
                         cd ${WORKSPACE}
-                        # 기존 backend, frontend 컨테이너 제거
-                        docker rm -f backend frontend 2>/dev/null || true
-                        # backend와 frontend만 다시 시작 (postgres는 건드리지 않음)
+                        # backend와 frontend만 재시작 (jenkins, portainer는 건드리지 않음)
+                        # 기존 컨테이너를 중지하고 제거한 후 재시작
+                        ${DOCKER_COMPOSE} stop backend frontend 2>/dev/null || true
+                        ${DOCKER_COMPOSE} rm -f backend frontend 2>/dev/null || true
+                        # backend와 frontend만 다시 시작 (의존성은 건드리지 않음)
                         ${DOCKER_COMPOSE} up -d --no-deps backend frontend
                     """
                 }
