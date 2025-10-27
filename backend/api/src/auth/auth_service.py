@@ -239,7 +239,7 @@ async def refresh_access_token(
         print("래프래시 실패: DB에 토큰 값이 없습니다.")
         raise invalid_token_exception
     if token_entry.expires_at < datetime.now():
-        print("리프래시 실패: 토큰이 DB에 없습니다.") 
+        print("리프래시 실패: 토큰이 만료되었습니다.") 
         await db.delete(token_entry)
         await db.commit()
         raise invalid_token_exception
@@ -256,8 +256,14 @@ async def refresh_access_token(
         await db.commit()
         raise invalid_token_exception
 
-    user_id = token_entry.user_id
-    await db.delete(token_entry)
+    if token_entry:
+        user_id = token_entry.user_id 
+
+        delete_stmt = delete(RefreshToken).where(RefreshToken.id == token_entry.id)
+        await db.execute(delete_stmt)
+
+    else:
+        raise invalid_token_exception
 
     new_access_token = create_access_token(data={"sub": username})
     new_refresh_token = create_refresh_token(data={"sub": username})

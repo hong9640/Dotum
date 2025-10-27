@@ -6,7 +6,7 @@ from .user_enum import UserRoleEnum
 if TYPE_CHECKING:
     from api.src.train.models import TrainingSession
     from api.src.train.models.media import MediaFile
-    from backend.api.src.token.token_model import RefreshToken
+    from api.src.token.token_model import RefreshToken
 
 class User(SQLModel, table=True):
     __tablename__ = "users"
