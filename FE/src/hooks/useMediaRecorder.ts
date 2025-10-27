@@ -15,7 +15,7 @@ export const useMediaRecorder = ({
   preferredHeight = 720,
   onSave,
 }: UseMediaRecorderProps) => {
-  const videoRef = useRef<HTMLVideoElement>(null as any);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -57,8 +57,9 @@ export const useMediaRecorder = ({
         const videoTrack = stream.getVideoTracks()[0];
         const s = videoTrack.getSettings();
         setDeviceInfo(`${s.width}x${s.height} @ ${s.frameRate ?? "?"}fps`);
-      } catch (err: any) {
-        setPermissionError(err?.message ?? "카메라/마이크 접근 권한을 허용해주세요.");
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : "카메라/마이크 접근 권한을 허용해주세요.";
+        setPermissionError(errorMessage);
         setRecordingState("error");
       }
     })();
@@ -73,7 +74,9 @@ export const useMediaRecorder = ({
       if (recorderRef.current && recorderRef.current.state !== "inactive") {
         recorderRef.current.stop();
       }
-    } catch {}
+    } catch {
+      // ignore
+    }
 
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach((t) => t.stop());
@@ -135,8 +138,9 @@ export const useMediaRecorder = ({
       timerRef.current = window.setInterval(() => {
         setElapsed((sec) => sec + 1);
       }, 1000);
-    } catch (e: any) {
-      setPermissionError(e?.message ?? "녹화를 시작할 수 없습니다.");
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "녹화를 시작할 수 없습니다.";
+      setPermissionError(errorMessage);
       setRecordingState("error");
     }
   };
@@ -150,7 +154,7 @@ export const useMediaRecorder = ({
         window.clearInterval(timerRef.current);
         timerRef.current = null;
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
   };

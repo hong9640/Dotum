@@ -2,7 +2,7 @@ import React from "react";
 import { cn } from "@/lib/utils";
 
 interface RecordingPreviewProps {
-  videoRef: React.RefObject<HTMLVideoElement>;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
   recordingState: "idle" | "recording" | "processing" | "error";
   elapsed: number;
   blobUrl: string | null;
