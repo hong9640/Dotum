@@ -74,7 +74,7 @@ services:
       - TZ=Asia/Seoul
       - DB_NETWORK=postgres
       - DB_NAME=${DB_NAME:-s201_db}
-      - DB_PORT={DB_PORT}
+      - DB_PORT=${DB_PORT}
       - JWT_SECRET=${JWT_SECRET}
       - DB_ID=${DB_ID}
       - DB_PW=${DB_PW}
