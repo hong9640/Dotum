@@ -141,24 +141,33 @@ stage('Deploy') {
                 cd ${WORKSPACE}
                 
                 echo "🔍 기존 컨테이너 상태 확인..."
-                docker-compose -p dotum ps || true
+                docker ps --filter "name=dotum-" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || true
                 
-                # Postgres 컨테이너가 실행 중인지 확인
-                POSTGRES_STATUS=\$(docker-compose -p dotum ps -q postgres)
-                if [ -z "\$POSTGRES_STATUS" ]; then
+                # Postgres 컨테이너 확인
+                if docker ps --format '{{.Names}}' | grep -q 'dotum-postgres'; then
+                    echo "✅ Postgres가 이미 실행 중입니다."
+                else
                     echo "⚠️ Postgres 컨테이너가 없습니다. Postgres를 먼저 시작합니다..."
                     docker-compose -p dotum up -d postgres
                     echo "⏳ Postgres 시작 대기..."
                     sleep 2
-                else
-                    echo "✅ Postgres가 이미 실행 중입니다."
                 fi
                 
-                echo "🛑 기존 backend, frontend 컨테이너 중지..."
-                docker-compose -p dotum stop backend frontend 2>/dev/null || true
+                echo "🛑 기존 backend, frontend 컨테이너 중지 및 제거..."
                 
-                echo "🗑️ 기존 backend, frontend 컨테이너 제거..."
-                docker-compose -p dotum rm -f backend frontend 2>/dev/null || true
+                # Backend 컨테이너 중지 및 제거
+                if docker ps --format '{{.Names}}' | grep -q 'dotum-backend'; then
+                    echo "Backend 컨테이너 중지 및 제거..."
+                    docker stop dotum-backend 2>/dev/null || true
+                    docker rm dotum-backend 2>/dev/null || true
+                fi
+                
+                # Frontend 컨테이너 중지 및 제거
+                if docker ps --format '{{.Names}}' | grep -q 'dotum-frontend'; then
+                    echo "Frontend 컨테이너 중지 및 제거..."
+                    docker stop dotum-frontend 2>/dev/null || true
+                    docker rm dotum-frontend 2>/dev/null || true
+                fi
                 
                 echo "⏳ 대기 중..."
                 sleep 1
@@ -170,10 +179,10 @@ stage('Deploy') {
                 sleep 2
                 
                 echo "✅ 배포된 컨테이너 상태:"
-                docker-compose -p dotum ps
+                docker ps --filter "name=dotum-" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
                 
-                echo "🔍 컨테이너 로그 확인:"
-                docker-compose -p dotum logs --tail=20 backend || true
+                echo "🔍 Backend 컨테이너 로그 확인:"
+                docker logs --tail=20 dotum-backend 2>/dev/null || true
             """
         }
     }
