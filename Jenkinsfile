@@ -140,29 +140,22 @@ stage('Deploy') {
             sh """
                 cd ${WORKSPACE}
                 
-                # 배포 대상 컨테이너만 선택적으로 처리
-                DEPLOY_SERVICES=""
-                
-                if [ "${deployBackend}" = "true" ]; then
-                    DEPLOY_SERVICES="\${DEPLOY_SERVICES} backend"
-                fi
-                
-                if [ "${deployFrontend}" = "true" ]; then
-                    DEPLOY_SERVICES="\${DEPLOY_SERVICES} frontend"
-                fi
-                
-                echo "📦 배포 대상: \${DEPLOY_SERVICES}"
-                
-                # 배포: 컨테이너 재시작
+                # 배포: postgres, backend, frontend만 재시작 (jenkins, portainer는 건드리지 않음)
                 echo "🔄 컨테이너 재시작 중..."
                 
-                docker-compose -p dotum stop \${DEPLOY_SERVICES} 2>/dev/null || true
-                docker-compose -p dotum rm -f \${DEPLOY_SERVICES} 2>/dev/null || true
-                docker-compose -p dotum up -d --no-deps \${DEPLOY_SERVICES}
+                # 1. 기존 컨테이너 중지 및 제거
+                docker-compose -p dotum stop postgres backend frontend 2>/dev/null || true
+                docker-compose -p dotum rm -f postgres backend frontend 2>/dev/null || true
+                
+                # 2. 대기 (포트 해제 시간)
+                sleep 5
+                
+                # 3. 재시작
+                docker-compose -p dotum up -d postgres backend frontend
                 
                 # 상태 확인
                 echo "✅ 배포된 컨테이너 상태:"
-                ${DOCKER_COMPOSE} ps
+                docker-compose -p dotum ps
             """
         }
     }
