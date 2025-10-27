@@ -29,8 +29,7 @@ pipeline {
                     // 호스트의 .env 파일을 workspace로 복사
                     sh '''
                         if [ -f /home/ubuntu/.env ]; then
-                            mkdir -p backend
-                            cp /home/ubuntu/.env backend/.env
+                            cp /home/ubuntu/.env .env
                             echo "✅ .env 파일 복사 완료"
                         else
                             echo "⚠️ /home/ubuntu/.env 파일이 없습니다"
