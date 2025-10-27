@@ -20,9 +20,10 @@ const WEEKDAYS = [
 interface CalendarGridProps {
   matrix: { date: Date; inMonth: boolean }[];
   counts: TrainingCountMap;
+  onDateClick?: (date: string) => void;
 }
 
-function CalendarGrid({ matrix, counts }: CalendarGridProps) {
+function CalendarGrid({ matrix, counts, onDateClick }: CalendarGridProps) {
   return (
     <>
       {/* 요일 헤더 */}
@@ -52,12 +53,19 @@ function CalendarGrid({ matrix, counts }: CalendarGridProps) {
           const dow = date.getDay();
           const numClass = dow === 0 ? "text-red-400" : dow === 6 ? "text-blue-500" : "text-slate-600";
 
+          const handleDateClick = () => {
+            if (onDateClick && inMonth) {
+              onDateClick(iso);
+            }
+          };
+
           return (
             <div
               key={iso + idx}
               className={`w-[124px] h-[94px] rounded-xl border border-gray-200 px-[1px] py-[8.5px] flex flex-col items-center gap-[6px] flex-shrink-0 ${
-                inMonth ? "bg-white" : "bg-gray-50"
+                inMonth ? "bg-white cursor-pointer hover:bg-gray-50 hover:shadow-sm transition-all duration-200" : "bg-gray-50"
               }`}
+              onClick={handleDateClick}
             >
               <div className="w-full flex items-center justify-start">
                 <span className={`text-lg font-semibold ${

@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { Calendar } from "./components/Calendar";
+import TrainingDayDetail from "../training-history-detail";
 
 // 훈련 세트 수 데이터 타입
 interface TrainingCountMap {
@@ -11,11 +12,37 @@ const SAMPLE_COUNTS: TrainingCountMap = {
   "2025-01-01": 3,
   "2025-01-12": 4,
   "2025-01-16": 1,
-  "2025-01-23": 2,
+  "2025-01-23": 6, // 6개 학습으로 변경
 };
 
 export default function TrainingHistoryPage() {
   const [counts] = React.useState<TrainingCountMap>(SAMPLE_COUNTS);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  const handleDateClick = (date: string) => {
+    setSelectedDate(date);
+  };
+
+  const handleBack = () => {
+    setSelectedDate(null);
+  };
+
+  // 날짜 상세 페이지가 선택된 경우
+  if (selectedDate) {
+    const selectedDateCount = counts[selectedDate] || 0;
+    return (
+      <TrainingDayDetail 
+        date={selectedDate} 
+        trainingSets={undefined} // 샘플 데이터 사용
+        expectedCount={selectedDateCount} // 선택된 날짜의 학습 횟수 전달
+        onBack={handleBack}
+        onTrainingSetClick={(trainingSet: any) => {
+          console.log('Training set clicked:', trainingSet);
+          // 여기서 상세 모달이나 다른 페이지로 이동할 수 있습니다
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen w-full bg-slate-50 flex flex-col">
@@ -28,7 +55,7 @@ export default function TrainingHistoryPage() {
             </p>
           </div>
 
-          <Calendar counts={counts} />
+          <Calendar counts={counts} onDateClick={handleDateClick} />
         </div>
       </main>
     </div>
