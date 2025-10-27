@@ -12,10 +12,11 @@ services:
       - "50000:50000"
     volumes:
       - jenkins_home:/var/jenkins_home
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # 읽기 전용으로 변경
       - ./jenkins:/var/jenkins_home/custom
     environment:
       - TZ=Asia/Seoul
+      - JENKINS_OPTS=--httpPort=8080
     networks:
       - dotum-braindeck-network
     depends_on:
