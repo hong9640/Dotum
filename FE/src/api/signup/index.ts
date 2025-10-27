@@ -1,3 +1,5 @@
+import { apiClient } from "../axios";
+
 // 회원가입 API 타입 정의
 export interface SignupRequest {
   username: string;
@@ -30,22 +32,15 @@ const ERROR_MAPPING = {
 export const signup = async (
   data: SignupRequest
 ): Promise<SignupResponse> => {
-  const response = await fetch("http://localhost:8000/api/v1/auth/signup", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      username: data.username,
-      password: data.password,
-      name: data.name,
-      phone_number: data.phone_number,
-      gender: data.gender,
-    }),
+  const response = await apiClient.post<SignupResponse>("/auth/signup", {
+    username: data.username,
+    password: data.password,
+    name: data.name,
+    phone_number: data.phone_number,
+    gender: data.gender,
   });
 
-  const result = await response.json();
-  return result;
+  return response.data;
 };
 
 /**
