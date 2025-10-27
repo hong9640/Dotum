@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Documentation files with dates
+2025-*
+
+# Commit message files
+commit_message.txt
