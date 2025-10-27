@@ -25,10 +25,10 @@ services:
       - dotum-braindeck-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/login"]
-      interval: 30s
-      timeout: 10s
+      interval: 5s
+      timeout: 5s
       retries: 3
-      start_period: 40s
+      start_period: 5s
     deploy:
       resources:
         limits:
@@ -57,7 +57,6 @@ services:
   # ============================================================
   postgres:
     image: postgres:15
-    container_name: dotum-postgres
     restart: always
     environment:
       POSTGRES_USER: ${DB_ID}
@@ -69,9 +68,10 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_ID} -d ${DB_NAME}"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 5s
     networks:
       - dotum-braindeck-network
 
@@ -102,11 +102,19 @@ services:
       - "8000:8000"
     volumes:
       - ./backend/credentials:/app/credentials
-    depends_on:
-      postgres:
-        condition: service_healthy
     networks:
       - dotum-braindeck-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --log-level debug
 
   # ============================================================
@@ -125,10 +133,19 @@ services:
     volumes:
       - /etc/letsencrypt:/etc/letsencrypt
       - /var/www/certbot:/var/www/certbot
-    depends_on:
-      - backend
     networks:
       - dotum-braindeck-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 # ============================================================
 # Volumes
