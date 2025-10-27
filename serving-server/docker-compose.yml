@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  serving-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: serving-server
+    ports:
+      - "8001:8000"
+    environment:
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID}
+      - GCS_BUCKET=${GCS_BUCKET}
+      - GCS_CREDENTIAL_PATH=/etc/gcp/key.json
+    volumes:
+      - ./credentials:/etc/gcp:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+

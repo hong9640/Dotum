@@ -1,6 +1,7 @@
 import time
 import traceback
 from fastapi import Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 from api.core.config import settings
@@ -53,5 +54,14 @@ class SecurityHeaderMiddleware(BaseHTTPMiddleware):
 
 def register_middlewares(app):
     """FastAPI 인스턴스에 미들웨어 등록"""
+    # CORS 미들웨어 - 모든 Origin 허용 (개발/테스트용)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],  # 모든 Origin 허용
+        allow_credentials=True,
+        allow_methods=["*"],  # 모든 HTTP 메서드 허용
+        allow_headers=["*"],   # 모든 헤더 허용
+    )
+    
     app.add_middleware(LoggingMiddleware)
     app.add_middleware(SecurityHeaderMiddleware)

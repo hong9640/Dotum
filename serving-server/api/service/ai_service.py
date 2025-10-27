@@ -16,7 +16,7 @@ class AIService:
     
     async def generate_tts_audio(self, text: str, lang: str = "ko") -> Optional[str]:
         """
-        TTS로 오디오 생성 (Google Cloud TTS 사용)
+        TTS로 오디오 생성 (gTTS 사용)
         
         Args:
             text: 변환할 텍스트
@@ -42,36 +42,14 @@ class AIService:
                 tmp_path = tmp_file.name
             
             try:
-                # Google Cloud TTS 사용
-                from google.cloud import texttospeech
+                # gTTS 사용
+                from gtts import gTTS
                 
-                client = texttospeech.TextToSpeechClient()
-                
-                # 입력 텍스트 설정
-                synthesis_input = texttospeech.SynthesisInput(text=text)
-                
-                # 음성 설정
-                voice = texttospeech.VoiceSelectionParams(
-                    language_code=lang,
-                    ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL,
-                )
-                
-                # 오디오 설정
-                audio_config = texttospeech.AudioConfig(
-                    audio_encoding=texttospeech.AudioEncoding.LINEAR16,
-                    sample_rate_hertz=22050,
-                )
-                
-                # TTS 실행
-                response = client.synthesize_speech(
-                    input=synthesis_input,
-                    voice=voice,
-                    audio_config=audio_config
-                )
+                # gTTS 객체 생성
+                tts = gTTS(text=text, lang=lang, slow=False)
                 
                 # 임시 파일에 저장
-                with open(tmp_path, "wb") as out:
-                    out.write(response.audio_content)
+                tts.save(tmp_path)
                 
                 # GCS에 업로드
                 if self.gcs_client.upload_file(tmp_path, tts_gs_path):
@@ -90,58 +68,51 @@ class AIService:
             logger.error(f"Failed to generate TTS: {e}")
             return None
 
-    async def generate_gtts_audio(self, text: str, lang: str = "ko") -> Optional[str]:
+    async def extract_audio_from_video(self, video_gs_path: str) -> Optional[str]:
         """
-        gTTS로 오디오 생성
+        영상에서 오디오 추출
         
         Args:
-            text: 변환할 텍스트
-            lang: 언어 코드
+            video_gs_path: GCS 영상 경로
             
         Returns:
-            Optional[str]: 생성된 TTS 오디오의 GCS 경로
+            Optional[str]: 추출된 오디오의 로컬 경로
         """
         try:
-            # TTS 파일명 생성 (텍스트 해시 기반)
-            import hashlib
-            text_hash = hashlib.md5(text.encode()).hexdigest()
-            tts_filename = f"gtts_{text_hash}_{lang}.wav"
-            tts_gs_path = f"gs://{settings.GCS_BUCKET}/{settings.PREFIX_TTS}/{tts_filename}"
-            
-            # 이미 TTS 파일이 존재하는지 확인
-            if self.gcs_client.file_exists(tts_gs_path):
-                logger.info(f"gTTS file already exists: {tts_gs_path}")
-                return tts_gs_path
-            
-            # 임시 파일 경로 생성
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
-                tmp_path = tmp_file.name
-            
-            try:
-                # gTTS 사용
-                from gtts import gTTS
-                
-                # gTTS 객체 생성
-                tts = gTTS(text=text, lang=lang, slow=False)
-                
-                # 임시 파일에 저장
-                tts.save(tmp_path)
-                
-                # GCS에 업로드
-                if self.gcs_client.upload_file(tmp_path, tts_gs_path):
-                    logger.info(f"gTTS generated successfully: {tts_gs_path}")
-                    return tts_gs_path
-                else:
-                    logger.error("Failed to upload gTTS file to GCS")
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                # GCS에서 영상 다운로드
+                video_local = os.path.join(tmp_dir, "input_video.mp4")
+                if not self.gcs_client.download_file(video_gs_path, video_local):
+                    logger.error(f"Failed to download video: {video_gs_path}")
                     return None
-                    
-            finally:
-                # 임시 파일 정리
-                if os.path.exists(tmp_path):
-                    os.unlink(tmp_path)
-                    
+                
+                # 오디오 추출
+                audio_local = os.path.join(tmp_dir, "extracted_audio.wav")
+                cmd = [
+                    "ffmpeg", "-y",
+                    "-i", video_local,
+                    "-vn",  # 비디오 스트림 제거
+                    "-acodec", "pcm_s16le",  # 오디오 코덱
+                    "-ar", "16000",  # 샘플레이트
+                    "-ac", "1",  # 모노
+                    audio_local
+                ]
+                
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.error(f"Failed to extract audio: {result.stderr}")
+                    return None
+                
+                # 추출된 오디오를 임시 저장 (삭제되지 않도록)
+                persistent_audio = f"/tmp/extracted_audio_{int(time.time())}.wav"
+                import shutil
+                shutil.copy2(audio_local, persistent_audio)
+                
+                logger.info(f"Audio extracted from video: {persistent_audio}")
+                return persistent_audio
+                
         except Exception as e:
-            logger.error(f"Failed to generate gTTS: {e}")
+            logger.error(f"Failed to extract audio from video: {e}")
             return None
     
     async def run_freevc_inference(
@@ -163,14 +134,22 @@ class AIService:
         """
         try:
             with tempfile.TemporaryDirectory() as tmp_dir:
-                # GCS에서 파일 다운로드
+                # GCS에서 파일 다운로드 (GCS 경로인 경우만)
                 src_local = os.path.join(tmp_dir, "src_audio.wav")
                 ref_local = os.path.join(tmp_dir, "ref_audio.wav")
                 
-                if not self.gcs_client.download_file(src_audio_path, src_local):
-                    logger.error(f"Failed to download src audio: {src_audio_path}")
-                    return None
+                # src_audio_path가 로컬 경로인지 확인
+                if src_audio_path.startswith("gs://"):
+                    if not self.gcs_client.download_file(src_audio_path, src_local):
+                        logger.error(f"Failed to download src audio: {src_audio_path}")
+                        return None
+                else:
+                    # 로컬 경로인 경우 복사
+                    import shutil
+                    shutil.copy2(src_audio_path, src_local)
+                    logger.info(f"Using local audio file: {src_audio_path}")
                 
+                # ref_audio_path는 항상 GCS 경로
                 if not self.gcs_client.download_file(ref_audio_path, ref_local):
                     logger.error(f"Failed to download ref audio: {ref_audio_path}")
                     return None
@@ -179,8 +158,8 @@ class AIService:
                 model_local = os.path.join(tmp_dir, "freevc-s.pth")
                 config_local = os.path.join(tmp_dir, "freevc-s.json")
                 
-                model_gs = "gs://brain-deck/ai/FreeVC/checkpoints/freevc-s.pth"
-                config_gs = "gs://brain-deck/ai/FreeVC/configs/freevc-s.json"
+                model_gs = f"gs://{settings.GCS_BUCKET}/{settings.FREEVC_MODEL_PATH}/checkpoints/freevc-s.pth"
+                config_gs = f"gs://{settings.GCS_BUCKET}/{settings.FREEVC_MODEL_PATH}/configs/freevc-s.json"
                 
                 if not self.gcs_client.download_file(model_gs, model_local):
                     logger.error(f"Failed to download FreeVC model: {model_gs}")
@@ -199,13 +178,13 @@ class AIService:
                 
                 # FreeVC 실행 파일 다운로드
                 freevc_infer_path = os.path.join(freevc_dir, "freevc_infer.py")
-                if not self.gcs_client.download_file("gs://brain-deck/ai/FreeVC/freevc_infer.py", freevc_infer_path):
+                if not self.gcs_client.download_file(f"gs://{settings.GCS_BUCKET}/{settings.FREEVC_MODEL_PATH}/freevc_infer.py", freevc_infer_path):
                     logger.error("Failed to download FreeVC inference script")
                     return None
                 
                 # CPU 모드 convert.py 다운로드
                 convert_cpu_path = os.path.join(freevc_dir, "convert.py")
-                if not self.gcs_client.download_file("gs://brain-deck/ai/FreeVC/convert_cpu.py", convert_cpu_path):
+                if not self.gcs_client.download_file(f"gs://{settings.GCS_BUCKET}/{settings.FREEVC_MODEL_PATH}/convert_cpu.py", convert_cpu_path):
                     logger.error("Failed to download CPU mode convert script")
                     return None
                 
@@ -227,7 +206,7 @@ class AIService:
                     else:
                         gcs_filename = local_filename = file_info
                     
-                    gcs_path = f"gs://brain-deck/ai/FreeVC/{gcs_filename}"
+                    gcs_path = f"gs://{settings.GCS_BUCKET}/{settings.FREEVC_MODEL_PATH}/{gcs_filename}"
                     local_path = os.path.join(freevc_dir, local_filename)
                     if self.gcs_client.file_exists(gcs_path):
                         self.gcs_client.download_file(gcs_path, local_path)
@@ -239,7 +218,7 @@ class AIService:
                 
                 hifigan_files = ["__init__.py", "models.py"]
                 for filename in hifigan_files:
-                    gcs_path = f"gs://brain-deck/ai/FreeVC/hifigan/{filename}"
+                    gcs_path = f"gs://{settings.GCS_BUCKET}/{settings.FREEVC_MODEL_PATH}/hifigan/{filename}"
                     local_path = os.path.join(hifigan_dir, filename)
                     if self.gcs_client.file_exists(gcs_path):
                         self.gcs_client.download_file(gcs_path, local_path)
@@ -256,7 +235,7 @@ class AIService:
                 ]
                 
                 for filename in speaker_encoder_files:
-                    gcs_path = f"gs://brain-deck/ai/FreeVC/speaker_encoder/{filename}"
+                    gcs_path = f"gs://{settings.GCS_BUCKET}/{settings.FREEVC_MODEL_PATH}/speaker_encoder/{filename}"
                     local_path = os.path.join(speaker_encoder_dir, filename)
                     if self.gcs_client.file_exists(gcs_path):
                         self.gcs_client.download_file(gcs_path, local_path)
@@ -272,7 +251,7 @@ class AIService:
                 ]
                 
                 for filename in data_objects_files:
-                    gcs_path = f"gs://brain-deck/ai/FreeVC/speaker_encoder/data_objects/{filename}"
+                    gcs_path = f"gs://{settings.GCS_BUCKET}/{settings.FREEVC_MODEL_PATH}/speaker_encoder/data_objects/{filename}"
                     local_path = os.path.join(data_objects_dir, filename)
                     if self.gcs_client.file_exists(gcs_path):
                         self.gcs_client.download_file(gcs_path, local_path)
@@ -284,7 +263,7 @@ class AIService:
                 
                 wavlm_files = ["__init__.py", "modules.py", "WavLM.py", "WavLM-Large.pt"]
                 for filename in wavlm_files:
-                    gcs_path = f"gs://brain-deck/ai/FreeVC/wavlm/{filename}"
+                    gcs_path = f"gs://{settings.GCS_BUCKET}/{settings.FREEVC_MODEL_PATH}/wavlm/{filename}"
                     local_path = os.path.join(wavlm_dir, filename)
                     if self.gcs_client.file_exists(gcs_path):
                         self.gcs_client.download_file(gcs_path, local_path)
@@ -415,7 +394,7 @@ class AIService:
                 
                 # 모델 파일 다운로드
                 model_local = os.path.join(tmp_dir, "Wav2Lip_gan.pth")
-                model_gs = "gs://brain-deck/ai/Wav2Lip/checkpoints/Wav2Lip_gan.pth"
+                model_gs = f"gs://{settings.GCS_BUCKET}/{settings.WAV2LIP_MODEL_PATH}/checkpoints/Wav2Lip_gan.pth"
                 
                 if not self.gcs_client.download_file(model_gs, model_local):
                     logger.error(f"Failed to download Wav2Lip model: {model_gs}")
@@ -431,7 +410,7 @@ class AIService:
                 
                 # Wav2Lip 실행 파일 다운로드
                 inference_path = os.path.join(wav2lip_dir, "inference.py")
-                if not self.gcs_client.download_file("gs://brain-deck/ai/Wav2Lip/inference.py", inference_path):
+                if not self.gcs_client.download_file(f"gs://{settings.GCS_BUCKET}/{settings.WAV2LIP_MODEL_PATH}/inference.py", inference_path):
                     logger.error("Failed to download Wav2Lip inference script")
                     return None
                 
@@ -441,7 +420,7 @@ class AIService:
                 ]
                 
                 for filename in essential_files:
-                    gcs_path = f"gs://brain-deck/ai/Wav2Lip/{filename}"
+                    gcs_path = f"gs://{settings.GCS_BUCKET}/{settings.WAV2LIP_MODEL_PATH}/{filename}"
                     local_path = os.path.join(wav2lip_dir, filename)
                     if self.gcs_client.file_exists(gcs_path):
                         self.gcs_client.download_file(gcs_path, local_path)
@@ -453,7 +432,7 @@ class AIService:
                 
                 models_files = ["__init__.py", "conv.py", "syncnet.py", "wav2lip.py"]
                 for filename in models_files:
-                    gcs_path = f"gs://brain-deck/ai/Wav2Lip/models/{filename}"
+                    gcs_path = f"gs://{settings.GCS_BUCKET}/{settings.WAV2LIP_MODEL_PATH}/models/{filename}"
                     local_path = os.path.join(models_dir, filename)
                     if self.gcs_client.file_exists(gcs_path):
                         self.gcs_client.download_file(gcs_path, local_path)
@@ -467,7 +446,7 @@ class AIService:
                     "__init__.py", "api.py", "models.py", "utils.py"
                 ]
                 for filename in face_detection_files:
-                    gcs_path = f"gs://brain-deck/ai/Wav2Lip/face_detection/{filename}"
+                    gcs_path = f"gs://{settings.GCS_BUCKET}/{settings.WAV2LIP_MODEL_PATH}/face_detection/{filename}"
                     local_path = os.path.join(face_detection_dir, filename)
                     if self.gcs_client.file_exists(gcs_path):
                         self.gcs_client.download_file(gcs_path, local_path)
@@ -479,7 +458,7 @@ class AIService:
                 
                 detection_files = ["__init__.py", "core.py"]
                 for filename in detection_files:
-                    gcs_path = f"gs://brain-deck/ai/Wav2Lip/face_detection/detection/{filename}"
+                    gcs_path = f"gs://{settings.GCS_BUCKET}/{settings.WAV2LIP_MODEL_PATH}/face_detection/detection/{filename}"
                     local_path = os.path.join(detection_dir, filename)
                     if self.gcs_client.file_exists(gcs_path):
                         self.gcs_client.download_file(gcs_path, local_path)
@@ -491,7 +470,7 @@ class AIService:
                 
                 sfd_files = ["__init__.py", "bbox.py", "detect.py", "net_s3fd.py", "sfd_detector.py"]
                 for filename in sfd_files:
-                    gcs_path = f"gs://brain-deck/ai/Wav2Lip/face_detection/detection/sfd/{filename}"
+                    gcs_path = f"gs://{settings.GCS_BUCKET}/{settings.WAV2LIP_MODEL_PATH}/face_detection/detection/sfd/{filename}"
                     local_path = os.path.join(sfd_dir, filename)
                     if self.gcs_client.file_exists(gcs_path):
                         self.gcs_client.download_file(gcs_path, local_path)
@@ -547,77 +526,6 @@ class AIService:
         except Exception as e:
             logger.error(f"Failed to run Wav2Lip inference: {e}")
             return None
-
-    async def process_lip_video_gtts(
-        self,
-        text: str,
-        ref_audio_path: str,
-        face_image_path: str,
-        output_prefix: str = "gtts_workflow"
-    ) -> Optional[dict]:
-        """
-        gTTS를 사용한 전체 워크플로우 처리
-        
-        Args:
-            text: 변환할 텍스트
-            ref_audio_path: 참조 오디오 파일 경로 (GCS)
-            face_image_path: 얼굴 이미지 파일 경로 (GCS)
-            output_prefix: 출력 파일명 접두사
-            
-        Returns:
-            Optional[dict]: 처리 결과 정보
-        """
-        try:
-            logger.info(f"Starting gTTS workflow for text: {text[:50]}...")
-            
-            # 1. gTTS로 음성 생성
-            logger.info("Step 1: Generating TTS audio with gTTS")
-            tts_audio_path = await self.generate_gtts_audio(text)
-            if not tts_audio_path:
-                logger.error("Failed to generate TTS audio")
-                return None
-            
-            # 2. FreeVC로 음성 변환
-            logger.info("Step 2: Running FreeVC inference")
-            freevc_audio_path = await self.run_freevc_inference(
-                tts_audio_path, 
-                ref_audio_path, 
-                f"{output_prefix}_freevc"
-            )
-            if not freevc_audio_path:
-                logger.error("Failed to run FreeVC inference")
-                return None
-            
-            # 3. Wav2Lip으로 립싱크 영상 생성
-            logger.info("Step 3: Running Wav2Lip inference")
-            wav2lip_video_path = await self.run_wav2lip_inference(
-                face_image_path,
-                freevc_audio_path,
-                f"{output_prefix}_wav2lip"
-            )
-            if not wav2lip_video_path:
-                logger.error("Failed to run Wav2Lip inference")
-                return None
-            
-            # 4. 결과 반환
-            result = {
-                "success": True,
-                "text": text,
-                "tts_audio_path": tts_audio_path,
-                "freevc_audio_path": freevc_audio_path,
-                "final_video_path": wav2lip_video_path,
-                "output_prefix": output_prefix
-            }
-            
-            logger.info(f"gTTS workflow completed successfully: {wav2lip_video_path}")
-            return result
-            
-        except Exception as e:
-            logger.error(f"Failed to process gTTS workflow: {e}")
-            import traceback
-            traceback.print_exc()
-            return None
-
 
 # 전역 AI 서비스 인스턴스
 ai_service = AIService()

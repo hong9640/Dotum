@@ -7,7 +7,6 @@ pydantic-settings==2.1.0
 # GCP SDK
 google-cloud-storage==2.10.0
 google-cloud-speech==2.21.0
-google-cloud-texttospeech==2.14.1
 
 # PyTorch (CPU 버전)
 torch>=2.0.0
