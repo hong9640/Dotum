@@ -140,20 +140,15 @@ stage('Deploy') {
             sh """
                 cd ${WORKSPACE}
                 
-                # 배포: postgres, backend, frontend만 재시작 (jenkins, portainer는 건드리지 않음)
-                echo "🔄 컨테이너 재시작 중..."
+                echo "🔄 backend, frontend 재시작 중..."
                 
-                # 1. 기존 컨테이너 중지 및 제거
-                docker-compose -p dotum stop postgres backend frontend 2>/dev/null || true
-                docker-compose -p dotum rm -f postgres backend frontend 2>/dev/null || true
-                
-                # 2. 대기 (포트 해제 시간)
+                docker-compose -p dotum stop backend frontend 2>/dev/null || true
+                docker-compose -p dotum rm -f backend frontend 2>/dev/null || true
+
                 sleep 5
                 
-                # 3. 재시작
-                docker-compose -p dotum up -d postgres backend frontend
+                docker-compose -p dotum up -d backend frontend
                 
-                # 상태 확인
                 echo "✅ 배포된 컨테이너 상태:"
                 docker-compose -p dotum ps
             """
