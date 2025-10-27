@@ -2,16 +2,22 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BarChart, RotateCcw, Activity } from "lucide-react";
+import { BarChart, RotateCcw, Activity, ListChecks } from "lucide-react";
 import PronunciationScore from "./PronunciationScore";
 import FeedbackSummary from "./FeedbackSummary";
+import { usePracticeStore } from "@/stores/practiceStore";
+
+interface FeedbackCardProps {
+  onViewAllResults?: () => void;
+}
 
 // --- FeedbackCard 컴포넌트 (기존) ---
 /**
  * 발음 평가 피드백 카드 컴포넌트
  */
-const FeedbackCard: React.FC = () => {
+const FeedbackCard: React.FC<FeedbackCardProps> = ({ onViewAllResults }) => {
   const navigate = useNavigate();
+  const { currentWordIndex, totalSteps } = usePracticeStore();
   const similarity = 87; // 피드백 점수 (예시)
 
   const handleFeedbackDetail = () => {
@@ -20,6 +26,14 @@ const FeedbackCard: React.FC = () => {
 
   const handleRetake = () => {
     navigate("/practice");
+  };
+
+  const handleViewAllResults = () => {
+    if (onViewAllResults) {
+      onViewAllResults();
+    } else {
+      navigate("/result-list");
+    }
   };
 
   return (
@@ -43,7 +57,7 @@ const FeedbackCard: React.FC = () => {
         </div>
       </CardContent>
       {/* 3. 버튼 섹션 */}
-      <CardFooter className="flex-col md:flex-row justify-center items-center gap-6 pt-8 border-t border-gray-200 p-7">
+      <CardFooter className="flex flex-col md:flex-row md:flex-wrap justify-center items-center gap-6 pt-8 border-t border-gray-200 p-7">
         <Button
           variant="default"
           size="lg"
@@ -65,9 +79,22 @@ const FeedbackCard: React.FC = () => {
           <RotateCcw className="w-8 h-8 mr-2" strokeWidth={2.5} />
           다시 녹화
         </Button>
+        {/* 마지막 단어인 경우에만 전체 결과 보기 버튼 표시 */}
+        {currentWordIndex === totalSteps - 1 && (
+          <Button
+            variant="default"
+            size="lg"
+            onClick={handleViewAllResults}
+            className="w-full md:w-auto h-auto min-h-10 px-6 py-4 bg-blue-500 text-white hover:bg-blue-600 rounded-xl text-xl md:text-3xl font-semibold leading-9"
+          >
+            <ListChecks className="w-8 h-8 mr-2" strokeWidth={3} />
+            전체 결과 보기
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );
 };
 
 export default FeedbackCard;
+export type { FeedbackCardProps };
