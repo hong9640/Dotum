@@ -1,23 +1,37 @@
 #!/usr/bin/env sh
 MSG_FILE="$1"
 FIRST_LINE=$(head -n 1 "$MSG_FILE")
-PATTERN='^(feat|fix|docs|refactor|style|test|chore)(\([^)]+\))?: .+$'
 
+# 템플릿에 적은 타입 모두 반영 + breaking "!" 허용
+PATTERN='^(feat|fix|refactor|design|comment|style|docs|test|chore|init|rename|remove)(\([^)]+\))?!?: .+$'
+
+# 1) 첫 줄 형식 검사
 echo "$FIRST_LINE" | grep -Eq "$PATTERN"
 if [ $? -ne 0 ]; then
   echo ""
-  echo "[commit-msg 훅] 커밋 메시지 첫 줄이 컨벤션과 다릅니다."
-  echo "형식: type(scope?): 제목  (type=feat|fix|docs|refactor|style|test|chore)"
-  echo "예시: feat: 로그인 기능 추가"
+  echo "[commit-msg] 커밋 제목이 컨벤션과 다릅니다."
+  echo "형식: type(scope?)!: 제목"
+  echo "허용 type: feat|fix|refactor|design|comment|style|docs|test|chore|init|rename|remove"
+  echo "예시: feat(login): 로그인 기능 추가"
   echo ""
   echo "현재 입력: $FIRST_LINE"
   exit 1
 fi
 
+# 2) 제목 끝 마침표 금지
 echo "$FIRST_LINE" | grep -Eq '\.$'
 if [ $? -eq 0 ]; then
   echo ""
-  echo "[commit-msg 훅] 제목 끝의 마침표(.)는 생략해 주세요."
+  echo "[commit-msg] 제목 끝의 마침표(.)는 생략해 주세요."
   exit 1
 fi
+
+# (선택) Jira 이슈 키 필수화 — 필요 시 주석 해제
+# ALL_TEXT=$(cat "$MSG_FILE" | tr -d '\r')
+# echo "$ALL_TEXT" | grep -Eq 'S13P31S201-[0-9]+' || {
+#   echo ""
+#   echo "[commit-msg] Jira 이슈 키(S13P31S201-123)를 포함해 주세요."
+#   exit 1
+# }
+
 exit 0
