@@ -115,30 +115,35 @@ pipeline {
             }
         }
         
-        stage('Deploy') {
-            when {
-                anyOf {
-                    expression { return env.BACKEND_CHANGED == 'true' }
-                    expression { return env.FRONTEND_CHANGED == 'true' }
-                    expression { return env.FULL_DEPLOY == 'true' }
-                }
-            }
-            steps {
-                script {
-                    echo '🚀 배포 중...'
-                    
-                    sh """
-                        cd ${WORKSPACE}
-                        # backend와 frontend만 재시작 (jenkins, portainer는 건드리지 않음)
-                        # 기존 컨테이너를 중지하고 제거한 후 재시작
-                        ${DOCKER_COMPOSE} stop backend frontend 2>/dev/null || true
-                        ${DOCKER_COMPOSE} rm -f backend frontend 2>/dev/null || true
-                        # backend와 frontend만 다시 시작 (의존성은 건드리지 않음)
-                        ${DOCKER_COMPOSE} up -d --no-deps backend frontend
-                    """
-                }
-            }
+stage('Deploy') {
+    when {
+        anyOf {
+            expression { return env.BACKEND_CHANGED == 'true' }
+            expression { return env.FRONTEND_CHANGED == 'true' }
+            expression { return env.FULL_DEPLOY == 'true' }
         }
+    }
+    steps {
+        script {
+            echo '🚀 배포 중...'
+            
+            sh """
+                cd ${WORKSPACE}
+                
+                ${DOCKER_COMPOSE} stop backend frontend 2>/dev/null || true
+                ${DOCKER_COMPOSE} rm -f backend frontend 2>/dev/null || true
+                
+                docker rm -f backend frontend 2>/dev/null || true
+                
+                docker rm -f ${PROJECT_NAME}-backend-1 ${PROJECT_NAME}-frontend-1 2>/dev/null || true
+                docker rm -f ${PROJECT_NAME}_backend_1 ${PROJECT_NAME}_frontend_1 2>/dev/null || true
+                
+                ${DOCKER_COMPOSE} up -d --no-deps --force-recreate backend frontend
+            """
+        }
+    }
+}
+
     }
     
     post {
