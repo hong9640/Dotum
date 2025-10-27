@@ -11,8 +11,8 @@ class Settings(BaseSettings):
     GCS_CREDENTIAL_PATH: str | None
 
     # ---------- 모델 SDK ----------
-    FREEVC_SDK_PATH: str
-    W2L_SDK_PATH: str
+    FREEVC_SDK_PATH: str | None = None
+    W2L_SDK_PATH: str | None = None
 
     # ---------- GCS 업로드 Prefix ----------
     PREFIX_TTS: str = "tts_cache"

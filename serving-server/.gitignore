@@ -1,3 +1,8 @@
 .env
 env.example
+.env.example
 .venv/
+__pycache__/
+
+# Test files
+tests/

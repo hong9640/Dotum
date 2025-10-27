@@ -4,9 +4,7 @@ from typing import Optional
 from google.cloud import storage
 from google.cloud.exceptions import NotFound
 from api.core.config import settings
-import logging
-
-logger = logging.getLogger(__name__)
+from api.core.logger import logger, log_success, log_error
 
 
 class GCSClient:
