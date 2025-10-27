@@ -98,7 +98,7 @@ services:
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --log-level debug
 
   # ============================================================
-  # Frontend - React/Vue SPA with Nginx
+  # Frontend - React/Vue SPA (Static Files Only)
   # ============================================================
   frontend:
     build:
@@ -109,13 +109,26 @@ services:
     container_name: frontend-container
     restart: always
     ports:
-      - "443:443"
-      - "80:80"
-    volumes:
-      - /etc/letsencrypt:/etc/letsencrypt
-      - /var/www/certbot:/var/www/certbot
+      - "5173:80"
     depends_on:
       - backend
+    networks:
+      - dotum-braindeck-network
+
+  # ============================================================
+  # Nginx Proxy Manager - Reverse Proxy & SSL Management
+  # ============================================================
+  nginx-proxy-manager:
+    image: 'jc21/nginx-proxy-manager:latest'
+    container_name: nginx-proxy-manager
+    restart: always
+    ports:
+      - '80:80'
+      - '443:443'
+      - '81:81'
+    volumes:
+      - ./nginx-proxy-manager/data:/data
+      - ./nginx-proxy-manager/letsencrypt:/etc/letsencrypt
     networks:
       - dotum-braindeck-network
 
@@ -128,6 +141,8 @@ volumes:
   portainer_data:
     driver: local
   postgres_data:
+    driver: local
+  nginx_proxy_manager_data:
     driver: local
 
 # ============================================================
