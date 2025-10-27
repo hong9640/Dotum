@@ -16,6 +16,7 @@ services:
       - jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock:ro  # Docker socket
       - ./ci:/var/jenkins_home/custom  # CI 관련 설정
+      - /home/ubuntu/.env:/home/ubuntu/.env:ro  # 환경변수 파일 (읽기 전용)
     environment:
       - TZ=Asia/Seoul
       - JENKINS_OPTS=--httpPort=8080
@@ -84,7 +85,7 @@ services:
     container_name: backend
     restart: always
     env_file:
-      - ./backend/.env
+      - ./.env
     environment:
       - TZ=Asia/Seoul
       - DB_NETWORK=postgres
