@@ -49,6 +49,18 @@ export const useLogin = ({ onLogin }:
                 });
 
                 if (result.status === "SUCCESS") {
+                    // 토큰을 로컬 스토리지에 저장
+                    console.log('🔐 로그인 성공 - 토큰 저장 중...');
+                    console.log('Access Token:', result.data.token.access_token);
+                    console.log('Refresh Token:', result.data.token.refresh_token);
+                    
+                    localStorage.setItem('access_token', result.data.token.access_token);
+                    localStorage.setItem('refresh_token', result.data.token.refresh_token);
+                    
+                    // 저장 확인
+                    const savedToken = localStorage.getItem('access_token');
+                    console.log('✅ 토큰 저장 확인:', savedToken ? '성공' : '실패');
+                    
                     toast.success("로그인이 완료되었습니다!");
                     onLogin?.();
                     navigate("/");
