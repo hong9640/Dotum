@@ -154,120 +154,60 @@ class AIService:
                     logger.error(f"Failed to download ref audio: {ref_audio_path}")
                     return None
                 
-                # 모델 파일 다운로드
-                model_local = os.path.join(tmp_dir, "freevc-s.pth")
-                config_local = os.path.join(tmp_dir, "freevc-s.json")
+                # 로컬 모델 파일 경로 설정
+                model_local = os.path.join(settings.LOCAL_FREEVC_PATH, "checkpoints", "freevc-s.pth")
+                config_local = os.path.join(settings.LOCAL_FREEVC_PATH, "configs", "freevc-s.json")
                 
-                model_gs = f"gs://{settings.GCS_BUCKET}/{settings.FREEVC_MODEL_PATH}/checkpoints/freevc-s.pth"
-                config_gs = f"gs://{settings.GCS_BUCKET}/{settings.FREEVC_MODEL_PATH}/configs/freevc-s.json"
-                
-                if not self.gcs_client.download_file(model_gs, model_local):
-                    logger.error(f"Failed to download FreeVC model: {model_gs}")
+                # 로컬 모델 파일 존재 확인
+                if not os.path.exists(model_local):
+                    logger.error(f"FreeVC model not found locally: {model_local}")
                     return None
                 
-                if not self.gcs_client.download_file(config_gs, config_local):
-                    logger.error(f"Failed to download FreeVC config: {config_gs}")
+                if not os.path.exists(config_local):
+                    logger.error(f"FreeVC config not found locally: {config_local}")
                     return None
                 
                 # 출력 파일 경로 설정
                 output_local = os.path.join(tmp_dir, "freevc_out.wav")
                 
-                # FreeVC 디렉토리 생성
-                freevc_dir = os.path.join(tmp_dir, "FreeVC")
-                os.makedirs(freevc_dir, exist_ok=True)
+                # 로컬 FreeVC 디렉토리 사용
+                freevc_dir = settings.LOCAL_FREEVC_PATH
                 
-                # FreeVC 실행 파일 다운로드
+                # 로컬 FreeVC 파일들 존재 확인
                 freevc_infer_path = os.path.join(freevc_dir, "freevc_infer.py")
-                if not self.gcs_client.download_file(f"gs://{settings.GCS_BUCKET}/{settings.FREEVC_MODEL_PATH}/freevc_infer.py", freevc_infer_path):
-                    logger.error("Failed to download FreeVC inference script")
+                if not os.path.exists(freevc_infer_path):
+                    logger.error(f"FreeVC inference script not found locally: {freevc_infer_path}")
                     return None
                 
-                # CPU 모드 convert.py 다운로드
-                convert_cpu_path = os.path.join(freevc_dir, "convert.py")
-                if not self.gcs_client.download_file(f"gs://{settings.GCS_BUCKET}/{settings.FREEVC_MODEL_PATH}/convert_cpu.py", convert_cpu_path):
-                    logger.error("Failed to download CPU mode convert script")
+                convert_cpu_path = os.path.join(freevc_dir, "convert_cpu.py")
+                if not os.path.exists(convert_cpu_path):
+                    logger.error(f"FreeVC CPU convert script not found locally: {convert_cpu_path}")
                     return None
                 
-                # FreeVC의 다른 필요한 파일들 다운로드 (CPU 모드 우선)
+                # 필수 파일들 존재 확인 (CPU 모드 우선)
                 essential_files = [
-                    ("convert_cpu.py", "convert.py"),  # CPU 모드 파일을 원본 이름으로 저장
                     "commons.py", "data_utils.py", "downsample.py",
                     "losses.py", "mel_processing.py", "models.py", "modules.py",
-                    ("utils_cpu.py", "utils.py"),  # CPU 모드 파일
-                    "preprocess_flist.py", "preprocess_spk.py",
-                    ("preprocess_sr_cpu.py", "preprocess_sr.py"),  # CPU 모드 파일
-                    ("preprocess_ssl_cpu.py", "preprocess_ssl.py"),  # CPU 모드 파일
-                    "train.py"
+                    "utils_cpu.py", "preprocess_flist.py", "preprocess_spk.py",
+                    "preprocess_sr_cpu.py", "preprocess_ssl_cpu.py", "train.py"
                 ]
                 
-                for file_info in essential_files:
-                    if isinstance(file_info, tuple):
-                        gcs_filename, local_filename = file_info
-                    else:
-                        gcs_filename = local_filename = file_info
-                    
-                    gcs_path = f"gs://{settings.GCS_BUCKET}/{settings.FREEVC_MODEL_PATH}/{gcs_filename}"
-                    local_path = os.path.join(freevc_dir, local_filename)
-                    if self.gcs_client.file_exists(gcs_path):
-                        self.gcs_client.download_file(gcs_path, local_path)
-                        logger.info(f"Downloaded {gcs_filename} as {local_filename}")
+                for filename in essential_files:
+                    file_path = os.path.join(freevc_dir, filename)
+                    if not os.path.exists(file_path):
+                        logger.error(f"FreeVC essential file not found locally: {file_path}")
+                        return None
                 
-                # hifigan 디렉토리 다운로드
-                hifigan_dir = os.path.join(freevc_dir, "hifigan")
-                os.makedirs(hifigan_dir, exist_ok=True)
-                
-                hifigan_files = ["__init__.py", "models.py"]
-                for filename in hifigan_files:
-                    gcs_path = f"gs://{settings.GCS_BUCKET}/{settings.FREEVC_MODEL_PATH}/hifigan/{filename}"
-                    local_path = os.path.join(hifigan_dir, filename)
-                    if self.gcs_client.file_exists(gcs_path):
-                        self.gcs_client.download_file(gcs_path, local_path)
-                        logger.info(f"Downloaded hifigan/{filename}")
-                
-                # speaker_encoder 디렉토리 다운로드
-                speaker_encoder_dir = os.path.join(freevc_dir, "speaker_encoder")
-                os.makedirs(speaker_encoder_dir, exist_ok=True)
-                
-                speaker_encoder_files = [
-                    "__init__.py", "audio.py", "compute_embed.py", "config.py",
-                    "hparams.py", "inference.py", "model.py", "params_data.py",
-                    "params_model.py", "preprocess.py", "train.py", "voice_encoder.py"
+                # 하위 디렉토리들 존재 확인
+                required_dirs = [
+                    "hifigan", "speaker_encoder", "speaker_encoder/data_objects", "wavlm"
                 ]
                 
-                for filename in speaker_encoder_files:
-                    gcs_path = f"gs://{settings.GCS_BUCKET}/{settings.FREEVC_MODEL_PATH}/speaker_encoder/{filename}"
-                    local_path = os.path.join(speaker_encoder_dir, filename)
-                    if self.gcs_client.file_exists(gcs_path):
-                        self.gcs_client.download_file(gcs_path, local_path)
-                        logger.info(f"Downloaded speaker_encoder/{filename}")
-                
-                # data_objects 디렉토리 다운로드
-                data_objects_dir = os.path.join(speaker_encoder_dir, "data_objects")
-                os.makedirs(data_objects_dir, exist_ok=True)
-                
-                data_objects_files = [
-                    "__init__.py", "random_cycler.py", "speaker.py",
-                    "speaker_batch.py", "speaker_verification_dataset.py", "utterance.py"
-                ]
-                
-                for filename in data_objects_files:
-                    gcs_path = f"gs://{settings.GCS_BUCKET}/{settings.FREEVC_MODEL_PATH}/speaker_encoder/data_objects/{filename}"
-                    local_path = os.path.join(data_objects_dir, filename)
-                    if self.gcs_client.file_exists(gcs_path):
-                        self.gcs_client.download_file(gcs_path, local_path)
-                        logger.info(f"Downloaded speaker_encoder/data_objects/{filename}")
-                
-                # wavlm 디렉토리 다운로드
-                wavlm_dir = os.path.join(freevc_dir, "wavlm")
-                os.makedirs(wavlm_dir, exist_ok=True)
-                
-                wavlm_files = ["__init__.py", "modules.py", "WavLM.py", "WavLM-Large.pt"]
-                for filename in wavlm_files:
-                    gcs_path = f"gs://{settings.GCS_BUCKET}/{settings.FREEVC_MODEL_PATH}/wavlm/{filename}"
-                    local_path = os.path.join(wavlm_dir, filename)
-                    if self.gcs_client.file_exists(gcs_path):
-                        self.gcs_client.download_file(gcs_path, local_path)
-                        logger.info(f"Downloaded wavlm/{filename}")
+                for dir_name in required_dirs:
+                    dir_path = os.path.join(freevc_dir, dir_name)
+                    if not os.path.exists(dir_path):
+                        logger.error(f"FreeVC directory not found locally: {dir_path}")
+                        return None
                 
                 # FreeVC 추론 실행
                 cmd = [
@@ -392,94 +332,49 @@ class AIService:
                     # 비디오인 경우 그대로 사용
                     os.rename(input_local, face_local)
                 
-                # 모델 파일 다운로드
-                model_local = os.path.join(tmp_dir, "Wav2Lip_gan.pth")
-                model_gs = f"gs://{settings.GCS_BUCKET}/{settings.WAV2LIP_MODEL_PATH}/checkpoints/Wav2Lip_gan.pth"
+                # 로컬 모델 파일 경로 설정
+                model_local = os.path.join(settings.LOCAL_WAV2LIP_PATH, "checkpoints", "Wav2Lip_gan.pth")
                 
-                if not self.gcs_client.download_file(model_gs, model_local):
-                    logger.error(f"Failed to download Wav2Lip model: {model_gs}")
+                # 로컬 모델 파일 존재 확인
+                if not os.path.exists(model_local):
+                    logger.error(f"Wav2Lip model not found locally: {model_local}")
                     return None
                 
-                # Wav2Lip 디렉토리 생성
-                wav2lip_dir = os.path.join(tmp_dir, "Wav2Lip")
-                os.makedirs(wav2lip_dir, exist_ok=True)
+                # 로컬 Wav2Lip 디렉토리 사용
+                wav2lip_dir = settings.LOCAL_WAV2LIP_PATH
                 
-                # Wav2Lip에서 사용하는 temp 디렉토리 생성
-                temp_dir = os.path.join(wav2lip_dir, "temp")
-                os.makedirs(temp_dir, exist_ok=True)
-                
-                # Wav2Lip 실행 파일 다운로드
+                # 로컬 Wav2Lip 파일들 존재 확인
                 inference_path = os.path.join(wav2lip_dir, "inference.py")
-                if not self.gcs_client.download_file(f"gs://{settings.GCS_BUCKET}/{settings.WAV2LIP_MODEL_PATH}/inference.py", inference_path):
-                    logger.error("Failed to download Wav2Lip inference script")
+                if not os.path.exists(inference_path):
+                    logger.error(f"Wav2Lip inference script not found locally: {inference_path}")
                     return None
                 
-                # Wav2Lip의 다른 필요한 파일들 다운로드
+                # 필수 파일들 존재 확인
                 essential_files = [
                     "audio.py", "hparams.py", "preprocess.py"
                 ]
                 
                 for filename in essential_files:
-                    gcs_path = f"gs://{settings.GCS_BUCKET}/{settings.WAV2LIP_MODEL_PATH}/{filename}"
-                    local_path = os.path.join(wav2lip_dir, filename)
-                    if self.gcs_client.file_exists(gcs_path):
-                        self.gcs_client.download_file(gcs_path, local_path)
-                        logger.info(f"Downloaded {filename}")
+                    file_path = os.path.join(wav2lip_dir, filename)
+                    if not os.path.exists(file_path):
+                        logger.error(f"Wav2Lip essential file not found locally: {file_path}")
+                        return None
                 
-                # models 디렉토리 다운로드
-                models_dir = os.path.join(wav2lip_dir, "models")
-                os.makedirs(models_dir, exist_ok=True)
-                
-                models_files = ["__init__.py", "conv.py", "syncnet.py", "wav2lip.py"]
-                for filename in models_files:
-                    gcs_path = f"gs://{settings.GCS_BUCKET}/{settings.WAV2LIP_MODEL_PATH}/models/{filename}"
-                    local_path = os.path.join(models_dir, filename)
-                    if self.gcs_client.file_exists(gcs_path):
-                        self.gcs_client.download_file(gcs_path, local_path)
-                        logger.info(f"Downloaded models/{filename}")
-                
-                # face_detection 디렉토리 다운로드
-                face_detection_dir = os.path.join(wav2lip_dir, "face_detection")
-                os.makedirs(face_detection_dir, exist_ok=True)
-                
-                face_detection_files = [
-                    "__init__.py", "api.py", "models.py", "utils.py"
+                # 하위 디렉토리들 존재 확인
+                required_dirs = [
+                    "models", "face_detection", "face_detection/detection", "face_detection/detection/sfd"
                 ]
-                for filename in face_detection_files:
-                    gcs_path = f"gs://{settings.GCS_BUCKET}/{settings.WAV2LIP_MODEL_PATH}/face_detection/{filename}"
-                    local_path = os.path.join(face_detection_dir, filename)
-                    if self.gcs_client.file_exists(gcs_path):
-                        self.gcs_client.download_file(gcs_path, local_path)
-                        logger.info(f"Downloaded face_detection/{filename}")
                 
-                # detection 서브디렉토리 다운로드
-                detection_dir = os.path.join(face_detection_dir, "detection")
-                os.makedirs(detection_dir, exist_ok=True)
-                
-                detection_files = ["__init__.py", "core.py"]
-                for filename in detection_files:
-                    gcs_path = f"gs://{settings.GCS_BUCKET}/{settings.WAV2LIP_MODEL_PATH}/face_detection/detection/{filename}"
-                    local_path = os.path.join(detection_dir, filename)
-                    if self.gcs_client.file_exists(gcs_path):
-                        self.gcs_client.download_file(gcs_path, local_path)
-                        logger.info(f"Downloaded face_detection/detection/{filename}")
-                
-                # sfd 서브디렉토리 다운로드
-                sfd_dir = os.path.join(detection_dir, "sfd")
-                os.makedirs(sfd_dir, exist_ok=True)
-                
-                sfd_files = ["__init__.py", "bbox.py", "detect.py", "net_s3fd.py", "sfd_detector.py"]
-                for filename in sfd_files:
-                    gcs_path = f"gs://{settings.GCS_BUCKET}/{settings.WAV2LIP_MODEL_PATH}/face_detection/detection/sfd/{filename}"
-                    local_path = os.path.join(sfd_dir, filename)
-                    if self.gcs_client.file_exists(gcs_path):
-                        self.gcs_client.download_file(gcs_path, local_path)
-                        logger.info(f"Downloaded face_detection/detection/sfd/{filename}")
+                for dir_name in required_dirs:
+                    dir_path = os.path.join(wav2lip_dir, dir_name)
+                    if not os.path.exists(dir_path):
+                        logger.error(f"Wav2Lip directory not found locally: {dir_path}")
+                        return None
                 
                 # 출력 파일 경로 설정
                 output_local = os.path.join(tmp_dir, "lipsynced.mp4")
                 
-                # Wav2Lip 추론 실행
+                # Wav2Lip 추론 실행 (메모리 최적화를 위해 배치 크기 감소)
                 cmd = [
                     "python3", inference_path,
                     "--checkpoint_path", model_local,
@@ -487,7 +382,9 @@ class AIService:
                     "--audio", audio_local,
                     "--outfile", output_local,
                     "--pads", "0", "20", "0", "0",
-                    "--wav2lip_batch_size", "32"
+                    "--wav2lip_batch_size", "1",
+                    "--static", "False",
+                    "--fps", "25"
                 ]
                 
                 logger.info(f"Running Wav2Lip inference: {' '.join(cmd)}")

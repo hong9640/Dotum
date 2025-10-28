@@ -17,6 +17,11 @@
           libxext6 \
           libglib2.0-0 \
           libfontconfig1 \
+          # webrtcvad, pyworld 컴파일을 위한 추가 라이브러리
+          libfftw3-dev \
+          libsndfile1-dev \
+          portaudio19-dev \
+          python3-dev \
       && apt-get clean && rm -rf /var/lib/apt/lists/*
   
   # 2. uv 설치
@@ -54,15 +59,19 @@
   COPY --from=builder /usr/local/bin /usr/local/bin
   WORKDIR /app
   
-  # 3. 소스 코드 복사
-  COPY . .
+  # 3. 모델 디렉토리 먼저 복사 (캐시 최적화를 위해)
+  COPY models ./models
   
-  # 4. 서비스 계정 키 디렉토리 생성 및 환경 변수 설정 (원본 유지)
+  # 4. 소스 코드 복사
+  COPY api ./api
+  COPY requirements.txt .
+  
+  # 5. 서비스 계정 키 디렉토리 생성 및 환경 변수 설정
   RUN mkdir -p /etc/gcp
   ENV PYTHONUNBUFFERED=1 \
       PYTHONDONTWRITEBYTECODE=1 \
       GCS_CREDENTIAL_PATH=/etc/gcp/key.json
   
-  # 5. 포트 노출 및 실행 명령어 (원본 유지)
+  # 6. 포트 노출 및 실행 명령어
   EXPOSE 8000
   CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -7,8 +7,5 @@ __pycache__/
 # Test files
 tests/
 
-<<<<<<< Updated upstream
-=======
 # Credentials
->>>>>>> Stashed changes
 credentials/

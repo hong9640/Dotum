@@ -22,20 +22,27 @@ register_middlewares(app)
 async def health_check():
     """헬스 체크 엔드포인트"""
     try:
-        # 실제 사용되는 모델 경로 확인
-        freevc_files = gcs_client.list_files(f"{settings.FREEVC_MODEL_PATH}/")
-        wav2lip_files = gcs_client.list_files(f"{settings.WAV2LIP_MODEL_PATH}/")
-        total_model_files = len(freevc_files) + len(wav2lip_files)
+        # 로컬 모델 파일 존재 확인
+        freevc_model_path = os.path.join(settings.LOCAL_FREEVC_PATH, "checkpoints", "freevc-s.pth")
+        freevc_config_path = os.path.join(settings.LOCAL_FREEVC_PATH, "configs", "freevc-s.json")
+        wav2lip_model_path = os.path.join(settings.LOCAL_WAV2LIP_PATH, "checkpoints", "Wav2Lip_gan.pth")
+        
+        freevc_model_exists = os.path.exists(freevc_model_path)
+        freevc_config_exists = os.path.exists(freevc_config_path)
+        wav2lip_model_exists = os.path.exists(wav2lip_model_path)
+        
+        models_ready = freevc_model_exists and freevc_config_exists and wav2lip_model_exists
         
         log_success("Health check completed", 
-                   freevc_files=len(freevc_files), 
-                   wav2lip_files=len(wav2lip_files))
+                   freevc_model=freevc_model_exists,
+                   freevc_config=freevc_config_exists,
+                   wav2lip_model=wav2lip_model_exists)
         return {
-            "status": "ok",
-            "gcs_connected": True,
-            "freevc_files_count": len(freevc_files),
-            "wav2lip_files_count": len(wav2lip_files),
-            "total_model_files_count": total_model_files
+            "status": "ok" if models_ready else "warning",
+            "models_ready": models_ready,
+            "freevc_model_exists": freevc_model_exists,
+            "freevc_config_exists": freevc_config_exists,
+            "wav2lip_model_exists": wav2lip_model_exists
         }
     except Exception as e:
         log_error("Health check failed", error=e)

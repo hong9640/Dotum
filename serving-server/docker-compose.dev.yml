@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  serving-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: serving-server-dev
+    ports:
+      - "8001:8000"
+    environment:
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID}
+      - GCS_BUCKET=${GCS_BUCKET}
+      - GCS_CREDENTIAL_PATH=/etc/gcp/key.json
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    volumes:
+      # ✅ 코드 변경 시 즉시 반영 (개발 시에만 필요)
+      - ./api:/app/api
+      # ✅ GCP 서비스 계정 키 (읽기 전용)
+      - ./credentials:/etc/gcp:ro
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 4G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

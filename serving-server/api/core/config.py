@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     MODEL_BASE_PATH: str = "ai"
     FREEVC_MODEL_PATH: str = "ai/FreeVC"
     WAV2LIP_MODEL_PATH: str = "ai/Wav2Lip"
+    
+    # ---------- 로컬 모델 경로 ----------
+    LOCAL_MODEL_BASE_PATH: str = "/app/models"
+    LOCAL_FREEVC_PATH: str = "/app/models/FreeVC"
+    LOCAL_WAV2LIP_PATH: str = "/app/models/Wav2Lip"
 
     model_config = SettingsConfigDict(
         env_file=".env",

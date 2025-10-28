@@ -12,9 +12,17 @@ services:
       - GCP_PROJECT_ID=${GCP_PROJECT_ID}
       - GCS_BUCKET=${GCS_BUCKET}
       - GCS_CREDENTIAL_PATH=/etc/gcp/key.json
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
     volumes:
       - ./credentials:/etc/gcp:ro
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 4G
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
