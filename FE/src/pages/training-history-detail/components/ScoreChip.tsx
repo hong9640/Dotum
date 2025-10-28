@@ -1,4 +1,3 @@
-import React from 'react';
 import { getScoreLevel, scoreColorClasses } from '../types';
 
 interface ScoreChipProps {
