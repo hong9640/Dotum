@@ -7,11 +7,14 @@ interface PracticeStore {
   currentWord: string;
   words: string[];
   currentWordIndex: number; // 현재 단어의 인덱스 (0부터 시작)
+  sessionId: string | null;
+  sessionType: 'word' | 'sentence' | null;
   
   // 액션들
   setStep: (step: number) => void;
   nextStep: () => void;
   setWords: (words: string[]) => void;
+  setSessionData: (sessionId: string, sessionType: 'word' | 'sentence', words: string[]) => void;
   resetPractice: () => void;
   goToNextWord: () => void; // 다음 단어로 이동
   goToPreviousWord: () => void; // 이전 단어로 이동
@@ -26,10 +29,12 @@ interface PracticeStore {
 export const usePracticeStore = create<PracticeStore>((set, get) => ({
   // 초기 상태
   currentStep: 1,
-  totalSteps: 10,
-  currentWord: "사과",
-  words: ["사과", "바나나", "딸기", "포도", "오렌지", "수박", "참외", "복숭아", "자두", "체리"],
+  totalSteps: 0,
+  currentWord: "",
+  words: [],
   currentWordIndex: 0,
+  sessionId: null,
+  sessionType: null,
   isRecording: false,
   recordedVideos: [],
 
@@ -50,14 +55,26 @@ export const usePracticeStore = create<PracticeStore>((set, get) => ({
     words, 
     totalSteps: words.length,
     currentStep: 1,
-    currentWord: words[0] || "사과",
+    currentWord: words[0] || "",
     currentWordIndex: 0
+  }),
+
+  // 세션 데이터 설정 (서버에서 받은 데이터)
+  setSessionData: (sessionId, sessionType, words) => set({
+    sessionId,
+    sessionType,
+    words,
+    totalSteps: words.length,
+    currentStep: 1,
+    currentWord: words[0] || "",
+    currentWordIndex: 0,
+    recordedVideos: []
   }),
 
   // 연습 초기화
   resetPractice: () => set({
     currentStep: 1,
-    currentWord: get().words[0] || "사과",
+    currentWord: get().words[0] || "",
     currentWordIndex: 0,
     recordedVideos: []
   }),
