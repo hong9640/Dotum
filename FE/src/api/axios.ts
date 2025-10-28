@@ -1,7 +1,7 @@
 import axios from "axios";
 
 // Base URL 설정 (환경 변수 또는 기본값)
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
+const API_BASE_URL = import.meta.env.VITE_BASE_URL;
 
 // Axios 인스턴스 생성
 export const apiClient = axios.create({
@@ -10,6 +10,7 @@ export const apiClient = axios.create({
     "Content-Type": "application/json",
   },
 });
+
 
 // 요청 인터셉터
 apiClient.interceptors.request.use(
