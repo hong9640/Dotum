@@ -57,15 +57,12 @@ class SignupRequest(BaseModel):
     username: EmailStr
     password: str
     name: str
-    phone_number: str
-    gender: str
 
 class SignupSuccessUser(BaseModel):
     id: int
     username: EmailStr
     name: str
     role: str 
-    gender: str
     created_at: datetime
 
     class Config:
