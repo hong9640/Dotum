@@ -4,7 +4,8 @@ from datetime import datetime, date
 from enum import Enum
 
 from ..models.training_session import TrainingType, TrainingSessionStatus
-from .training_items import TrainingItemResponse
+from .training_items import TrainingItemResponse, CurrentItemResponse
+from .media import MediaResponse
 
 
 class TrainingSessionCreate(BaseModel):
@@ -62,6 +63,19 @@ class TrainingSessionResponse(BaseModel):
     # 훈련 아이템들
     training_items: List[TrainingItemResponse] = Field(default_factory=list, description="훈련 아이템 목록")
     
+    class Config:
+        from_attributes = True
+        populate_by_name = True
+
+
+class ItemSubmissionResponse(BaseModel):
+    """아이템 제출 응답 (업로드 + 완료 + 다음 아이템 정보)"""
+    session: TrainingSessionResponse
+    next_item: Optional[CurrentItemResponse] = None
+    media: MediaResponse
+    video_url: str
+    message: str = "훈련 아이템이 완료되었습니다."
+
     class Config:
         from_attributes = True
 
