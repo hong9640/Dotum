@@ -1,4 +1,5 @@
-import { ArrowLeft } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface HeaderProps {
   date: string;
@@ -17,20 +18,32 @@ export function Header({ date, totalSets, onBack }: HeaderProps) {
   };
 
   return (
-    <div className="px-8 py-[30px] self-stretch">
-      <div className="flex items-center justify-between mb-6">
-        <div className="px-4 py-3.5 bg-white/0 rounded-lg flex justify-center items-center gap-3 cursor-pointer hover:bg-gray-50 transition-colors" onClick={onBack}>
-          <ArrowLeft className="w-8 h-8 text-slate-500" />
-          <div className="text-slate-500 text-3xl font-medium font-['Pretendard'] leading-9">돌아가기</div>
+    <div className="px-8 py-7 relative w-full max-w-7xl mx-auto inline-flex justify-center items-start gap-2.5">
+      <div className="w-full h-auto md:h-20 inline-flex flex-col justify-start items-center gap-2.5">
+        {/* 제목 */}
+        <div className="self-stretch px-4 inline-flex justify-center items-center gap-2.5">
+          <h1 className="text-center justify-start text-slate-700 text-2xl md:text-4xl font-bold leading-tight md:leading-[48px]">
+            {formatDate(date)}의 훈련 기록
+          </h1>
         </div>
-        <div className="text-center text-slate-700 text-3xl font-semibold font-['Pretendard'] leading-9">
-          {formatDate(date)}의 훈련 기록
+        {/* 날짜 */}
+        <div className="self-stretch px-4 inline-flex justify-center items-center gap-2.5">
+          <p className="text-center justify-start text-slate-500 text-base md:text-xl font-semibold leading-snug md:leading-7">
+            총 {totalSets}개의 단어 세트를 연습했습니다.
+          </p>
         </div>
-        <div className="w-[200px]"></div> {/* 돌아가기 버튼과 균형을 맞추기 위한 빈 공간 */}
       </div>
-      <div className="text-center text-slate-500 text-xl font-semibold font-['Pretendard'] leading-7">
-        총 {totalSets}개의 단어 세트를 연습했습니다.
-      </div>
+      {/* 돌아가기 버튼 */}
+      <Button
+        variant="ghost"
+        className="px-2 md:px-4 py-2 md:py-3.5 left-4 md:left-[32px] top-4 md:top-[30px] absolute rounded-lg flex justify-center items-center gap-2 md:gap-3 group transition-opacity hover:opacity-80"
+        onClick={onBack}
+      >
+        <ChevronLeft className="w-6 h-6 md:w-8 md:h-8 text-slate-500" strokeWidth={3} />
+        <span className="justify-start text-slate-500 text-xl md:text-3xl font-normal leading-7 md:leading-9">
+          돌아가기
+        </span>
+      </Button>
     </div>
   );
 }

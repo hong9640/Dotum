@@ -6,21 +6,18 @@ import { useTrainingDayDetail } from '@/hooks/useTrainingDayDetail';
 export interface TrainingDayDetailProps {
   date: string; // "YYYY-MM-DD" 형식
   trainingSets?: TrainingSet[];
-  expectedCount?: number; // 달력에서 전달받은 예상 학습 횟수
   onBack?: () => void;
   onTrainingSetClick?: (trainingSet: TrainingSet) => void;
 }
 
-
 export default function TrainingDayDetail({ 
   date, 
   trainingSets, 
-  expectedCount = 6, // 기본값 6개
   onBack,
   onTrainingSetClick 
 }: TrainingDayDetailProps) {
-  // trainingSets가 없으면 expectedCount를 기반으로 동적 생성
-  const actualTrainingSets = trainingSets || generateSampleData(expectedCount, date);
+  // API에서 받아온 trainingSets 사용 (없으면 더미 데이터 생성)
+  const actualTrainingSets = trainingSets || generateSampleData(6, date);
   const { statistics } = useTrainingDayDetail({ trainingSets: actualTrainingSets });
 
   const handleTrainingSetClick = (trainingSet: TrainingSet) => {

@@ -29,12 +29,10 @@ export default function TrainingHistoryPage() {
 
   // 날짜 상세 페이지가 선택된 경우
   if (selectedDate) {
-    const selectedDateCount = counts[selectedDate] || 0;
     return (
       <TrainingDayDetail 
         date={selectedDate} 
-        trainingSets={undefined} // 샘플 데이터 사용
-        expectedCount={selectedDateCount} // 선택된 날짜의 학습 횟수 전달
+        trainingSets={undefined} // API에서 받아올 데이터
         onBack={handleBack}
         onTrainingSetClick={(trainingSet: any) => {
           console.log('Training set clicked:', trainingSet);
