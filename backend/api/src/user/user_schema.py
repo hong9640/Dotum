@@ -10,8 +10,6 @@ class Usercheckinfo(BaseModel):
     id: int
     username: EmailStr
     name: str
-    phone_number: str
-    gender: str
     role: UserRoleEnum
     created_at: datetime
     updated_at: datetime
@@ -23,9 +21,6 @@ class UserUpdateRequest(BaseModel):
     """사용자 정보 수정을 위한 요청 스키마"""
     password: Optional[str] = None
     name: Optional[str] = None
-    phone_number: Optional[str] = None
-    role: Optional[UserRoleEnum] = None
-    gender: Optional[str] = None
 
 # ---file upload---
 

@@ -61,6 +61,7 @@ class MediaListResponse(BaseModel):
     status: MediaStatus
     is_public: Optional[bool]
     created_at: Optional[datetime]
+    signed_url: Optional[str] = Field(None, description="동영상 시청용 서명된 URL")
 
     class Config:
         from_attributes = True

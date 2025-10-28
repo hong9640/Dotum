@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Dict
 from datetime import date
@@ -8,14 +8,18 @@ from ..schemas.training_sessions import (
     TrainingSessionResponse,
     TrainingSessionStatusUpdate,
     DailyTrainingResponse,
+    ItemSubmissionResponse,
 )
-from ..schemas.training_items import CurrentItemResponse, CompleteItemRequest
+from ..schemas.training_items import CurrentItemResponse
 from ..schemas.common import NotFoundErrorResponse, BadRequestErrorResponse, UnauthorizedErrorResponse
 from ..services.training_sessions import TrainingSessionService
 from ..models.training_session import TrainingType, TrainingSessionStatus
 from api.core.database import get_session
 from api.src.auth.auth_router import get_current_user
 from api.src.user.user_model import User
+from api.core.config import settings
+from api.src.train.services.gcs_service import get_gcs_service, GCSService
+from ..schemas.media import MediaUploadUrlResponse
 
 
 router = APIRouter(
@@ -26,6 +30,11 @@ router = APIRouter(
 
 async def get_training_service(db: AsyncSession = Depends(get_session)) -> TrainingSessionService:
     return TrainingSessionService(db)
+
+
+def provide_gcs_service() -> GCSService:
+    """GCS 서비스 의존성"""
+    return get_gcs_service(settings)
 
 
 @router.post(
@@ -277,7 +286,8 @@ async def delete_training_session(
 async def get_current_item(
     session_id: int,
     current_user: User = Depends(get_current_user),
-    service: TrainingSessionService = Depends(get_training_service)
+    service: TrainingSessionService = Depends(get_training_service),
+    gcs_service: GCSService = Depends(provide_gcs_service)
 ):
     """현재 세션의 진행 중인 아이템 조회"""
     result = await service.get_current_item(session_id, current_user.id)
@@ -295,6 +305,14 @@ async def get_current_item(
     word = item.word.word if item.word else None
     sentence = item.sentence.sentence if item.sentence else None
     
+    # Private 버킷이므로 signed URL 생성
+    video_url = None
+    if item.video_url and item.media_file_id:
+        # 기존 동영상이 있으면 signed URL 생성
+        media_file = await service.get_media_file_by_id(item.media_file_id)
+        if media_file:
+            video_url = await gcs_service.get_signed_url(media_file.object_key, expiration_hours=24)
+    
     return CurrentItemResponse(
         id=item.id,
         item_index=item.item_index,
@@ -303,52 +321,131 @@ async def get_current_item(
         word=word,
         sentence=sentence,
         is_completed=item.is_completed,
-        video_url=item.video_url,
+        video_url=video_url,
         media_file_id=item.media_file_id,
         has_next=has_next
     )
 
 
 @router.post(
-    "/{session_id}/items/{item_id}/complete",
-    response_model=TrainingSessionResponse,
-    summary="훈련 아이템 완료 처리",
-    description="특정 훈련 아이템을 완료 처리합니다. 동영상 URL과 미디어 파일 ID를 함께 제공할 수 있습니다.",
+    "/{session_id}/items/{item_id}/submit",
+    response_model=ItemSubmissionResponse,
+    summary="훈련 아이템 업로드 및 완료",
+    description="동영상 업로드, 아이템 완료 처리, 다음 아이템 조회를 한 번의 요청으로 처리합니다.",
     responses={
-        200: {"description": "완료 성공"},
+        200: {"description": "처리 성공"},
         400: {"model": BadRequestErrorResponse, "description": "잘못된 요청"},
         401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"},
-        404: {"model": NotFoundErrorResponse, "description": "세션을 찾을 수 없음"}
+        404: {"model": NotFoundErrorResponse, "description": "세션 또는 아이템을 찾을 수 없음"}
     }
 )
-async def complete_training_item(
+async def submit_training_item(
     session_id: int,
     item_id: int,
-    complete_data: CompleteItemRequest,
+    file: UploadFile = File(..., description="제출할 동영상 파일"),
     current_user: User = Depends(get_current_user),
-    service: TrainingSessionService = Depends(get_training_service)
+    service: TrainingSessionService = Depends(get_training_service),
+    gcs_service: GCSService = Depends(provide_gcs_service)
 ):
-    """훈련 아이템 완료 처리"""
+    """훈련 아이템 업로드 + 완료 + 다음 아이템 조회"""
+    if not file.content_type or not file.content_type.startswith("video/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="동영상 파일만 업로드 가능합니다."
+        )
+    
+    file_bytes = await file.read()
+    max_size = 100 * 1024 * 1024  # 100MB
+    if len(file_bytes) > max_size:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="파일 크기는 100MB를 초과할 수 없습니다."
+        )
+    
     try:
-        session = await service.complete_training_item(
+        result = await service.submit_training_item_with_video(
             session_id=session_id,
             item_id=item_id,
-            video_url=complete_data.video_url,
-            media_file_id=complete_data.media_file_id,
-            is_completed=True,
-            user_id=current_user.id
+            user=current_user,
+            file_bytes=file_bytes,
+            filename=file.filename or "video.mp4",
+            content_type=file.content_type or "video/mp4",
+            gcs_service=gcs_service
         )
-        
-        if not session:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="훈련 세션을 찾을 수 없습니다."
-            )
-        
-        return session
-        
+    except LookupError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+    
+    session = result["session"]
+    next_item = result["next_item"]
+    media_file = result["media_file"]
+    
+    next_item_response: Optional[CurrentItemResponse] = None
+    if next_item:
+        word = next_item.word.word if next_item.word else None
+        sentence = next_item.sentence.sentence if next_item.sentence else None
+        next_item_response = CurrentItemResponse(
+            id=next_item.id,
+            item_index=next_item.item_index,
+            word_id=next_item.word_id,
+            sentence_id=next_item.sentence_id,
+            word=word,
+            sentence=sentence,
+            is_completed=next_item.is_completed,
+            video_url=next_item.video_url,
+            media_file_id=next_item.media_file_id,
+            has_next=result.get("has_next", False)
+        )
+    
+    return ItemSubmissionResponse(
+        session=session,
+        next_item=next_item_response,
+        media=media_file,
+        video_url=result["video_url"]
+    )
+
+
+@router.get(
+    "/{session_id}/items/{item_id}/video",
+    response_model=MediaUploadUrlResponse,
+    summary="훈련 아이템 동영상 URL 발급",
+    description="지정된 아이템의 동영상에 대한 서명 URL을 생성해 반환합니다.",
+    responses={
+        200: {"description": "URL 발급 성공"},
+        401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"},
+        404: {"model": NotFoundErrorResponse, "description": "세션 또는 아이템을 찾을 수 없음"}
+    }
+)
+async def get_item_video_url(
+    session_id: int,
+    item_id: int,
+    current_user: User = Depends(get_current_user),
+    service: TrainingSessionService = Depends(get_training_service),
+    gcs_service: GCSService = Depends(provide_gcs_service)
+):
+    """아이템 동영상의 서명 URL 발급"""
+    result = await service.get_item_with_media(session_id=session_id, item_id=item_id, user_id=current_user.id)
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="훈련 아이템을 찾을 수 없습니다.")
+    item = result["item"]
+    media = result["media"]
+    if not media or not media.object_key:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="해당 아이템의 동영상을 찾을 수 없습니다.")
+    signed_url = await gcs_service.get_signed_url(media.object_key, expiration_hours=24)
+    if not signed_url:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="서명 URL 생성에 실패했습니다.")
+    return MediaUploadUrlResponse(upload_url=signed_url, media_file_id=media.id, expires_in=24*3600)
+
+## Removed legacy complete endpoint in favor of submit endpoint
