@@ -23,29 +23,40 @@ class GCSService:
         self.client = storage.Client(project=self.project_id)
         self.bucket = self.client.bucket(self.bucket_name)
     
-    def generate_video_path(self, username: str, filename: str) -> str:
+    def generate_video_path(
+        self, 
+        username: str, 
+        session_id: str,
+        train_id: Optional[int] = None,
+        result_id: Optional[int] = None,
+        word_id: Optional[int] = None,
+        sentence_id: Optional[int] = None
+    ) -> str:
         """
         동영상 파일 경로 생성
-        형식: videos/{username}/{YYYY-MM-DD}/{filename}
+        형식: videos/{username}/{session_id}/(type:train/result)_(train_id/result_id)_(type:word/sentence)_(word_id/sentence_id).mp4
         """
         return generate_file_path(
             base_path="videos",
             username=username,
-            filename=filename
+            session_id=session_id,
+            train_id=train_id,
+            result_id=result_id,
+            word_id=word_id,
+            sentence_id=sentence_id
         )
     
-    def generate_unique_filename(self, original_filename: str) -> str:
-        """
-        고유한 파일명 생성
-        """
-        from api.utils.utils import generate_unique_filename as gen_unique_name
-        return gen_unique_name(original_filename)
     
     async def upload_video(
         self, 
         file_content: bytes, 
         username: str, 
-        original_filename: str,
+        session_id: str,
+        train_id: Optional[int] = None,
+        result_id: Optional[int] = None,
+        word_id: Optional[int] = None,
+        sentence_id: Optional[int] = None,
+        original_filename: str = "",
         content_type: str = "video/mp4"
     ) -> dict:
         """
@@ -54,18 +65,27 @@ class GCSService:
         Args:
             file_content: 파일 바이너리 데이터
             username: 사용자명
-            original_filename: 원본 파일명
+            session_id: 세션 ID
+            train_id: 훈련 ID (단어 훈련용)
+            result_id: 결과 ID (문장 훈련용)
+            word_id: 단어 ID
+            sentence_id: 문장 ID
+            original_filename: 원본 파일명 (선택사항)
             content_type: MIME 타입
             
         Returns:
             dict: 업로드 결과 정보
         """
         try:
-            # 고유한 파일명 생성
-            unique_filename = self.generate_unique_filename(original_filename)
-            
             # GCS 경로 생성
-            object_path = self.generate_video_path(username, unique_filename)
+            object_path = self.generate_video_path(
+                username=username,
+                session_id=session_id,
+                train_id=train_id,
+                result_id=result_id,
+                word_id=word_id,
+                sentence_id=sentence_id
+            )
             
             # GCS 객체 생성
             blob = self.bucket.blob(object_path)
@@ -73,6 +93,11 @@ class GCSService:
             # 메타데이터 설정
             blob.metadata = {
                 "username": username,
+                "session_id": session_id,
+                "train_id": str(train_id) if train_id else None,
+                "result_id": str(result_id) if result_id else None,
+                "word_id": str(word_id) if word_id else None,
+                "sentence_id": str(sentence_id) if sentence_id else None,
                 "original_filename": original_filename,
                 "upload_date": datetime.now().isoformat(),
                 "file_type": "video"
@@ -91,7 +116,7 @@ class GCSService:
                 "success": True,
                 "object_path": object_path,
                 "public_url": public_url,
-                "filename": unique_filename,
+                "filename": object_path.split('/')[-1],
                 "file_size": len(file_content),
                 "content_type": content_type
             }
@@ -102,6 +127,7 @@ class GCSService:
                 "error": str(e),
                 "object_path": None
             }
+    
     
     async def download_video(self, object_path: str) -> Optional[bytes]:
         """
@@ -177,14 +203,14 @@ class GCSService:
     async def list_user_videos(
         self, 
         username: str, 
-        date_filter: Optional[str] = None
+        session_filter: Optional[str] = None
     ) -> list:
         """
         사용자의 동영상 파일 목록 조회
         
         Args:
             username: 사용자명
-            date_filter: 날짜 필터 (YYYY-MM-DD 형식)
+            session_filter: 세션 필터 (특정 세션만 조회)
             
         Returns:
             list: 동영상 파일 정보 목록
@@ -193,8 +219,8 @@ class GCSService:
             safe_username = sanitize_username_for_path(username)
             prefix = f"videos/{safe_username}/"
             
-            if date_filter:
-                prefix += f"{date_filter}/"
+            if session_filter:
+                prefix += f"{session_filter}/"
             
             blobs = self.client.list_blobs(self.bucket_name, prefix=prefix)
             
@@ -215,6 +241,7 @@ class GCSService:
         except Exception as e:
             print(f"파일 목록 조회 오류: {e}")
             return []
+    
 
 
 # 전역 GCS 서비스 인스턴스

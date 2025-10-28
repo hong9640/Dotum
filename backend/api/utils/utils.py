@@ -30,35 +30,44 @@ def sanitize_username_for_path(username: str) -> str:
 def generate_file_path(
     base_path: str,
     username: str,
-    date_str: Optional[str] = None,
-    filename: str = ""
+    session_id: str,
+    train_id: Optional[int] = None,
+    result_id: Optional[int] = None,
+    word_id: Optional[int] = None,
+    sentence_id: Optional[int] = None
 ) -> str:
     """
     파일 경로 생성
+    형식: videos/{username}/{session_id}/(type:train/result)_(train_id/result_id)_(type:word/sentence)_(word_id/sentence_id).mp4
     
     Args:
         base_path: 기본 경로 (예: "videos")
         username: 사용자명
-        date_str: 날짜 문자열 (YYYY-MM-DD 형식, None이면 오늘 날짜)
-        filename: 파일명
+        session_id: 세션 ID (필수)
+        train_id: 훈련 ID (단어 훈련용)
+        result_id: 결과 ID (문장 훈련용)
+        word_id: 단어 ID
+        sentence_id: 문장 ID
         
     Returns:
         str: 생성된 파일 경로
+        
+    Raises:
+        ValueError: train_id+word_id 또는 result_id+sentence_id가 제공되지 않은 경우
     """
     # 안전한 사용자명 변환
     safe_username = sanitize_username_for_path(username)
     
-    # 날짜 설정
-    if date_str is None:
-        date_str = datetime.now().strftime("%Y-%m-%d")
+    # 파일명 생성
+    if train_id is not None and word_id is not None:
+        filename = f"train_{train_id}_word_{word_id}.mp4"
+    elif result_id is not None and sentence_id is not None:
+        filename = f"result_{result_id}_sentence_{sentence_id}.mp4"
+    else:
+        raise ValueError("train_id+word_id 또는 result_id+sentence_id가 필요합니다")
     
-    # 경로 구성
-    path_parts = [base_path, safe_username, date_str]
-    
-    if filename:
-        path_parts.append(filename)
-    
-    return "/".join(path_parts)
+    # 경로 구성: videos/{username}/{session_id}/{filename}
+    return f"{base_path}/{safe_username}/{session_id}/{filename}"
 
 
 def generate_unique_filename(original_filename: str, prefix: str = "") -> str:
