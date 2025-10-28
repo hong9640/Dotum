@@ -11,9 +11,10 @@ export interface TrainingCountMap {
 
 interface CalendarProps {
   counts: TrainingCountMap;
+  onDateClick?: (date: string) => void;
 }
 
-export function Calendar({ counts }: CalendarProps) {
+export function Calendar({ counts, onDateClick }: CalendarProps) {
   const { year, monthLabel, matrix, goPrev, goNext, setYear } = useCalendar();
 
   return (
@@ -28,7 +29,7 @@ export function Calendar({ counts }: CalendarProps) {
         />
       </CardHeader>
       <CardContent className="w-[932px]">
-        <CalendarGrid matrix={matrix} counts={counts} />
+        <CalendarGrid matrix={matrix} counts={counts} onDateClick={onDateClick} />
         <CalendarLegend />
       </CardContent>
     </Card>
