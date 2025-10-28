@@ -30,12 +30,12 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ isLoggedIn, onLogout }) =
             >
               발음 훈련
             </Link>
-            <a
-              href="#"
+            <Link
+              to="/training-history"
               className="px-3 py-2 text-xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 md:text-3xl"
             >
               훈련기록
-            </a>
+            </Link>
             {/* 로그인 상태에 따른 버튼 렌더링 */}
             {isLoggedIn ? (
               <button

@@ -13,6 +13,9 @@ from ..schemas.training_sessions import (
     CalendarResponse,
     DailyTrainingResponse
 )
+from ..models.media import MediaFile, MediaType
+from ..services.gcs_service import GCSService
+from api.src.user.user_model import User
 
 
 class TrainingSessionService:
@@ -199,6 +202,91 @@ class TrainingSessionService:
         
         return await self.get_training_session(session_id, user_id)
     
+    async def submit_training_item_with_video(
+        self,
+        *,
+        session_id: int,
+        item_id: int,
+        user: User,
+        file_bytes: bytes,
+        filename: str,
+        content_type: str,
+        gcs_service: GCSService
+    ) -> Dict[str, Any]:
+        """동영상 업로드부터 아이템 완료, 다음 아이템 조회까지 한번에 처리"""
+        session = await self.get_training_session(session_id, user.id)
+        if not session:
+            raise LookupError("훈련 세션을 찾을 수 없습니다.")
+        
+        item = await self.item_repo.get_item(session_id, item_id, include_relations=True)
+        if not item:
+            raise LookupError("훈련 아이템을 찾을 수 없습니다.")
+        
+        if item.is_completed:
+            raise ValueError("이미 완료된 아이템입니다.")
+        
+        upload_result = await gcs_service.upload_video(
+            file_content=file_bytes,
+            username=user.username,
+            session_id=str(session_id),
+            train_id=item.id,  # 아이템 ID를 train_id로 사용
+            word_id=item.word_id,
+            sentence_id=item.sentence_id,
+            original_filename=filename,
+            content_type=content_type
+        )
+        
+        if not upload_result.get("success"):
+            raise RuntimeError(f"동영상 업로드에 실패했습니다: {upload_result.get('error')}")
+        
+        object_key = upload_result.get("object_path")
+        if not object_key:
+            raise RuntimeError("업로드 결과에 object_path가 없습니다.")
+        
+        # Private 버킷이므로 signed URL 생성
+        video_url = await gcs_service.get_signed_url(object_key, expiration_hours=24)
+        if not video_url:
+            raise RuntimeError("동영상 URL 생성에 실패했습니다.")
+        
+        media_file = MediaFile(
+            user_id=user.id,
+            object_key=object_key,
+            media_type=MediaType.VIDEO,
+            file_name=upload_result.get("filename") or filename,
+            file_size_bytes=len(file_bytes),
+            format=(content_type.split('/')[-1] if '/' in content_type else content_type)
+        )
+        self.db.add(media_file)
+        await self.db.flush()
+        
+        await self.item_repo.complete_item(
+            item_id=item.id,
+            video_url=video_url,
+            media_file_id=media_file.id,
+            is_completed=True
+        )
+        
+        completed_count = await self.repo.get_completed_items_count(session_id)
+        await self.repo.update_progress(session_id, completed_count)
+        await self.repo.move_to_next_item(session_id)
+        
+        await self.db.commit()
+        await self.db.refresh(media_file)
+        
+        updated_session = await self.get_training_session(session_id, user.id)
+        next_item = await self.item_repo.get_current_item(session_id, include_relations=True)
+        has_next = False
+        if next_item:
+            has_next = await self.item_repo.get_next_item(session_id, next_item.item_index) is not None
+        
+        return {
+            "session": updated_session,
+            "next_item": next_item,
+            "media_file": media_file,
+            "video_url": video_url,
+            "has_next": has_next
+        }
+    
     async def get_current_item(
         self,
         session_id: int,
@@ -231,6 +319,29 @@ class TrainingSessionService:
     ) -> bool:
         """훈련 세션 삭제"""
         return await self.repo.delete_session(session_id, user_id)
+    
+    async def get_item_with_media(self, session_id: int, item_id: int, user_id: int):
+        """아이템과 연결된 미디어 조회 (서명 URL 발급용)"""
+        # 세션 소유권 확인
+        session = await self.get_training_session(session_id, user_id)
+        if not session:
+            return None
+        # 아이템 조회
+        item = await self.item_repo.get_item(session_id, item_id, include_relations=False)
+        if not item:
+            return None
+        media = None
+        if item.media_file_id:
+            from ..services.media import MediaService
+            media_service = MediaService(self.db)
+            media = await media_service.get_media_file_by_id(item.media_file_id)
+        return {"item": item, "media": media}
+
+    async def get_media_file_by_id(self, media_file_id: int) -> Optional[MediaFile]:
+        """미디어 파일 ID로 조회"""
+        from ..services.media import MediaService
+        media_service = MediaService(self.db)
+        return await media_service.get_media_file_by_id(media_file_id)
     
     def _is_valid_status_transition(
         self, 

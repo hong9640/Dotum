@@ -1,9 +1,13 @@
+name: dotum
+
 services:
   # ============================================================
   # Jenkins - CI/CD 파이프라인
   # ============================================================
   jenkins:
-    image: jenkins/jenkins:lts
+    build:
+      context: ./ci
+      dockerfile: Dockerfile
     container_name: jenkins
     restart: always
     user: root
@@ -12,15 +16,29 @@ services:
       - "50000:50000"
     volumes:
       - jenkins_home:/var/jenkins_home
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./jenkins:/var/jenkins_home/custom
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # Docker socket
+      - ./ci:/var/jenkins_home/custom  # CI 관련 설정
+      - /home/ubuntu/.env:/home/ubuntu/.env:ro  # 환경변수 파일 (읽기 전용)
     environment:
       - TZ=Asia/Seoul
+      - JENKINS_OPTS=--httpPort=8080
+      - PROJECT_NAME=dotum
     networks:
       - dotum-braindeck-network
-    depends_on:
-      - backend
-
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/login"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
   # ============================================================
   # Portainer - Docker 관리 UI
   # ============================================================
@@ -29,7 +47,7 @@ services:
     container_name: portainer
     restart: always
     ports:
-      - "9000:9000"
+      - "55555:9000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data
@@ -41,7 +59,7 @@ services:
   # ============================================================
   postgres:
     image: postgres:15
-    container_name: postgres
+    container_name: dotum-postgres
     restart: always
     environment:
       POSTGRES_USER: ${DB_ID}
@@ -53,9 +71,10 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_ID} -d ${DB_NAME}"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 5s
     networks:
       - dotum-braindeck-network
 
@@ -66,10 +85,10 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: backend
+    container_name: dotum-backend
     restart: always
     env_file:
-      - ./backend/.env
+      - ./.env
     environment:
       - TZ=Asia/Seoul
       - DB_NETWORK=postgres
@@ -86,15 +105,20 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend/api:/code/api
-      - ./backend/migrations:/code/migrations
-      - ./backend/alembic.ini:/code/alembic.ini
       - ./backend/credentials:/app/credentials
-    depends_on:
-      postgres:
-        condition: service_healthy
     networks:
       - dotum-braindeck-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --log-level debug
 
   # ============================================================
@@ -106,7 +130,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_BASE_URL: ${VITE_BASE_URL}
-    container_name: frontend
+    container_name: dotum-frontend
     restart: always
     ports:
       - "443:443"
@@ -114,10 +138,19 @@ services:
     volumes:
       - /etc/letsencrypt:/etc/letsencrypt
       - /var/www/certbot:/var/www/certbot
-    depends_on:
-      - backend
     networks:
       - dotum-braindeck-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 # ============================================================
 # Volumes
