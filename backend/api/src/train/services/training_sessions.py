@@ -16,8 +16,9 @@ from ..schemas.training_sessions import (
 from ..models.media import MediaFile, MediaType
 from ..services.gcs_service import GCSService
 from ..services.video_processor import VideoProcessor
+from ..services.video_processor import VideoProcessor
 from api.src.user.user_model import User
-
+from api.src.train.models.praat import PraatFeatures
 
 class TrainingSessionService:
     """통합된 훈련 세션 서비스"""
@@ -270,7 +271,7 @@ class TrainingSessionService:
                 gcs_bucket=gcs_service.bucket_name,
                 gcs_blob_name=object_key
             )
-            
+            praat_data = processing_result.get('praat_features')
             # 음성 파일 정보 저장
             if processing_result.get('audio_blob_name'):
                 audio_media_file = MediaFile(
@@ -283,7 +284,16 @@ class TrainingSessionService:
                 )
                 self.db.add(audio_media_file)
                 await self.db.flush()
-                
+            
+            if praat_data:
+                new_praat_record = PraatFeatures(
+                    media_id=audio_media_file.id,  
+                    
+                    # 'praat_data' 딕셔너리 매핑
+                    **praat_data  
+                )
+                self.db.add(new_praat_record)
+
         except Exception as e:
             # 음성 추출 실패해도 동영상 업로드는 계속 진행
             print(f"Audio extraction failed: {str(e)}")
