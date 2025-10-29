@@ -6,6 +6,8 @@ from typing import Dict, Any, Optional
 from pathlib import Path
 from google.cloud import storage
 from api.core.config import settings
+import aiofiles
+from api.src.train.services.praat import extract_all_features
 
 
 class VideoProcessor:
@@ -187,6 +189,20 @@ class VideoProcessor:
                 audio_path = os.path.join(temp_dir, "audio.wav")
                 await self.extract_stereo_audio(input_path, audio_path)
                 
+                # praat 추출
+                praat_results = None  # 결과 초기화
+                try:
+                    # 1. 로컬에 생성된 .wav 파일을 바이트로 읽기
+                    async with aiofiles.open(audio_path, 'rb') as f:
+                        wav_bytes = await f.read()
+                    # 2. 읽은 파일을 praat 추출
+                    praat_results = await extract_all_features(wav_bytes) 
+
+                    
+                except Exception as e:
+                    print(f"Praat analysis failed: {str(e)}")
+                    # Praat 분석이 실패해도 나머지 작업은 계속 진행
+
                 # 썸네일을 GCS에 업로드
                 thumbnail_blob_name = gcs_blob_name.replace('.mp4', '_thumb.jpg')
                 thumbnail_blob = bucket.blob(thumbnail_blob_name)
@@ -201,7 +217,8 @@ class VideoProcessor:
                     'metadata': metadata,
                     'thumbnail_url': f"gs://{gcs_bucket}/{thumbnail_blob_name}",
                     'audio_url': f"gs://{gcs_bucket}/{audio_blob_name}",
-                    'audio_blob_name': audio_blob_name
+                    'audio_blob_name': audio_blob_name,
+                    'praat_features': praat_results
                 }
                 
         except Exception as e:

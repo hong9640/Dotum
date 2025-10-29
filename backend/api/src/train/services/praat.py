@@ -7,6 +7,12 @@ import parselmouth
 import soundfile as sf
 from parselmouth.praat import call
 from scipy.signal import get_window
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
+from typing import Optional
+from api.src.train.models.praat import PraatFeatures
+from api.src.train.models.media import MediaFile
+
 
 # ============================
 # 1. 파라미터 정의
@@ -110,7 +116,7 @@ def estimate_csid_awan2016(cpp: float, lh_series_db: np.ndarray) -> float:
 # ============================
 # 3. 메인 추출 함수
 # ============================
-async def extract_sentence_features(voice_data: bytes) -> dict:
+async def extract_all_features(voice_data: bytes) -> dict:
     """
     음성 데이터에서 CPPS, CSID 및 시계열 데이터를 추출하여 딕셔너리로 반환합니다.
     """
@@ -180,3 +186,40 @@ async def extract_sentence_features(voice_data: bytes) -> dict:
         # 포괄적인 예외 처리
         raise ValueError(f"전체 특징 추출 중 오디오 데이터 처리 오류: {e}")
 
+async def get_praat_analysis_from_db(
+    db: AsyncSession, 
+    media_id: int,
+    user_id: int
+) -> Optional[PraatFeatures]:
+    """
+    특정 미디어 ID의 Praat 분석 결과를 조회합니다.
+    소유권을 먼저 확인합니다.
+    """
+    
+    # 1. 미디어 파일 조회 (SQLAlchemy 2.0 방식)
+    statement_media = select(MediaFile).where(MediaFile.id == media_id)
+    
+    # [수정 1] .exec() -> .execute()
+    result_media = await db.execute(statement_media) 
+    
+    # [수정 2] SELECT 결과는 .scalars()로 꺼내야 합니다
+    media_file = result_media.scalars().first()
+    
+    # 2. 미디어 파일이 없는 경우
+    if not media_file:
+        raise LookupError("Media file not found") # 404 Not Found 유도
+    
+    # 3. 소유권이 다른 경우
+    if media_file.user_id != user_id:
+        raise PermissionError("Forbidden") # 403 Forbidden 유도
+        
+    # 4. Praat 분석 결과 조회 (SQLAlchemy 2.0 방식)
+    statement_praat = select(PraatFeatures).where(PraatFeatures.media_id == media_id)
+    
+    # [수정 1] .exec() -> .execute()
+    result_praat = await db.execute(statement_praat)
+    
+    # [수정 2] SELECT 결과는 .scalars()로 꺼내야 합니다
+    analysis = result_praat.scalars().first()
+
+    return analysis
