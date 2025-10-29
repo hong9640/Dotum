@@ -6,7 +6,7 @@ import { BarChart, RotateCcw, ListChecks, ArrowRight, Loader2 } from "lucide-rea
 import PronunciationScore from "./PronunciationScore";
 import FeedbackSummary from "./FeedbackSummary";
 import { usePracticeStore } from "@/stores/practiceStore";
-import { completeTrainingSession } from "@/api/training-session";
+import { completeTrainingSession, getTrainingSession } from "@/api/training-session";
 
 interface FeedbackCardProps {
   onViewAllResults?: () => void;
@@ -38,6 +38,37 @@ const FeedbackCard: React.FC<FeedbackCardProps> = ({ onViewAllResults }) => {
     try {
       console.log('훈련 세션 완료 처리 시작:', { sessionId });
       
+      // 먼저 세션 상태를 확인하여 모든 아이템이 완료되었는지 검증
+      const sessionData = await getTrainingSession(Number(sessionId));
+      console.log('세션 상태 확인:', {
+        totalItems: sessionData.total_items,
+        completedItems: sessionData.completed_items,
+        status: sessionData.status,
+        progressPercentage: sessionData.progress_percentage
+      });
+      
+      // 세션이 이미 완료된 경우
+      if (sessionData.status === 'completed') {
+        console.log('세션이 이미 완료됨');
+        if (onViewAllResults) {
+          onViewAllResults();
+        } else {
+          navigate("/result-list");
+        }
+        return;
+      }
+      
+      // 모든 아이템이 완료되었는지 확인
+      if (sessionData.completed_items < sessionData.total_items) {
+        console.warn('아직 모든 아이템이 완료되지 않음:', {
+          completed: sessionData.completed_items,
+          total: sessionData.total_items
+        });
+        
+        // 사용자에게 알림 후에도 결과 페이지로 이동 (사용자 경험을 위해)
+        alert(`아직 ${sessionData.total_items - sessionData.completed_items}개의 아이템이 완료되지 않았습니다. 하지만 결과를 확인할 수 있습니다.`);
+      }
+      
       // 훈련 세션 완료 API 호출
       const completedSession = await completeTrainingSession(Number(sessionId));
       
@@ -55,7 +86,9 @@ const FeedbackCard: React.FC<FeedbackCardProps> = ({ onViewAllResults }) => {
       // 에러 상태에 따른 처리
       if (error.status === 400) {
         // 400: 아직 모든 아이템이 완료되지 않음
-        alert('아직 모든 아이템이 완료되지 않았습니다. 모든 단어/문장을 완료한 후 다시 시도해주세요.');
+        console.warn('세션 완료 실패 - 모든 아이템이 완료되지 않음');
+        // 사용자에게 알림하지만 결과 페이지로 이동 (사용자 경험을 위해)
+        alert('아직 모든 아이템이 완료되지 않았지만, 현재까지의 결과를 확인할 수 있습니다.');
       } else if (error.status === 401) {
         // 401: 인증 필요
         alert('인증이 필요합니다. 다시 로그인해주세요.');
@@ -69,7 +102,9 @@ const FeedbackCard: React.FC<FeedbackCardProps> = ({ onViewAllResults }) => {
       } else {
         // 기타 에러
         const errorMessage = error.message || '훈련 세션 완료 중 오류가 발생했습니다.';
-        alert(errorMessage);
+        console.warn('세션 완료 실패:', errorMessage);
+        // 사용자에게 알림하지만 결과 페이지로 이동 (사용자 경험을 위해)
+        alert(`${errorMessage} 하지만 현재까지의 결과를 확인할 수 있습니다.`);
       }
       
       // 에러가 발생해도 전체 결과 페이지로 이동 (사용자 경험을 위해)
