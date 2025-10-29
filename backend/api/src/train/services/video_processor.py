@@ -127,6 +127,86 @@ class VideoProcessor:
         except Exception as e:
             raise Exception(f"Video processing failed: {str(e)}")
     
+    async def extract_stereo_audio(
+        self, 
+        input_path: str, 
+        output_path: str
+    ) -> bool:
+        """동영상에서 스테레오 음성을 WAV 형식으로 추출"""
+        try:
+            cmd = [
+                'ffmpeg', '-i', input_path,
+                '-vn',                    # 비디오 스트림 제외
+                '-ac', '2',               # 스테레오 (2채널)
+                '-ar', '44100',           # 샘플링 레이트 44.1kHz
+                '-acodec', 'pcm_s16le',   # 16-bit PCM 인코딩
+                '-y',                     # 덮어쓰기
+                output_path
+            ]
+            
+            result = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            
+            stdout, stderr = await result.communicate()
+            
+            if result.returncode != 0:
+                raise Exception(f"Audio extraction failed: {stderr.decode()}")
+            
+            return True
+            
+        except Exception as e:
+            raise Exception(f"Audio extraction failed: {str(e)}")
+    
+    async def process_uploaded_video_with_audio(
+        self, 
+        gcs_bucket: str, 
+        gcs_blob_name: str
+    ) -> Dict[str, Any]:
+        """업로드된 동영상 처리 (메타데이터, 썸네일, 음성 추출)"""
+        try:
+            # 임시 디렉토리 생성
+            with tempfile.TemporaryDirectory() as temp_dir:
+                # GCS에서 파일 다운로드
+                bucket = self.gcs_client.bucket(gcs_bucket)
+                blob = bucket.blob(gcs_blob_name)
+                
+                input_path = os.path.join(temp_dir, "input.mp4")
+                blob.download_to_filename(input_path)
+                
+                # 메타데이터 추출
+                metadata = await self.extract_metadata(input_path)
+                
+                # 썸네일 생성
+                thumbnail_path = os.path.join(temp_dir, "thumbnail.jpg")
+                await self.generate_thumbnail(input_path, thumbnail_path)
+                
+                # 음성 추출
+                audio_path = os.path.join(temp_dir, "audio.wav")
+                await self.extract_stereo_audio(input_path, audio_path)
+                
+                # 썸네일을 GCS에 업로드
+                thumbnail_blob_name = gcs_blob_name.replace('.mp4', '_thumb.jpg')
+                thumbnail_blob = bucket.blob(thumbnail_blob_name)
+                thumbnail_blob.upload_from_filename(thumbnail_path)
+                
+                # 음성 파일을 GCS에 업로드
+                audio_blob_name = gcs_blob_name.replace('.mp4', '.wav')
+                audio_blob = bucket.blob(audio_blob_name)
+                audio_blob.upload_from_filename(audio_path)
+                
+                return {
+                    'metadata': metadata,
+                    'thumbnail_url': f"gs://{gcs_bucket}/{thumbnail_blob_name}",
+                    'audio_url': f"gs://{gcs_bucket}/{audio_blob_name}",
+                    'audio_blob_name': audio_blob_name
+                }
+                
+        except Exception as e:
+            raise Exception(f"Video processing with audio extraction failed: {str(e)}")
+
     def check_ffmpeg_availability(self) -> bool:
         """FFmpeg 사용 가능 여부 확인"""
         try:
