@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useMediaRecorder } from "@/hooks/useMediaRecorder";
 import { usePracticeStore } from "@/stores/practiceStore";
-import TrainingLayout from "@/pages/practice/components/practice/TrainingLayout";
+import TrainingLayout from "@/pages/practice/components/TrainingLayout";
 import PracticeComponent from "@/pages/practice/components/practice/PracticeComponent";
 import ResultComponent from "@/pages/practice/components/result/ResultComponent";
 import { getCurrentItem, getCurrentItemErrorMessage, type CurrentItemResponse } from "@/api/training-session/currentItem";
