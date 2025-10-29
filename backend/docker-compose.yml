@@ -1,23 +1,4 @@
 services:
-  postgres:
-    image: postgres:15
-    container_name: db
-    environment:
-      POSTGRES_USER: ${DB_ID}
-      POSTGRES_PASSWORD: ${DB_PW}
-      POSTGRES_DB: ${DB_NAME}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_ID} -d ${DB_NAME}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - app-network
-
   backend:
     build:
       context: .
@@ -27,18 +8,15 @@ services:
       - "8000:8000"
     environment:
       - TZ=Asia/Seoul
-      - DB_NETWORK=postgres
       - DB_ID=${DB_ID}
       - DB_PW=${DB_PW}
       - DB_NAME=${DB_NAME}
+      - DB_NETWORK=${DB_NETWORK}
       - DB_PORT=${DB_PORT}
       - JWT_SECRET=${JWT_SECRET}
       - GCS_BUCKET_NAME=${GCS_BUCKET_NAME}
       - GCS_PROJECT_ID=${GCS_PROJECT_ID}
       - GCS_CREDENTIALS_PATH=${GCS_CREDENTIALS_PATH}
-    depends_on:
-      postgres:
-        condition: service_healthy
     volumes:
       - ./api:/code/api
       - ./migrations:/code/migrations
@@ -48,9 +26,6 @@ services:
       - app-network
     #back-end 로그 추적을 위해 override
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --log-level debug
-
-volumes:
-  postgres_data:
 
 networks:
   app-network:

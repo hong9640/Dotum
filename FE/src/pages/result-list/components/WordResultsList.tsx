@@ -1,6 +1,5 @@
 import React from 'react';
 import { ListChecks } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import WordResultItem from "./WordResultItem";
 import type { WordResult } from "../types";
 
