@@ -2,7 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BarChart, RotateCcw, Activity, ListChecks } from "lucide-react";
+import { BarChart, RotateCcw, ListChecks, ArrowRight } from "lucide-react";
 import PronunciationScore from "./PronunciationScore";
 import FeedbackSummary from "./FeedbackSummary";
 import { usePracticeStore } from "@/stores/practiceStore";
@@ -17,12 +17,8 @@ interface FeedbackCardProps {
  */
 const FeedbackCard: React.FC<FeedbackCardProps> = ({ onViewAllResults }) => {
   const navigate = useNavigate();
-  const { currentWordIndex, totalSteps } = usePracticeStore();
+  const { currentWordIndex, totalSteps, goToNextWord } = usePracticeStore();
   const similarity = 87; // 피드백 점수 (예시)
-
-  const handleFeedbackDetail = () => {
-    navigate("/result-detail");
-  };
 
   const handleRetake = () => {
     navigate("/practice");
@@ -34,6 +30,11 @@ const FeedbackCard: React.FC<FeedbackCardProps> = ({ onViewAllResults }) => {
     } else {
       navigate("/result-list");
     }
+  };
+
+  const handleNextWord = () => {
+    goToNextWord();
+    navigate("/practice");
   };
 
   return (
@@ -58,29 +59,19 @@ const FeedbackCard: React.FC<FeedbackCardProps> = ({ onViewAllResults }) => {
       </CardContent>
       {/* 3. 버튼 섹션 */}
       <CardFooter className="flex flex-col md:flex-row md:flex-wrap justify-center items-center gap-6 pt-8 border-t border-gray-200 p-7">
-        <Button
-          variant="default"
-          size="lg"
-          onClick={handleFeedbackDetail}
-          // 사용자가 요청한 text-3xl을 반응형으로 적용
-          className="w-full md:w-auto h-auto min-h-10 px-6 py-4 bg-green-500 text-white hover:bg-green-600 rounded-xl text-xl md:text-3xl font-semibold leading-9"
-        >
-          {/* lucide-react 'Plus' 아이콘으로 교체 */}
-          <Activity className="w-8 h-8 mr-2" strokeWidth={3} />
-          피드백 상세
-        </Button>
+        {/* 다시 녹화 버튼 - 항상 표시 */}
         <Button
           variant="outline"
           size="lg"
           onClick={handleRetake}
           className="w-full md:w-auto h-auto min-h-10 px-6 py-4 bg-white text-slate-700 border-slate-200 border-2 hover:bg-slate-100 hover:text-slate-700 rounded-xl text-xl md:text-3xl font-semibold leading-9"
         >
-          {/* lucide-react 'RotateCcw' 아이콘으로 교체 */}
           <RotateCcw className="w-8 h-8 mr-2" strokeWidth={2.5} />
           다시 녹화
         </Button>
-        {/* 마지막 단어인 경우에만 전체 결과 보기 버튼 표시 */}
-        {currentWordIndex === totalSteps - 1 && (
+        
+        {/* 마지막 단어인 경우: 전체 결과 보기 버튼 표시 */}
+        {currentWordIndex === totalSteps - 1 ? (
           <Button
             variant="default"
             size="lg"
@@ -89,6 +80,17 @@ const FeedbackCard: React.FC<FeedbackCardProps> = ({ onViewAllResults }) => {
           >
             <ListChecks className="w-8 h-8 mr-2" strokeWidth={3} />
             전체 결과 보기
+          </Button>
+        ) : (
+          /* 1~9번째 아이템인 경우: 다음으로 버튼 표시 */
+          <Button
+            variant="default"
+            size="lg"
+            onClick={handleNextWord}
+            className="w-full md:w-auto h-auto min-h-10 px-6 py-4 bg-green-500 text-white hover:bg-green-600 rounded-xl text-xl md:text-3xl font-semibold leading-9"
+          >
+            <ArrowRight className="w-8 h-8 mr-2" strokeWidth={3} />
+            다음으로
           </Button>
         )}
       </CardFooter>
