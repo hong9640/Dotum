@@ -9,15 +9,11 @@ import { useTrainingSession } from '@/hooks/training-session';
 const HomePage: React.FC = () => {
   const { createWordSession, createSentenceSession, isLoading, apiError } = useTrainingSession();
 
-  // 토큰 상태 확인 (디버깅용)
+  // 인증 상태 확인 (localStorage auth 플래그 기준)
   const checkAuthStatus = () => {
-    const token = localStorage.getItem('access_token');
-    const refreshToken = localStorage.getItem('refresh_token');
-    console.log('🔍 인증 상태 확인:');
-    console.log('- Access Token:', token ? '존재함' : '없음');
-    console.log('- Refresh Token:', refreshToken ? '존재함' : '없음');
-    console.log('- Token 값:', token);
-    return !!token;
+    const isAuthenticated = localStorage.getItem('auth') === 'true';
+    console.log('🔍 인증 상태 확인(auth 플래그):', isAuthenticated ? '인증됨' : '인증 안됨');
+    return isAuthenticated;
   };
 
   // 로그인이 필요한 경우 알림

@@ -5,6 +5,7 @@ import * as z from "zod";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Login, GetErrorMessage } from "@/api/login";
+import { setCookie } from "@/lib/cookies";
 
 const loginSchema = z.object({
     username: z.string().email("유효한 이메일 형식이 아닙니다."),
@@ -49,17 +50,20 @@ export const useLogin = ({ onLogin }:
                 });
 
                 if (result.status === "SUCCESS") {
-                    // 토큰을 로컬 스토리지에 저장
+                    // 토큰을 쿠키에 저장
                     console.log('🔐 로그인 성공 - 토큰 저장 중...');
                     console.log('Access Token:', result.data.token.access_token);
                     console.log('Refresh Token:', result.data.token.refresh_token);
                     
-                    localStorage.setItem('access_token', result.data.token.access_token);
-                    localStorage.setItem('refresh_token', result.data.token.refresh_token);
+                    // Access Token: 1시간 만료
+                    setCookie('access_token', result.data.token.access_token, 1/24);
+                    // Refresh Token: 7일 만료
+                    setCookie('refresh_token', result.data.token.refresh_token, 7);
                     
-                    // 저장 확인
-                    const savedToken = localStorage.getItem('access_token');
-                    console.log('✅ 토큰 저장 확인:', savedToken ? '성공' : '실패');
+                    console.log('✅ 토큰 쿠키 저장 완료');
+                    
+                    // UI 로그인 상태 플래그 갱신
+                    localStorage.setItem('auth', 'true');
                     
                     toast.success("로그인이 완료되었습니다!");
                     onLogin?.();
