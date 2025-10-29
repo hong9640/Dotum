@@ -5,7 +5,6 @@ import HomePage from '@/pages/home';
 import PracticePage from '@/pages/practice';
 import LoginPage from '@/pages/login';
 import SignupPage from '@/pages/signup';
-import ResultPage from '@/pages/result';
 import WordSetResults from '@/pages/result-list';
 import TrainingHistoryPage from '@/pages/training-history';
 
@@ -36,7 +35,6 @@ const App: React.FC = () => {
             <Route path="/practice" element={<PracticePage />} />
             <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
             <Route path="/signup" element={<SignupPage onSignup={handleSignup} />} />
-            <Route path="/result" element={<ResultPage />} />
             <Route path="/result-list" element={<WordSetResults />} />
             <Route path="/training-history" element={<TrainingHistoryPage />} />
           </Routes>
