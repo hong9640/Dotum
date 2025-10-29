@@ -25,49 +25,82 @@ export const useMediaRecorder = ({
   const [permissionError, setPermissionError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState<number>(0);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [liveStreamUrl, setLiveStreamUrl] = useState<string | null>(null);
   const [deviceInfo, setDeviceInfo] = useState<string>("");
+  const [isCameraReady, setIsCameraReady] = useState<boolean>(false);
 
-  // 카메라 초기화
-  useEffect(() => {
-    (async () => {
-      try {
-        const constraints: MediaStreamConstraints = {
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
-          video: {
-            width: { ideal: preferredWidth },
-            height: { ideal: preferredHeight },
-            frameRate: { ideal: preferredFps, max: preferredFps },
-            facingMode: "user",
-          },
-        };
+  // 카메라 초기화 함수
+  const initializeCamera = async () => {
+    try {
+      console.log('카메라 초기화 시작...');
+      const constraints: MediaStreamConstraints = {
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+        video: {
+          width: { ideal: preferredWidth },
+          height: { ideal: preferredHeight },
+          frameRate: { ideal: preferredFps, max: preferredFps },
+          facingMode: "user",
+        },
+      };
 
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        mediaStreamRef.current = stream;
-        
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.playsInline = true;
-          await videoRef.current.play().catch(() => void 0);
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log('카메라 스트림 획득 성공:', stream);
+      mediaStreamRef.current = stream;
+      
+      // MediaStream을 Blob URL로 변환하여 ReactPlayer에서 사용할 수 있도록 함
+      const mediaRecorder = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data);
         }
-
-        const videoTrack = stream.getVideoTracks()[0];
-        const s = videoTrack.getSettings();
-        setDeviceInfo(`${s.width}x${s.height} @ ${s.frameRate ?? "?"}fps`);
-      } catch (err: unknown) {
-        const errorMessage = err instanceof Error ? err.message : "카메라/마이크 접근 권한을 허용해주세요.";
-        setPermissionError(errorMessage);
-        setRecordingState("error");
+      };
+      
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        setLiveStreamUrl(url);
+      };
+      
+      // 짧은 시간 녹화하여 라이브 스트림 URL 생성
+      mediaRecorder.start();
+      setTimeout(() => {
+        mediaRecorder.stop();
+      }, 100);
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.playsInline = true;
+        await videoRef.current.play().catch(() => void 0);
+        console.log('비디오 엘리먼트에 스트림 연결 완료');
       }
-    })();
 
+      const videoTrack = stream.getVideoTracks()[0];
+      const s = videoTrack.getSettings();
+      setDeviceInfo(`${s.width}x${s.height} @ ${s.frameRate ?? "?"}fps`);
+      setIsCameraReady(true);
+      setPermissionError(null);
+      console.log('카메라 초기화 완료');
+    } catch (err: unknown) {
+      console.error('카메라 초기화 실패:', err);
+      const errorMessage = err instanceof Error ? err.message : "카메라/마이크 접근 권한을 허용해주세요.";
+      setPermissionError(errorMessage);
+      setRecordingState("error");
+      setIsCameraReady(false);
+    }
+  };
+
+  // 컴포넌트 언마운트 시 정리
+  useEffect(() => {
     return () => {
       stopAll();
     };
-  }, [preferredFps, preferredWidth, preferredHeight]);
+  }, []);
 
   const stopAll = () => {
     try {
@@ -93,7 +126,30 @@ export const useMediaRecorder = ({
     }
   };
 
-  const startRecording = () => {
+  const closeCamera = () => {
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+      mediaStreamRef.current = null;
+    }
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+
+    setIsCameraReady(false);
+  };
+
+  const startRecording = async () => {
+    // 카메라가 준비되지 않았다면 먼저 초기화
+    if (!isCameraReady) {
+      await initializeCamera();
+      // initializeCamera가 완료된 후 mediaStreamRef를 확인
+      if (!mediaStreamRef.current) {
+        console.error('카메라 초기화 실패');
+        return;
+      }
+    }
+
     if (!mediaStreamRef.current) return;
 
     try {
@@ -131,6 +187,9 @@ export const useMediaRecorder = ({
         const file = new File([blob], `pronunciation_${Date.now()}.${ext}`, { type: blob.type });
         onSave?.(file, url);
         setRecordingState("idle");
+        
+        // 녹화 종료 후 카메라 닫기
+        closeCamera();
       };
 
       mr.start(100);
@@ -166,6 +225,7 @@ export const useMediaRecorder = ({
     });
     setElapsed(0);
     setRecordingState("idle");
+    // 다시 녹화할 때는 카메라를 다시 열지 않음 (사용자가 녹화 시작 버튼을 눌러야 함)
   };
 
   return {
@@ -174,7 +234,9 @@ export const useMediaRecorder = ({
     permissionError,
     elapsed,
     blobUrl,
+    liveStreamUrl,
     deviceInfo,
+    isCameraReady,
     startRecording,
     stopRecording,
     retake,

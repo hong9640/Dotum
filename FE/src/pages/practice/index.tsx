@@ -8,6 +8,7 @@ import PracticeComponent from "@/pages/practice/components/practice/PracticeComp
 import ResultComponent from "@/pages/practice/components/result/ResultComponent";
 import { getCurrentItem, getCurrentItemErrorMessage, type CurrentItemResponse } from "@/api/training-session/currentItem";
 import { getTrainingSession, type CreateTrainingSessionResponse } from "@/api/training-session";
+import { submitCurrentItem } from "@/api/practice";
 
 const PracticePage: React.FC = () => {
   const navigate = useNavigate();
@@ -17,6 +18,9 @@ const PracticePage: React.FC = () => {
   const [currentItem, setCurrentItem] = useState<CurrentItemResponse | null>(null);
   const [sessionData, setSessionDataState] = useState<CreateTrainingSessionResponse | null>(null);
   const [showResult, setShowResult] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [recordedFile, setRecordedFile] = useState<File | null>(null);
   
   // 상태 관리
   const { 
@@ -85,15 +89,17 @@ const PracticePage: React.FC = () => {
     console.log("Saved:", file);
     // 녹화된 비디오를 상태에 추가
     addRecordedVideo(blobUrl);
-    // TODO: 업로드 API 연동 (presigned URL or multipart)
+    // 녹화된 파일을 상태에 저장 (업로드용)
+    setRecordedFile(file);
   };
 
   const {
-    videoRef,
     recordingState,
     permissionError,
     elapsed,
     blobUrl,
+    videoRef,
+    isCameraReady,
     startRecording,
     stopRecording,
     retake,
@@ -113,6 +119,55 @@ const PracticePage: React.FC = () => {
     });
     
     setShowResult(true);
+  };
+
+  const handleUpload = async () => {
+    if (!recordedFile || !sessionIdParam) {
+      setUploadError('업로드할 파일이나 세션 정보가 없습니다.');
+      return;
+    }
+
+    const sessionId = Number(sessionIdParam);
+    if (isNaN(sessionId)) {
+      setUploadError('유효하지 않은 세션 ID입니다.');
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      setUploadError(null);
+      
+      console.log('📤 영상 업로드 시작:', { sessionId, fileName: recordedFile.name });
+      
+      const response = await submitCurrentItem(sessionId, recordedFile);
+      
+      console.log('📥 영상 업로드 성공:', response);
+      
+      // 업로드 성공 시 결과 컴포넌트로 전환
+      setShowResult(true);
+      
+      // 업로드 완료 후 파일 상태 초기화
+      setRecordedFile(null);
+      
+    } catch (err: any) {
+      console.error('📥 영상 업로드 실패:', err);
+      
+      let errorMessage = '영상 업로드에 실패했습니다.';
+      
+      if (err.response?.status === 401) {
+        errorMessage = '인증이 필요합니다. 다시 로그인해주세요.';
+      } else if (err.response?.status === 404) {
+        errorMessage = '세션을 찾을 수 없습니다.';
+      } else if (err.response?.status === 422) {
+        errorMessage = '업로드할 파일이 올바르지 않습니다.';
+      } else if (err.response?.data?.detail) {
+        errorMessage = err.response.data.detail;
+      }
+      
+      setUploadError(errorMessage);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleNextWord = async () => {
@@ -258,7 +313,6 @@ const PracticePage: React.FC = () => {
         <ResultComponent onViewAllResults={handleViewAllResults} />
       ) : (
         <PracticeComponent
-          videoRef={videoRef}
           recordingState={recordingState}
           elapsed={elapsed}
           blobUrl={blobUrl}
@@ -267,6 +321,11 @@ const PracticePage: React.FC = () => {
           onStopRecording={stopRecording}
           onRetake={retake}
           onViewResults={handleViewResults}
+          onUpload={handleUpload}
+          isUploading={isUploading}
+          uploadError={uploadError}
+          isCameraReady={!!isCameraReady}
+          videoRef={videoRef}
         />
       )}
     </TrainingLayout>
