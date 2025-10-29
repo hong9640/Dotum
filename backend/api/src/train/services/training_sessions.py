@@ -353,6 +353,133 @@ class TrainingSessionService:
             gcs_service=gcs_service
         )
     
+    async def resubmit_item_video(
+        self,
+        *,
+        session_id: int,
+        item_id: int,
+        user: User,
+        file_bytes: bytes,
+        filename: str,
+        content_type: str,
+        gcs_service: GCSService
+    ) -> Dict[str, Any]:
+        """특정 아이템의 동영상을 재업로드(덮어쓰기).
+        완료된 아이템도 허용하며 진행률/포인터는 변경하지 않는다.
+        같은 경로에 새 파일을 업로드하여 기존 파일을 덮어쓴다.
+        """
+        session = await self.get_training_session(session_id, user.id)
+        if not session:
+            raise LookupError("훈련 세션을 찾을 수 없습니다.")
+
+        item = await self.item_repo.get_item(session_id, item_id, include_relations=True)
+        if not item:
+            raise LookupError("훈련 아이템을 찾을 수 없습니다.")
+
+        # 기존 미디어 파일 정보 가져오기 (덮어쓰기용)
+        old_media_file = None
+        if item.media_file_id:
+            old_media_file = await self.get_media_file_by_id(item.media_file_id)
+
+        # 같은 경로에 새 동영상 업로드 (덮어쓰기)
+        upload_result = await gcs_service.upload_video(
+            file_content=file_bytes,
+            username=user.username,
+            session_id=str(session_id),
+            train_id=item.id,
+            word_id=item.word_id,
+            sentence_id=item.sentence_id,
+            original_filename=filename,
+            content_type=content_type
+        )
+
+        if not upload_result.get("success"):
+            raise RuntimeError(f"동영상 업로드에 실패했습니다: {upload_result.get('error')}")
+
+        object_key = upload_result.get("object_path")
+        if not object_key:
+            raise RuntimeError("업로드 결과에 object_path가 없습니다.")
+
+        video_url = await gcs_service.get_signed_url(object_key, expiration_hours=24)
+        if not video_url:
+            raise RuntimeError("동영상 URL 생성에 실패했습니다.")
+
+        # 기존 미디어 파일이 있으면 업데이트, 없으면 새로 생성
+        if old_media_file:
+            # 기존 미디어 파일 정보 업데이트
+            old_media_file.file_name = upload_result.get("filename") or filename
+            old_media_file.file_size_bytes = len(file_bytes)
+            old_media_file.format = content_type.split('/')[-1] if '/' in content_type else content_type
+            old_media_file.updated_at = datetime.now()
+            media_file = old_media_file
+        else:
+            # 새 미디어 파일 생성
+            media_file = MediaFile(
+                user_id=user.id,
+                object_key=object_key,
+                media_type=MediaType.VIDEO,
+                file_name=upload_result.get("filename") or filename,
+                file_size_bytes=len(file_bytes),
+                format=(content_type.split('/')[-1] if '/' in content_type else content_type)
+            )
+            self.db.add(media_file)
+            await self.db.flush()
+
+        audio_media_file = None
+        try:
+            video_processor = VideoProcessor()
+            processing_result = await video_processor.process_uploaded_video_with_audio(
+                gcs_bucket=gcs_service.bucket_name,
+                gcs_blob_name=object_key
+            )
+            if processing_result.get('audio_blob_name'):
+                from ..services.media import MediaService
+                media_service = MediaService(self.db)
+                existing_audio = await media_service.get_media_file_by_object_key(processing_result['audio_blob_name'])
+                if existing_audio:
+                    # 메타데이터 갱신만 수행
+                    existing_audio.file_name = processing_result['audio_blob_name'].split('/')[-1]
+                    existing_audio.format = "wav"
+                    existing_audio.updated_at = datetime.now()
+                    audio_media_file = existing_audio
+                else:
+                    audio_media_file = MediaFile(
+                        user_id=user.id,
+                        object_key=processing_result['audio_blob_name'],
+                        media_type=MediaType.AUDIO,
+                        file_name=processing_result['audio_blob_name'].split('/')[-1],
+                        file_size_bytes=0,
+                        format="wav"
+                    )
+                    self.db.add(audio_media_file)
+                    await self.db.flush()
+        except Exception as e:
+            print(f"Audio extraction failed: {str(e)}")
+
+        # 아이템의 동영상 정보 업데이트 (완료 상태 유지)
+        await self.item_repo.complete_item(
+            item_id=item.id,
+            video_url=video_url,
+            media_file_id=media_file.id,
+            is_completed=True
+        )
+
+        await self.db.commit()
+        await self.db.refresh(media_file)
+        if audio_media_file:
+            await self.db.refresh(audio_media_file)
+
+        updated_session = await self.get_training_session(session_id, user.id)
+
+        return {
+            "session": updated_session,
+            "next_item": None,
+            "media_file": media_file,
+            "audio_media_file": audio_media_file,
+            "video_url": video_url,
+            "has_next": False
+        }
+    
     async def get_current_item(
         self,
         session_id: int,
