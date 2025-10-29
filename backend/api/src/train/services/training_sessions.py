@@ -15,6 +15,7 @@ from ..schemas.training_sessions import (
 )
 from ..models.media import MediaFile, MediaType
 from ..services.gcs_service import GCSService
+from ..services.video_processor import VideoProcessor
 from api.src.user.user_model import User
 
 
@@ -248,6 +249,7 @@ class TrainingSessionService:
         if not video_url:
             raise RuntimeError("동영상 URL 생성에 실패했습니다.")
         
+        # 동영상 파일 정보 저장
         media_file = MediaFile(
             user_id=user.id,
             object_key=object_key,
@@ -258,6 +260,33 @@ class TrainingSessionService:
         )
         self.db.add(media_file)
         await self.db.flush()
+        
+        # 음성 추출 및 저장
+        audio_media_file = None
+        try:
+            # VideoProcessor를 사용하여 음성 추출
+            video_processor = VideoProcessor()
+            processing_result = await video_processor.process_uploaded_video_with_audio(
+                gcs_bucket=gcs_service.bucket_name,
+                gcs_blob_name=object_key
+            )
+            
+            # 음성 파일 정보 저장
+            if processing_result.get('audio_blob_name'):
+                audio_media_file = MediaFile(
+                    user_id=user.id,
+                    object_key=processing_result['audio_blob_name'],
+                    media_type=MediaType.AUDIO,
+                    file_name=processing_result['audio_blob_name'].split('/')[-1],
+                    file_size_bytes=0,  # 크기는 나중에 업데이트
+                    format="wav"
+                )
+                self.db.add(audio_media_file)
+                await self.db.flush()
+                
+        except Exception as e:
+            # 음성 추출 실패해도 동영상 업로드는 계속 진행
+            print(f"Audio extraction failed: {str(e)}")
         
         await self.item_repo.complete_item(
             item_id=item.id,
@@ -272,6 +301,8 @@ class TrainingSessionService:
         
         await self.db.commit()
         await self.db.refresh(media_file)
+        if audio_media_file:
+            await self.db.refresh(audio_media_file)
         
         updated_session = await self.get_training_session(session_id, user.id)
         next_item = await self.item_repo.get_current_item(session_id, include_relations=True)
@@ -283,6 +314,7 @@ class TrainingSessionService:
             "session": updated_session,
             "next_item": next_item,
             "media_file": media_file,
+            "audio_media_file": audio_media_file,
             "video_url": video_url,
             "has_next": has_next
         }
