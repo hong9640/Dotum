@@ -5,7 +5,7 @@ import { useMediaRecorder } from "@/hooks/useMediaRecorder";
 import { usePracticeStore } from "@/stores/practiceStore";
 import TrainingLayout from "@/pages/practice/components/practice/TrainingLayout";
 import PracticeComponent from "@/pages/practice/components/practice/PracticeComponent";
-import ResultComponent from "@/pages/result/components/ResultComponent";
+import ResultComponent from "@/pages/practice/components/result/ResultComponent";
 import { getCurrentItem, getCurrentItemErrorMessage, type CurrentItemResponse } from "@/api/training-session/currentItem";
 import { getTrainingSession, type CreateTrainingSessionResponse } from "@/api/training-session";
 
