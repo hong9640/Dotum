@@ -127,10 +127,13 @@ class TrainingItemRepository(BaseRepository[TrainingItem]):
         if not item:
             return None
         
+        original_completed = item.is_completed
         item.is_completed = is_completed
         item.video_url = video_url
         item.media_file_id = media_file_id
-        item.completed_at = datetime.now() if is_completed else None
+        # 완료 상태 전환일 때만 completed_at 갱신
+        if not original_completed and is_completed:
+            item.completed_at = datetime.now()
         item.updated_at = datetime.now()
         
         return item

@@ -447,3 +447,73 @@ async def get_item_video_url(
     return MediaUploadUrlResponse(upload_url=signed_url, media_file_id=media.id, expires_in=24*3600)
 
 ## Removed legacy complete endpoint in favor of submit endpoint
+
+
+@router.put(
+    "/{session_id}/items/{item_id}/video",
+    response_model=ItemSubmissionResponse,
+    summary="훈련 아이템 동영상 재업로드(교체)",
+    description="완료된 아이템을 포함하여 특정 아이템의 동영상을 재업로드합니다. 진행률 변경 없이 기존 영상을 교체합니다.",
+    responses={
+        200: {"description": "재업로드 성공"},
+        400: {"model": BadRequestErrorResponse, "description": "잘못된 요청"},
+        401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"},
+        404: {"model": NotFoundErrorResponse, "description": "세션 또는 아이템을 찾을 수 없음"}
+    }
+)
+async def resubmit_item_video(
+    session_id: int,
+    item_id: int,
+    file: UploadFile = File(..., description="재업로드할 동영상 파일"),
+    current_user: User = Depends(get_current_user),
+    service: TrainingSessionService = Depends(get_training_service),
+    gcs_service: GCSService = Depends(provide_gcs_service)
+):
+    """특정 훈련 아이템의 동영상을 재업로드(교체)"""
+    if not file.content_type or not file.content_type.startswith("video/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="동영상 파일만 업로드 가능합니다."
+        )
+
+    file_bytes = await file.read()
+    max_size = 100 * 1024 * 1024  # 100MB
+    if len(file_bytes) > max_size:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="파일 크기는 100MB를 초과할 수 없습니다."
+        )
+
+    try:
+        result = await service.resubmit_item_video(
+            session_id=session_id,
+            item_id=item_id,
+            user=current_user,
+            file_bytes=file_bytes,
+            filename=file.filename or "video.mp4",
+            content_type=file.content_type or "video/mp4",
+            gcs_service=gcs_service
+        )
+    except LookupError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+    return ItemSubmissionResponse(
+        session=result["session"],
+        next_item=None,
+        media=result["media_file"],
+        video_url=result["video_url"],
+        message="동영상이 교체되었습니다."
+    )
