@@ -8,7 +8,6 @@ import WordDisplay from "@/components/WordDisplay";
 import RecordingPreview from "@/pages/practice/components/RecordingPreview";
 import RecordingControls from "@/pages/practice/components/RecordingControls";
 import RecordingTips from "@/pages/practice/components/RecordingTips";
-import { createTrainingSession, type CreateTrainingSessionResponse } from "@/api/training-session";
 
 const PracticePage: React.FC = () => {
   const navigate = useNavigate();
@@ -23,7 +22,6 @@ const PracticePage: React.FC = () => {
     currentWord, 
     currentWordIndex,
     words,
-    sessionId,
     sessionType,
     addRecordedVideo,
     goToNextWord,
