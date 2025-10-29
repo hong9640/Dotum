@@ -202,7 +202,7 @@ class TrainingSessionService:
         
         return await self.get_training_session(session_id, user_id)
     
-    async def submit_training_item_with_video(
+    async def _submit_item_with_video(
         self,
         *,
         session_id: int,
@@ -213,7 +213,7 @@ class TrainingSessionService:
         content_type: str,
         gcs_service: GCSService
     ) -> Dict[str, Any]:
-        """동영상 업로드부터 아이템 완료, 다음 아이템 조회까지 한번에 처리"""
+        """내부 메서드: 특정 아이템에 동영상 업로드 및 완료 처리"""
         session = await self.get_training_session(session_id, user.id)
         if not session:
             raise LookupError("훈련 세션을 찾을 수 없습니다.")
@@ -286,6 +286,40 @@ class TrainingSessionService:
             "video_url": video_url,
             "has_next": has_next
         }
+    
+    async def submit_current_item_with_video(
+        self,
+        *,
+        session_id: int,
+        user: User,
+        file_bytes: bytes,
+        filename: str,
+        content_type: str,
+        gcs_service: GCSService
+    ) -> Dict[str, Any]:
+        """현재 진행 중인 아이템에 동영상 업로드 및 완료 처리"""
+        session = await self.get_training_session(session_id, user.id)
+        if not session:
+            raise LookupError("훈련 세션을 찾을 수 없습니다.")
+        
+        # 현재 진행 중인 아이템 조회
+        current_item = await self.item_repo.get_current_item(session_id, include_relations=True)
+        if not current_item:
+            raise LookupError("진행 중인 아이템을 찾을 수 없습니다.")
+        
+        if current_item.is_completed:
+            raise ValueError("이미 완료된 아이템입니다.")
+        
+        # 내부 메서드 호출
+        return await self._submit_item_with_video(
+            session_id=session_id,
+            item_id=current_item.id,
+            user=user,
+            file_bytes=file_bytes,
+            filename=filename,
+            content_type=content_type,
+            gcs_service=gcs_service
+        )
     
     async def get_current_item(
         self,
