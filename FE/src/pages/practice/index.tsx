@@ -66,8 +66,8 @@ const PracticePage: React.FC = () => {
         // 현재 아이템의 단어/문장 설정
         const targetText = currentItemData.word || currentItemData.sentence || '';
         
-        // 세션 데이터 설정 (임시로 단일 아이템만 설정)
-        setSessionData(sessionIdParam, sessionTypeParam, [targetText]);
+        // 세션 데이터 설정 (실제 API 데이터 반영)
+        setSessionData(sessionIdParam, sessionTypeParam, [targetText], sessionData?.total_items || 10, currentItemData.item_index);
         
         setIsLoading(false);
       } catch (err) {
@@ -138,7 +138,7 @@ const PracticePage: React.FC = () => {
       
       // 다음 아이템의 단어/문장으로 업데이트
       const targetText = nextItemData.word || nextItemData.sentence || '';
-      setSessionData(sessionIdParam, sessionTypeParam!, [targetText]);
+      setSessionData(sessionIdParam, sessionTypeParam!, [targetText], sessionData?.total_items || 10, nextItemData.item_index);
       
       console.log('다음 아이템으로 이동 완료:', {
         itemIndex: nextItemData.item_index,
@@ -176,7 +176,7 @@ const PracticePage: React.FC = () => {
       
       // 이전 아이템의 단어/문장으로 업데이트
       const targetText = prevItemData.word || prevItemData.sentence || '';
-      setSessionData(sessionIdParam, sessionTypeParam!, [targetText]);
+      setSessionData(sessionIdParam, sessionTypeParam!, [targetText], sessionData?.total_items || 10, prevItemData.item_index);
       
       console.log('이전 아이템으로 이동 완료:', {
         itemIndex: prevItemData.item_index,
