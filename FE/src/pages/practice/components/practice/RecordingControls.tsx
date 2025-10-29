@@ -1,7 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Square, RotateCcw, Upload } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 
 interface RecordingControlsProps {
   recordingState: "idle" | "recording" | "processing" | "error";
@@ -20,13 +19,10 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   onRetake,
   onViewResults,
 }) => {
-  const navigate = useNavigate();
-
   const handleViewResults = () => {
     if (onViewResults) {
       onViewResults();
     }
-    navigate('/result');
   };
   return (
     <div className="flex justify-center gap-3 sm:gap-4">
