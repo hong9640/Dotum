@@ -328,10 +328,10 @@ async def get_current_item(
 
 
 @router.post(
-    "/{session_id}/items/{item_id}/submit",
+    "/{session_id}/submit-current-item",
     response_model=ItemSubmissionResponse,
-    summary="훈련 아이템 업로드 및 완료",
-    description="동영상 업로드, 아이템 완료 처리, 다음 아이템 조회를 한 번의 요청으로 처리합니다.",
+    summary="현재 진행중인 훈련 완료",
+    description="현재 진행 중인 훈련 아이템에 동영상을 업로드하고 완료 처리합니다. 다음 훈련 아이템 정보도 함께 반환됩니다.",
     responses={
         200: {"description": "처리 성공"},
         400: {"model": BadRequestErrorResponse, "description": "잘못된 요청"},
@@ -339,15 +339,14 @@ async def get_current_item(
         404: {"model": NotFoundErrorResponse, "description": "세션 또는 아이템을 찾을 수 없음"}
     }
 )
-async def submit_training_item(
+async def submit_current_item(
     session_id: int,
-    item_id: int,
     file: UploadFile = File(..., description="제출할 동영상 파일"),
     current_user: User = Depends(get_current_user),
     service: TrainingSessionService = Depends(get_training_service),
     gcs_service: GCSService = Depends(provide_gcs_service)
 ):
-    """훈련 아이템 업로드 + 완료 + 다음 아이템 조회"""
+    """현재 진행 중인 아이템에 동영상 업로드 및 완료 처리"""
     if not file.content_type or not file.content_type.startswith("video/"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -363,9 +362,8 @@ async def submit_training_item(
         )
     
     try:
-        result = await service.submit_training_item_with_video(
+        result = await service.submit_current_item_with_video(
             session_id=session_id,
-            item_id=item_id,
             user=current_user,
             file_bytes=file_bytes,
             filename=file.filename or "video.mp4",
