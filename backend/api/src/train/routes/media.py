@@ -14,7 +14,9 @@ from ..services.media import MediaService
 from ..schemas.media import MediaListResponse
 from api.src.train.services.praat import get_praat_analysis_from_db
 from api.src.train.schemas.praat import PraatFeaturesResponse
-
+from ..services.training_sessions import TrainingSessionService, get_training_service
+from ..repositories.training_items import TrainingItemRepository 
+from api.src.train.services.gcs_service import get_gcs_service, GCSService
 
 router = APIRouter(
     prefix="/media",
@@ -104,3 +106,38 @@ async def read_praat_analysis(
     except PermissionError as e:
         # Case 4: 파일 소유자가 아님
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+
+@router.get(
+    "/results/{item_id}",
+    summary="wav2lip 결과 영상 URL 조회",
+    description="훈련 아이템 ID를 기반으로 wav2lip 처리 결과 영상의 Signed URL을 조회합니다.",
+    responses={
+        200: {"description": "URL 조회 성공"},
+        202: {"description": "영상 처리 중"},
+        404: {"description": "아이템 또는 결과 영상을 찾을 수 없음"}
+    }
+)
+async def get_wav2lip_result_video(
+    item_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+    gcs_service: GCSService = Depends(get_gcs_service)
+):
+    # 1. item_id로 TrainingItem 정보를 가져옵니다.
+
+    item_repo = TrainingItemRepository(db)
+
+    output_object_key = f"results/{current_user.username}/some_session_id/result_word_some_word_id.mp4" # 실제로는 DB에서 가져와야 함
+
+    # 3. GCS에서 파일 존재 여부 확인
+    blob = gcs_service.bucket.blob(output_object_key)
+    if not blob.exists():
+        # 파일이 없으면 처리 중이므로 202 Accepted 반환
+        return Response(status_code=status.HTTP_202_ACCEPTED, content="Video is still processing.")
+
+    # 4. 파일이 있으면 Signed URL 생성 후 반환
+    signed_url = await gcs_service.get_signed_url(output_object_key, expiration_hours=1)
+    if not signed_url:
+        raise HTTPException(status_code=500, detail="URL 생성에 실패했습니다.")
+        
+    return {"video_url": signed_url}

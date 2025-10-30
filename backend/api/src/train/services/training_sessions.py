@@ -1,3 +1,5 @@
+from fastapi import BackgroundTasks
+import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date
@@ -210,6 +212,42 @@ class TrainingSessionService:
         
         return await self.get_training_session(session_id, user_id)
     
+    async def trigger_wav2lip_processing(
+        self,
+        word: str,
+        user_video_gs_path: str,
+        output_video_gs_path: str,
+        item_id: int
+    ):
+        """외부 wav2lip 서버에 처리를 요청하는 백그라운드 작업"""
+        WAV2LIP_API_URL = "https://ectogenetic-deutoplasmic-enrique.ngrok-free.dev/api/v1/lip-video"
+        
+        payload = {
+            "word": word,
+            "user_video_gs": f"gs://{user_video_gs_path}",
+            "output_video_gs": f"gs://{output_video_gs_path}"
+        }
+        
+        # (선택사항) DB에 결과 경로를 미리 저장해두면 나중에 조회하기 편리합니다.
+        try:
+            item = await self.item_repo.get_item_by_id(item_id)
+            if item:
+                # TrainingItem 모델에 'wav2lip_output_path' 필드가 추가되었다고 가정
+                output_path_in_bucket = output_video_gs_path.split(f"gs://{self.repo.db.bind.url.database}/")[1]
+                setattr(item, 'wav2lip_output_path', output_path_in_bucket)
+                await self.db.commit()
+        except Exception as e:
+            print(f"DB에 wav2lip 결과 경로 저장 실패: {e}")
+
+        try:
+            # 외부 API 호출 (httpx 라이브러리 필요)
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(WAV2LIP_API_URL, json=payload)
+                response.raise_for_status()
+                print(f"wav2lip 작업 요청 성공: {response.json()}")
+        except httpx.RequestError as e:
+            print(f"wav2lip 작업 요청 실패: {e}")
+    
     async def _submit_item_with_video(
         self,
         *,
@@ -219,7 +257,8 @@ class TrainingSessionService:
         file_bytes: bytes,
         filename: str,
         content_type: str,
-        gcs_service: GCSService
+        gcs_service: GCSService,
+        background_tasks: BackgroundTasks
     ) -> Dict[str, Any]:
         """내부 메서드: 특정 아이템에 동영상 업로드 및 완료 처리"""
         session = await self.get_training_session(session_id, user.id)
@@ -255,6 +294,18 @@ class TrainingSessionService:
         video_url = await gcs_service.get_signed_url(object_key, expiration_hours=24)
         if not video_url:
             raise RuntimeError("동영상 URL 생성에 실패했습니다.")
+        if item.word:
+            output_object_key = f"results/{user.username}/{session_id}/result_item_{item.id}.mp4"
+            user_video_full_path = f"{gcs_service.bucket_name}/{object_key}"
+            output_video_full_path = f"{gcs_service.bucket_name}/{output_object_key}"
+
+            background_tasks.add_task(
+                self.trigger_wav2lip_processing,
+                word=item.word.word,
+                user_video_gs_path=user_video_full_path,
+                output_video_gs_path=output_video_full_path,
+                item_id=item.id
+            )
         
         # 동영상 파일 정보 저장
         media_file = MediaFile(
@@ -344,7 +395,8 @@ class TrainingSessionService:
         file_bytes: bytes,
         filename: str,
         content_type: str,
-        gcs_service: GCSService
+        gcs_service: GCSService,
+        background_tasks: BackgroundTasks
     ) -> Dict[str, Any]:
         """현재 진행 중인 아이템에 동영상 업로드 및 완료 처리"""
         session = await self.get_training_session(session_id, user.id)
@@ -367,7 +419,8 @@ class TrainingSessionService:
             file_bytes=file_bytes,
             filename=filename,
             content_type=content_type,
-            gcs_service=gcs_service
+            gcs_service=gcs_service,
+            background_tasks=background_tasks
         )
     
     async def resubmit_item_video(

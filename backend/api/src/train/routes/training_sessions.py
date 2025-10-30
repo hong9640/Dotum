@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Dict
 from datetime import date
@@ -430,6 +430,7 @@ async def get_current_item(
 )
 async def submit_current_item(
     session_id: int,
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="제출할 동영상 파일"),
     current_user: User = Depends(get_current_user),
     service: TrainingSessionService = Depends(get_training_service),
@@ -458,6 +459,7 @@ async def submit_current_item(
             filename=file.filename or "video.mp4",
             content_type=file.content_type or "video/mp4",
             gcs_service=gcs_service
+            background_tasks=background_tasks
         )
     except LookupError as e:
         raise HTTPException(
