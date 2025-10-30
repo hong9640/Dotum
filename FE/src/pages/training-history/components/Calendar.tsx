@@ -3,6 +3,7 @@ import CalendarHeader from "./CalendarHeader";
 import CalendarGrid from "./CalendarGrid";
 import CalendarLegend from "./CalendarLegend";
 import { useCalendar } from "@/hooks/useCalendar";
+import { useEffect } from "react";
 
 // 훈련 세트 수 데이터 타입
 export interface TrainingCountMap {
@@ -12,10 +13,17 @@ export interface TrainingCountMap {
 interface CalendarProps {
   counts: TrainingCountMap;
   onDateClick?: (date: string) => void;
+  onMonthChange?: (year: number, month1Based: number) => void;
 }
 
-export function Calendar({ counts, onDateClick }: CalendarProps) {
-  const { year, monthLabel, matrix, goPrev, goNext, setYear } = useCalendar();
+export function Calendar({ counts, onDateClick, onMonthChange }: CalendarProps) {
+  const { year, monthLabel, matrix, goPrev, goNext, setYear, monthIndex0 } = useCalendar();
+
+  useEffect(() => {
+    if (onMonthChange) {
+      onMonthChange(year, monthIndex0 + 1);
+    }
+  }, [year, monthIndex0, onMonthChange]);
 
   return (
     <Card className="rounded-2xl border-gray-200 shadow-sm w-[932px]">

@@ -29,7 +29,10 @@ function getMonthMatrix(year: number, monthIndex0: number) {
   return cells;
 }
 
-export function useCalendar(initialYear: number = 2025, initialMonth: number = 0) {
+export function useCalendar(
+  initialYear: number = new Date().getFullYear(),
+  initialMonth: number = new Date().getMonth()
+) {
   const [year, setYear] = useState<number>(initialYear);
   const [monthIndex0, setMonthIndex0] = useState<number>(initialMonth); // 0=1월
 

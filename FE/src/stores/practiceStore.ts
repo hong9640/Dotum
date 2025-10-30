@@ -14,7 +14,7 @@ interface PracticeStore {
   setStep: (step: number) => void;
   nextStep: () => void;
   setWords: (words: string[]) => void;
-  setSessionData: (sessionId: string, sessionType: 'word' | 'sentence', words: string[]) => void;
+  setSessionData: (sessionId: string, sessionType: 'word' | 'sentence', words: string[], totalItems: number, currentItemIndex: number) => void;
   resetPractice: () => void;
   goToNextWord: () => void; // 다음 단어로 이동
   goToPreviousWord: () => void; // 이전 단어로 이동
@@ -60,14 +60,14 @@ export const usePracticeStore = create<PracticeStore>((set, get) => ({
   }),
 
   // 세션 데이터 설정 (서버에서 받은 데이터)
-  setSessionData: (sessionId, sessionType, words) => set({
+  setSessionData: (sessionId, sessionType, words, totalItems, currentItemIndex) => set({
     sessionId,
     sessionType,
     words,
-    totalSteps: words.length,
-    currentStep: 1,
+    totalSteps: totalItems, // 세션 생성 API의 total_items 사용
+    currentStep: currentItemIndex + 1, // item_index + 1 (0부터 시작하므로)
     currentWord: words[0] || "",
-    currentWordIndex: 0,
+    currentWordIndex: currentItemIndex, // 현재 진행 중인 아이템 조회 API의 item_index 사용
     recordedVideos: []
   }),
 

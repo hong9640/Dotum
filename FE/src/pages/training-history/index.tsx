@@ -1,22 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { Calendar } from "./components/Calendar";
 import TrainingDayDetail from "../training-history-detail";
+import { getTrainingCalendar } from "@/api/training-history";
 
 // 훈련 세트 수 데이터 타입
 interface TrainingCountMap {
   [isoDate: string]: number; // "YYYY-MM-DD" -> 세트 수
 }
 
-// 샘플 데이터: 2025-01 (요구 예시 반영)
-const SAMPLE_COUNTS: TrainingCountMap = {
-  "2025-01-01": 3,
-  "2025-01-12": 4,
-  "2025-01-16": 1,
-  "2025-01-23": 6, // 6개 학습으로 변경
-};
 
 export default function TrainingHistoryPage() {
-  const [counts] = React.useState<TrainingCountMap>(SAMPLE_COUNTS);
+  const [counts, setCounts] = React.useState<TrainingCountMap>({});
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const handleDateClick = (date: string) => {
@@ -26,6 +20,16 @@ export default function TrainingHistoryPage() {
   const handleBack = () => {
     setSelectedDate(null);
   };
+
+  const handleMonthChange = useCallback(async (year: number, month1Based: number) => {
+    try {
+      const data = await getTrainingCalendar(year, month1Based);
+      setCounts(data ?? {});
+    } catch (e) {
+      console.error("Failed to load training calendar", e);
+      setCounts({});
+    }
+  }, []);
 
   // 날짜 상세 페이지가 선택된 경우
   if (selectedDate) {
@@ -53,7 +57,7 @@ export default function TrainingHistoryPage() {
             </p>
           </div>
 
-          <Calendar counts={counts} onDateClick={handleDateClick} />
+          <Calendar counts={counts} onDateClick={handleDateClick} onMonthChange={handleMonthChange} />
         </div>
       </main>
     </div>
