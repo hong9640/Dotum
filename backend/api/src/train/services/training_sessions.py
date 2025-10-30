@@ -19,6 +19,7 @@ from ..services.video_processor import VideoProcessor
 from ..services.video_processor import VideoProcessor
 from api.src.user.user_model import User
 from api.src.train.models.praat import PraatFeatures
+from api.src.train.services.praat import get_praat_analysis_from_db
 
 class TrainingSessionService:
     """통합된 훈련 세션 서비스"""
@@ -515,10 +516,64 @@ class TrainingSessionService:
         
         # 다음 아이템 존재 여부 확인
         has_next = await self.item_repo.get_next_item(session_id, current_item.item_index) is not None
+
+        # Praat 분석 결과 조회 (이미 DB에 저장된 값 사용)
+        praat_feature = None
+        try:
+            if current_item.media_file_id:
+                video_media = await self.get_media_file_by_id(current_item.media_file_id)
+                if video_media and video_media.object_key and video_media.object_key.endswith('.mp4'):
+                    audio_object_key = video_media.object_key.replace('.mp4', '.wav')
+                    from ..services.media import MediaService
+                    media_service = MediaService(self.db)
+                    audio_media = await media_service.get_media_file_by_object_key(audio_object_key)
+                    if audio_media:
+                        praat_feature = await get_praat_analysis_from_db(self.db, media_id=audio_media.id, user_id=user_id)
+        except Exception:
+            pass
         
         return {
             'item': current_item,
-            'has_next': has_next
+            'has_next': has_next,
+            'praat': praat_feature
+        }
+    
+    async def get_item_by_index(
+        self,
+        session_id: int,
+        user_id: int,
+        item_index: int
+    ):
+        """특정 인덱스의 아이템 조회 (세션 상태 무관)"""
+        session = await self.get_training_session(session_id, user_id)
+        if not session:
+            return None
+        item = await self.item_repo.get_item_by_index(session_id, item_index, include_relations=True)
+        if not item:
+            return None
+        # 총 아이템 수 기준으로 다음 아이템 존재 여부 판단 (완료 여부 무관)
+        has_next = item_index < (session.total_items - 1)
+
+        # Praat 분석 결과 조회 시도: 비디오 media의 object_key를 .wav로 치환해 오디오 media 탐색
+        praat_feature = None
+        try:
+            if item.media_file_id:
+                video_media = await self.get_media_file_by_id(item.media_file_id)
+                if video_media and video_media.object_key and video_media.object_key.endswith('.mp4'):
+                    audio_object_key = video_media.object_key.replace('.mp4', '.wav')
+                    from ..services.media import MediaService
+                    media_service = MediaService(self.db)
+                    audio_media = await media_service.get_media_file_by_object_key(audio_object_key)
+                    if audio_media:
+                        praat_feature = await get_praat_analysis_from_db(self.db, media_id=audio_media.id, user_id=user_id)
+        except Exception:
+            # praat 조회 실패는 무시하고 None 반환
+            pass
+
+        return {
+            'item': item,
+            'has_next': has_next,
+            'praat': praat_feature
         }
     
     async def delete_training_session(

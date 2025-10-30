@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
+from api.src.train.schemas.praat import PraatFeaturesResponse
 from datetime import datetime
 
 
@@ -32,6 +33,7 @@ class CurrentItemResponse(BaseModel):
     video_url: Optional[str] = None
     media_file_id: Optional[int] = None
     has_next: bool
+    praat: Optional[PraatFeaturesResponse] = None
     
     model_config = ConfigDict(from_attributes=True, populate_by_name=False)
 
