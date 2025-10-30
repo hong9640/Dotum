@@ -4,14 +4,16 @@ import FeedbackCard from "./FeedbackCard";
 
 interface ResultComponentProps {
   onViewAllResults: () => void;
+  userVideoUrl?: string;
 }
 
 const ResultComponent: React.FC<ResultComponentProps> = ({
-  onViewAllResults
+  onViewAllResults,
+  userVideoUrl
 }) => {
   return (
     <>
-      <ResultVideoDisplay />
+      <ResultVideoDisplay userVideoUrl={userVideoUrl} />
       <FeedbackCard onViewAllResults={onViewAllResults} />
     </>
   );
