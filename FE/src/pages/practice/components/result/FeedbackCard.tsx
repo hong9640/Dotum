@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BarChart2, RotateCcw, Activity, ListChecks } from "lucide-react";
+import { BarChart2, RotateCcw, ListChecks, Loader2, ArrowRight } from "lucide-react";
 import PronunciationScore from "./PronunciationScore";
 import FeedbackSummary from "./FeedbackSummary";
 import DetailedEvaluationItems from "./DetailedEvaluationItems";
