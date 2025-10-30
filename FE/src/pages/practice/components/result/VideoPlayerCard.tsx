@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -38,6 +38,15 @@ const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
     }
   };
 
+  // src 변경 시 썸네일(첫 프레임) 즉시 반영
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.pause();
+      setIsPlaying(false);
+      videoRef.current.load();
+    }
+  }, [videoSrc]);
+
   return (
     // shadcn/ui Card를 기반으로, 사용자가 요청한 w-[560px]를 반응형으로 적용합니다.
     <Card className="w-full lg:w-[560px] shadow-lg rounded-xl">
@@ -59,12 +68,14 @@ const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
             ref={videoRef}
             className="w-full h-full object-cover"
             src={videoSrc}
-            poster="https://placehold.co/510x323/e2e8f0/64748b?text=Video+Stream"
+            poster={videoSrc ? undefined : "https://placehold.co/510x323/e2e8f0/64748b?text=Video+Stream"}
+            preload="metadata"
+            playsInline
+            muted
             onPlay={() => setIsPlaying(true)}
             onPause={() => setIsPlaying(false)}
             onEnded={() => setIsPlaying(false)}
           >
-            <source src={videoSrc} type="video/mp4" />
             브라우저가 비디오를 지원하지 않습니다.
           </video>
         </div>

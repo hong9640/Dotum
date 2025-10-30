@@ -21,6 +21,7 @@ const PracticePage: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [recordedFile, setRecordedFile] = useState<File | null>(null);
+  const [userVideoUrl, setUserVideoUrl] = useState<string | undefined>(undefined);
   
   // 상태 관리
   const { 
@@ -142,6 +143,9 @@ const PracticePage: React.FC = () => {
       const response = await submitCurrentItem(sessionId, recordedFile);
       
       console.log('📥 영상 업로드 성공:', response);
+      
+      // 업로드된 사용자 비디오 URL 저장 (있을 경우)
+      setUserVideoUrl(response.video_url || undefined);
       
       // 업로드 성공 시 결과 컴포넌트로 전환
       setShowResult(true);
@@ -310,7 +314,7 @@ const PracticePage: React.FC = () => {
       onPrevious={handlePreviousWord}
     >
       {showResult ? (
-        <ResultComponent onViewAllResults={handleViewAllResults} />
+        <ResultComponent onViewAllResults={handleViewAllResults} userVideoUrl={userVideoUrl} />
       ) : (
         <PracticeComponent
           recordingState={recordingState}

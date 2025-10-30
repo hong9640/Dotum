@@ -34,7 +34,6 @@ export const setCookie = (
   cookieString += '; samesite=strict';
   
   document.cookie = cookieString;
-  console.log(`🍪 쿠키 설정됨: ${name}`);
 };
 
 /**
@@ -51,12 +50,9 @@ export const getCookie = (name: string): string | null => {
     while (c.charAt(0) === ' ') c = c.substring(1, c.length);
     if (c.indexOf(nameEQ) === 0) {
       const value = c.substring(nameEQ.length, c.length);
-      console.log(`🍪 쿠키 읽기: ${name} = ${value ? '존재함' : '없음'}`);
       return value;
     }
   }
-  
-  console.log(`🍪 쿠키 없음: ${name}`);
   return null;
 };
 
@@ -66,7 +62,6 @@ export const getCookie = (name: string): string | null => {
  */
 export const deleteCookie = (name: string): void => {
   document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; samesite=strict`;
-  console.log(`🍪 쿠키 삭제됨: ${name}`);
 };
 
 /**
@@ -77,7 +72,6 @@ export const clearAuthCookies = (): void => {
   deleteCookie('access_token');
   // refresh_token은 서버에서 HttpOnly 쿠키로 설정되어 있어
   // 클라이언트에서 삭제 불가능 (로그아웃 API에서 처리)
-  console.log('🍪 Access Token 쿠키 삭제됨');
 };
 
 /**
