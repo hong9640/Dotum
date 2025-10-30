@@ -6,6 +6,7 @@ from enum import Enum
 from ..models.training_session import TrainingType, TrainingSessionStatus
 from .training_items import TrainingItemResponse, CurrentItemResponse
 from .media import MediaResponse
+from api.src.train.schemas.praat import PraatFeaturesResponse
 
 
 class TrainingSessionCreate(BaseModel):
@@ -73,6 +74,7 @@ class ItemSubmissionResponse(BaseModel):
     session: TrainingSessionResponse
     next_item: Optional[CurrentItemResponse] = None
     media: MediaResponse
+    praat: PraatFeaturesResponse
     video_url: str
     message: str = "훈련 아이템이 완료되었습니다."
 

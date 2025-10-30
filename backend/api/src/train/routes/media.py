@@ -65,6 +65,7 @@ async def get_user_videos(
     "/{media_id}/praat",
     response_model=PraatFeaturesResponse,
     status_code=status.HTTP_200_OK,
+    summary="praat 데이터 가져오기(임시)",
     responses={
         202: {"description": "Analysis is still processing"},
         403: {"description": "Forbidden (Not owner)"},

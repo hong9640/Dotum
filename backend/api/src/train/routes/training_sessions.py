@@ -389,6 +389,7 @@ async def submit_current_item(
     session = result["session"]
     next_item = result["next_item"]
     media_file = result["media_file"]
+    praat_feature = result["praat_feature"]
     
     next_item_response: Optional[CurrentItemResponse] = None
     if next_item:
@@ -411,6 +412,7 @@ async def submit_current_item(
         session=session,
         next_item=next_item_response,
         media=media_file,
+        praat=praat_feature,
         video_url=result["video_url"]
     )
 
