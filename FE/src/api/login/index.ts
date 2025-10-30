@@ -5,13 +5,11 @@ export interface LoginRequest {
     password: string;
 }
 
-// 응답 토큰 정보
+// 응답 토큰 정보 (refresh_token은 쿠키로 받음)
 export interface TokenInfo {
     access_token: string;
-    refresh_token: string;
     token_type: string;
     expires_in: number;
-
 }
 
 // 응답 사용자 정보
@@ -67,6 +65,7 @@ export const Login = async (
             headers: {
                 "Content-Type": "application/x-www-form-urlencoded",
             },
+            withCredentials: true, // 쿠키를 주고받기 위한 필수 설정
         }
     );
 

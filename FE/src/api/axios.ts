@@ -10,6 +10,7 @@ export const apiClient = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: true, // 모든 요청에 쿠키 포함 (CORS 지원)
 });
 
 

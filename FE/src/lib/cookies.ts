@@ -71,11 +71,13 @@ export const deleteCookie = (name: string): void => {
 
 /**
  * 모든 인증 관련 쿠키 삭제
+ * (refresh_token은 서버 HttpOnly 쿠키이므로 로그아웃 API에서 처리)
  */
 export const clearAuthCookies = (): void => {
   deleteCookie('access_token');
-  deleteCookie('refresh_token');
-  console.log('🍪 모든 인증 쿠키 삭제됨');
+  // refresh_token은 서버에서 HttpOnly 쿠키로 설정되어 있어
+  // 클라이언트에서 삭제 불가능 (로그아웃 API에서 처리)
+  console.log('🍪 Access Token 쿠키 삭제됨');
 };
 
 /**

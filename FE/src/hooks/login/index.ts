@@ -50,17 +50,17 @@ export const useLogin = ({ onLogin }:
                 });
 
                 if (result.status === "SUCCESS") {
-                    // 토큰을 쿠키에 저장
-                    console.log('🔐 로그인 성공 - 토큰 저장 중...');
+                    // Access Token만 클라이언트 쿠키에 저장
+                    console.log('🔐 로그인 성공 - Access Token 저장 중...');
                     console.log('Access Token:', result.data.token.access_token);
-                    console.log('Refresh Token:', result.data.token.refresh_token);
+                    console.log('만료 시간:', result.data.token.expires_in, '초');
                     
-                    // Access Token: 1시간 만료
-                    setCookie('access_token', result.data.token.access_token, 1/24);
-                    // Refresh Token: 7일 만료
-                    setCookie('refresh_token', result.data.token.refresh_token, 7);
+                    // 서버에서 받은 만료 시간(초)를 일(day) 단위로 변환
+                    const expiresInDays = result.data.token.expires_in / (24 * 60 * 60);
+                    setCookie('access_token', result.data.token.access_token, expiresInDays);
+                    // Refresh Token은 서버에서 HttpOnly 쿠키로 자동 설정됨
                     
-                    console.log('✅ 토큰 쿠키 저장 완료');
+                    console.log('✅ Access Token 쿠키 저장 완료');
                     
                     // UI 로그인 상태 플래그 갱신
                     localStorage.setItem('auth', 'true');
