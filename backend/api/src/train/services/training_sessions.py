@@ -145,6 +145,10 @@ class TrainingSessionService:
         if not session.can_complete():
             raise ValueError("세션을 완료할 수 없습니다. 현재 상태를 확인해주세요.")
         
+        # 100% 완료 여부 검증 (결과보기 조건 강화)
+        if session.total_items == 0 or session.completed_items != session.total_items:
+            raise ValueError("모든 아이템이 완료되지 않았습니다.")
+        
         # 세션 상태를 완료로 변경
         await self.repo.update_status(
             session_id, 
@@ -179,6 +183,7 @@ class TrainingSessionService:
         await self.db.commit()
         
         return await self.get_training_session(session_id, user_id)
+
     
     async def complete_training_item(
         self, 
