@@ -1,11 +1,11 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 from datetime import datetime
 
 
 class TrainingItemResponse(BaseModel):
     """훈련 아이템 응답"""
-    id: int
+    item_id: int = Field(description="아이템 ID")
     training_session_id: int
     item_index: int
     word_id: Optional[int] = None
@@ -17,13 +17,12 @@ class TrainingItemResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name=False)
 
 
 class CurrentItemResponse(BaseModel):
     """현재 훈련 아이템 응답"""
-    id: int
+    item_id: int = Field(description="아이템 ID")
     item_index: int
     word_id: Optional[int] = None
     sentence_id: Optional[int] = None
@@ -34,8 +33,7 @@ class CurrentItemResponse(BaseModel):
     media_file_id: Optional[int] = None
     has_next: bool
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name=False)
 
 
 class CompleteItemRequest(BaseModel):

@@ -24,9 +24,9 @@ class TrainWordUpdate(BaseModel):
 
 # Response Schemas
 class TrainWordResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=False)
     
-    id: int
+    word_id: int = Field(description="단어 ID")
     word: str
     created_at: datetime
     updated_at: datetime
