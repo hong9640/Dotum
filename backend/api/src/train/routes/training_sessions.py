@@ -387,6 +387,7 @@ async def get_current_item(
     
     item = result['item']
     has_next = result['has_next']
+    praat = result.get('praat')
     
     # 단어 또는 문장 정보 추출
     word = item.word.word if item.word else None
@@ -410,7 +411,8 @@ async def get_current_item(
         is_completed=item.is_completed,
         video_url=video_url,
         media_file_id=item.media_file_id,
-        has_next=has_next
+        has_next=has_next,
+        praat=(convert_praat_to_response(praat) if praat else None)
     )
 
 
@@ -501,6 +503,60 @@ async def submit_current_item(
         media=convert_media_to_response(media_file),
         praat=convert_praat_to_response(praat_feature),
         video_url=result["video_url"]
+    )
+
+
+@router.get(
+    "/{session_id}/items/index/{item_index}",
+    response_model=CurrentItemResponse,
+    summary="item_index로 아이템 조회",
+    description="특정 item_index의 아이템을 조회합니다. (세션 상태 무관)",
+    responses={
+        200: {"description": "조회 성공"},
+        401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"},
+        404: {"model": NotFoundErrorResponse, "description": "아이템을 찾을 수 없음"}
+    }
+)
+async def get_item_by_index(
+    session_id: int,
+    item_index: int,
+    current_user: User = Depends(get_current_user),
+    service: TrainingSessionService = Depends(get_training_service),
+    gcs_service: GCSService = Depends(provide_gcs_service)
+):
+    """특정 인덱스 아이템 조회 (세션 상태 무관)"""
+    result = await service.get_item_by_index(session_id, current_user.id, item_index)
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="해당 인덱스의 아이템을 찾을 수 없습니다."
+        )
+
+    item = result['item']
+    has_next = result['has_next']
+    praat = result.get('praat')
+
+    word = item.word.word if item.word else None
+    sentence = item.sentence.sentence if item.sentence else None
+
+    video_url = None
+    if item.video_url and item.media_file_id:
+        media_file = await service.get_media_file_by_id(item.media_file_id)
+        if media_file:
+            video_url = await gcs_service.get_signed_url(media_file.object_key, expiration_hours=24)
+
+    return CurrentItemResponse(
+        item_id=item.id,
+        item_index=item.item_index,
+        word_id=item.word_id,
+        sentence_id=item.sentence_id,
+        word=word,
+        sentence=sentence,
+        is_completed=item.is_completed,
+        video_url=video_url,
+        media_file_id=item.media_file_id,
+        has_next=has_next,
+        praat=(convert_praat_to_response(praat) if praat else None)
     )
 
 
