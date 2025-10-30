@@ -148,6 +148,29 @@ export const createSentenceTrainingSession = async (
 };
 
 /**
+ * 훈련 세션 조회 API 호출
+ * @param sessionId 세션 ID
+ * @returns 훈련 세션 정보
+ */
+export const getTrainingSession = async (
+  sessionId: number
+): Promise<CreateTrainingSessionResponse> => {
+  console.log('📤 훈련 세션 조회 요청:', { sessionId });
+  
+  const response = await apiClient.get<CreateTrainingSessionResponse>(
+    `/train/training-sessions/${sessionId}`,
+    {
+      headers: {
+        "Accept": "application/json",
+      },
+    }
+  );
+
+  console.log('📥 훈련 세션 조회 응답:', response.data);
+  return response.data;
+};
+
+/**
  * API 에러 코드를 사용자 친화적인 메시지로 변환
  * @param errorCode API 에러 코드
  * @param defaultMessage 기본 에러 메시지

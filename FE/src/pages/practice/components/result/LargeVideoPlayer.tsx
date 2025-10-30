@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DialogClose } from "@/components/ui/dialog";
@@ -35,6 +35,17 @@ const LargeVideoPlayer: React.FC<LargeVideoPlayerProps> = ({
     }
   };
 
+  // videoSrc 변경 시 비디오를 새로 로드하여 반영
+  useEffect(() => {
+    if (videoRef.current) {
+      // 일시정지 후 새 소스 로드
+      videoRef.current.pause();
+      setIsPlaying(false);
+      // 강제 리로드
+      videoRef.current.load();
+    }
+  }, [videoSrc]);
+
   return (
     <Card className="w-full border-0 shadow-none p-0">
       <CardHeader className="p-0 pb-5 flex flex-row justify-between items-center">
@@ -54,15 +65,18 @@ const LargeVideoPlayer: React.FC<LargeVideoPlayerProps> = ({
           <video
             ref={videoRef}
             className="w-full h-full object-cover"
+            src={videoSrc}
             poster={
               posterSrc ||
               "https://placehold.co/867x549/e2e8f0/64748b?text=Large+Video"
             }
+            preload="metadata"
+            playsInline
+            muted
             onPlay={() => setIsPlaying(true)}
             onPause={() => setIsPlaying(false)}
             onEnded={() => setIsPlaying(false)}
           >
-            <source src={videoSrc} type="video/mp4" />
             브라우저가 비디오를 지원하지 않습니다.
           </video>
         </div>

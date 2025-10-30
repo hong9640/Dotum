@@ -3,29 +3,29 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useMediaRecorder } from "@/hooks/useMediaRecorder";
 import { usePracticeStore } from "@/stores/practiceStore";
-import ProgressHeader from "@/components/ProgressHeader";
-import WordDisplay from "@/components/WordDisplay";
-import RecordingPreview from "@/pages/practice/components/RecordingPreview";
-import RecordingControls from "@/pages/practice/components/RecordingControls";
-import RecordingTips from "@/pages/practice/components/RecordingTips";
+import TrainingLayout from "@/pages/practice/components/TrainingLayout";
+import PracticeComponent from "@/pages/practice/components/practice/PracticeComponent";
+import ResultComponent from "@/pages/practice/components/result/ResultComponent";
+import { getCurrentItem, getCurrentItemErrorMessage, type CurrentItemResponse } from "@/api/training-session/currentItem";
+import { getTrainingSession, type CreateTrainingSessionResponse } from "@/api/training-session";
+import { submitCurrentItem } from "@/api/practice";
 
 const PracticePage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentItem, setCurrentItem] = useState<CurrentItemResponse | null>(null);
+  const [sessionData, setSessionDataState] = useState<CreateTrainingSessionResponse | null>(null);
+  const [showResult, setShowResult] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [recordedFile, setRecordedFile] = useState<File | null>(null);
+  const [userVideoUrl, setUserVideoUrl] = useState<string | undefined>(undefined);
   
   // 상태 관리
   const { 
-    currentStep, 
-    totalSteps, 
-    currentWord, 
-    currentWordIndex,
-    words,
-    sessionType,
     addRecordedVideo,
-    goToNextWord,
-    goToPreviousWord,
     setSessionData
   } = usePracticeStore();
 
@@ -43,59 +43,211 @@ const PracticePage: React.FC = () => {
       }
 
       try {
-        // 세션 ID로 세션 정보 조회 (현재는 세션 생성 API를 사용)
-        // TODO: 실제로는 세션 조회 API를 사용해야 함
         console.log('세션 데이터 로드 중...', { sessionId: sessionIdParam, type: sessionTypeParam });
         
-        // 임시로 하드코딩된 데이터 사용 (실제로는 서버에서 받아와야 함)
-        const mockWords = sessionTypeParam === 'word' 
-          ? ['사과', '바나나', '딸기', '포도', '오렌지', '수박', '참외', '복숭아', '자두', '체리']
-          : ['안녕하세요', '좋은 아침입니다', '감사합니다', '죄송합니다', '괜찮습니다', '도움이 필요해요', '이해했습니다', '다시 말씀해주세요', '천천히 말해주세요', '잘 들었습니다'];
+        const sessionId = Number(sessionIdParam);
+        if (isNaN(sessionId)) {
+          setError('세션 ID가 유효하지 않습니다.');
+          setIsLoading(false);
+          return;
+        }
         
-        // 세션 데이터 설정
-        setSessionData(sessionIdParam, sessionTypeParam, mockWords);
+        // 세션 정보와 현재 아이템을 병렬로 조회
+        const [sessionData, currentItemData] = await Promise.all([
+          getTrainingSession(sessionId),
+          getCurrentItem(sessionId)
+        ]);
+        
+        setSessionDataState(sessionData);
+        setCurrentItem(currentItemData);
+        
+        // 아이템이 완료된 경우 결과 페이지 표시
+        if (currentItemData.is_completed) {
+          setShowResult(true);
+        } else {
+          setShowResult(false);
+        }
+        
+        // 현재 아이템의 단어/문장 설정
+        const targetText = currentItemData.word || currentItemData.sentence || '';
+        
+        // 세션 데이터 설정 (실제 API 데이터 반영)
+        setSessionData(sessionIdParam, sessionTypeParam, [targetText], sessionData?.total_items || 10, currentItemData.item_index);
+        
         setIsLoading(false);
       } catch (err) {
         console.error('세션 데이터 로드 실패:', err);
-        setError('세션 데이터를 불러오는데 실패했습니다.');
+        const errorMessage = getCurrentItemErrorMessage(err);
+        setError(errorMessage);
         setIsLoading(false);
       }
     };
 
     loadSessionData();
-  }, [sessionIdParam, sessionTypeParam, setSessionData]);
+  }, [sessionIdParam, sessionTypeParam, setSessionData, navigate]);
 
   const handleSave = (file: File, blobUrl: string) => {
     console.log("Saved:", file);
     // 녹화된 비디오를 상태에 추가
     addRecordedVideo(blobUrl);
-    // TODO: 업로드 API 연동 (presigned URL or multipart)
+    // 녹화된 파일을 상태에 저장 (업로드용)
+    setRecordedFile(file);
   };
 
   const {
-    videoRef,
     recordingState,
     permissionError,
     elapsed,
     blobUrl,
+    videoRef,
+    isCameraReady,
     startRecording,
     stopRecording,
     retake,
   } = useMediaRecorder({ onSave: handleSave });
 
+  const handleViewAllResults = () => {
+    // 전체 결과 페이지로 이동
+    navigate('/result-list');
+  };
+
   const handleViewResults = () => {
-    // 녹화 완료 후 결과 페이지로 이동
-    navigate('/result');
+    // 녹화 완료 후 결과 페이지 표시 (진행률과 단어는 그대로 유지)
+    console.log('🎬 녹화 완료 - 결과 페이지 표시:', {
+      currentItemIndex: currentItem?.item_index,
+      currentWord: currentItem?.word || currentItem?.sentence,
+      progressDisplay: `${(currentItem?.item_index || 0) + 1}/${sessionData?.total_items}`
+    });
+    
+    setShowResult(true);
   };
 
-  const handleNextWord = () => {
-    // 다음 단어로 이동
-    goToNextWord();
+  const handleUpload = async () => {
+    if (!recordedFile || !sessionIdParam) {
+      setUploadError('업로드할 파일이나 세션 정보가 없습니다.');
+      return;
+    }
+
+    const sessionId = Number(sessionIdParam);
+    if (isNaN(sessionId)) {
+      setUploadError('유효하지 않은 세션 ID입니다.');
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      setUploadError(null);
+      
+      console.log('📤 영상 업로드 시작:', { sessionId, fileName: recordedFile.name });
+      
+      const response = await submitCurrentItem(sessionId, recordedFile);
+      
+      console.log('📥 영상 업로드 성공:', response);
+      
+      // 업로드된 사용자 비디오 URL 저장 (있을 경우)
+      setUserVideoUrl(response.video_url || undefined);
+      
+      // 업로드 성공 시 결과 컴포넌트로 전환
+      setShowResult(true);
+      
+      // 업로드 완료 후 파일 상태 초기화
+      setRecordedFile(null);
+      
+    } catch (err: any) {
+      console.error('📥 영상 업로드 실패:', err);
+      
+      let errorMessage = '영상 업로드에 실패했습니다.';
+      
+      if (err.response?.status === 401) {
+        errorMessage = '인증이 필요합니다. 다시 로그인해주세요.';
+      } else if (err.response?.status === 404) {
+        errorMessage = '세션을 찾을 수 없습니다.';
+      } else if (err.response?.status === 422) {
+        errorMessage = '업로드할 파일이 올바르지 않습니다.';
+      } else if (err.response?.data?.detail) {
+        errorMessage = err.response.data.detail;
+      }
+      
+      setUploadError(errorMessage);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
-  const handlePreviousWord = () => {
-    // 이전 단어로 이동
-    goToPreviousWord();
+  const handleNextWord = async () => {
+    if (!sessionIdParam || !currentItem?.has_next) return;
+    
+    const sessionId = Number(sessionIdParam);
+    if (isNaN(sessionId)) return;
+    
+    try {
+      // 다음 아이템 조회
+      const nextItemData = await getCurrentItem(sessionId);
+      
+      console.log('다음 아이템 조회 결과:', nextItemData);
+      
+      setCurrentItem(nextItemData);
+      
+      // 다음 아이템이 완료된 경우 결과 페이지 표시
+      if (nextItemData.is_completed) {
+        setShowResult(true);
+      } else {
+        setShowResult(false);
+      }
+      
+      // 다음 아이템의 단어/문장으로 업데이트
+      const targetText = nextItemData.word || nextItemData.sentence || '';
+      setSessionData(sessionIdParam, sessionTypeParam!, [targetText], sessionData?.total_items || 10, nextItemData.item_index);
+      
+      console.log('다음 아이템으로 이동 완료:', {
+        itemIndex: nextItemData.item_index,
+        targetText,
+        hasNext: nextItemData.has_next,
+        showResult
+      });
+    } catch (err) {
+      console.error('다음 아이템 로드 실패:', err);
+      const errorMessage = getCurrentItemErrorMessage(err);
+      setError(errorMessage);
+    }
+  };
+
+  const handlePreviousWord = async () => {
+    if (!sessionIdParam || currentItem?.item_index === 0) return;
+    
+    const sessionId = Number(sessionIdParam);
+    if (isNaN(sessionId)) return;
+    
+    try {
+      // 이전 아이템 조회
+      const prevItemData = await getCurrentItem(sessionId);
+      
+      console.log('이전 아이템 조회 결과:', prevItemData);
+      
+      setCurrentItem(prevItemData);
+      
+      // 이전 아이템이 완료된 경우 결과 페이지 표시
+      if (prevItemData.is_completed) {
+        setShowResult(true);
+      } else {
+        setShowResult(false);
+      }
+      
+      // 이전 아이템의 단어/문장으로 업데이트
+      const targetText = prevItemData.word || prevItemData.sentence || '';
+      setSessionData(sessionIdParam, sessionTypeParam!, [targetText], sessionData?.total_items || 10, prevItemData.item_index);
+      
+      console.log('이전 아이템으로 이동 완료:', {
+        itemIndex: prevItemData.item_index,
+        targetText,
+        hasNext: prevItemData.has_next,
+        showResult
+      });
+    } catch (err) {
+      console.error('이전 아이템 로드 실패:', err);
+      const errorMessage = getCurrentItemErrorMessage(err);
+      setError(errorMessage);
+    }
   };
 
   // 로딩 상태
@@ -133,14 +285,14 @@ const PracticePage: React.FC = () => {
   }
 
   // 데이터가 없는 경우
-  if (totalSteps === 0 || words.length === 0) {
+  if (!currentItem || !sessionData) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-6">
           <Alert>
             <AlertTitle>데이터 없음</AlertTitle>
             <AlertDescription className="mt-2">
-              훈련할 {sessionType === 'word' ? '단어' : '문장'}가 없습니다.
+              훈련할 데이터가 없습니다.
             </AlertDescription>
           </Alert>
           <button 
@@ -155,55 +307,32 @@ const PracticePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="min-h-[1105px] px-8 sm:px-12 md:px-24 lg:px-32 py-6 flex justify-center items-start">
-        <div className="w-full max-w-[1152px] flex flex-col gap-8">
-          {/* 진행률 헤더 */}
-          <ProgressHeader step={currentStep} totalSteps={totalSteps} />
-
-          {/* 발음할 단어 표시 */}
-          <WordDisplay 
-            targetWord={currentWord}
-            onNext={handleNextWord}
-            onPrevious={handlePreviousWord}
-            showNext={currentWordIndex < totalSteps - 1}
-            showPrevious={currentWordIndex > 0}
-          />
-
-          {/* 녹화 미리보기 */}
-          <RecordingPreview
-            videoRef={videoRef}
-            recordingState={recordingState}
-            elapsed={elapsed}
-            blobUrl={blobUrl}
-          />
-
-          {/* 녹화 컨트롤 */}
-          <RecordingControls
-            recordingState={recordingState}
-            blobUrl={blobUrl}
-            onStartRecording={startRecording}
-            onStopRecording={stopRecording}
-            onRetake={retake}
-            onViewResults={handleViewResults}
-          />
-
-          {/* 녹화 팁 */}
-          <RecordingTips />
-
-          {/* 권한/오류 안내 */}
-          {permissionError && (
-            <Alert variant="destructive" className="max-w-[896px] mx-auto">
-              <AlertTitle>카메라/마이크 접근 실패</AlertTitle>
-              <AlertDescription>
-                {permissionError} <br />
-                브라우저 주소창의 카메라/마이크 아이콘을 눌러 권한을 허용하거나, 다른 브라우저에서 시도해보세요.
-              </AlertDescription>
-            </Alert>
-          )}
-        </div>
-      </div>
-    </div>
+    <TrainingLayout
+      currentItem={currentItem}
+      sessionData={sessionData}
+      onNext={handleNextWord}
+      onPrevious={handlePreviousWord}
+    >
+      {showResult ? (
+        <ResultComponent onViewAllResults={handleViewAllResults} userVideoUrl={userVideoUrl} />
+      ) : (
+        <PracticeComponent
+          recordingState={recordingState}
+          elapsed={elapsed}
+          blobUrl={blobUrl}
+          permissionError={permissionError}
+          onStartRecording={startRecording}
+          onStopRecording={stopRecording}
+          onRetake={retake}
+          onViewResults={handleViewResults}
+          onUpload={handleUpload}
+          isUploading={isUploading}
+          uploadError={uploadError}
+          isCameraReady={!!isCameraReady}
+          videoRef={videoRef}
+        />
+      )}
+    </TrainingLayout>
   );
 };
 
