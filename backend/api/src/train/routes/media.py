@@ -40,7 +40,7 @@ async def get_user_videos(
         for video in videos:
             signed_url = await gcs_service.get_signed_url(video.object_key, expiration_hours=24)
             result.append(MediaListResponse(
-                id=video.id,
+                media_id=video.id,
                 object_key=video.object_key,
                 media_type=video.media_type,
                 file_name=video.file_name,

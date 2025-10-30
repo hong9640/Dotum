@@ -1,9 +1,9 @@
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ConfigDict
 
 class PraatFeaturesResponse(BaseModel):
     """Praat 분석 결과 응답 스키마"""
-    id: int
+    praat_id: int = Field(description="Praat 분석 ID")
     media_id: int
     jitter_local: Optional[float]
     shimmer_local: Optional[float]
@@ -15,5 +15,4 @@ class PraatFeaturesResponse(BaseModel):
     cpp: Optional[float]
     csid: Optional[float]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name=False)
