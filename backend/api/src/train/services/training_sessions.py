@@ -324,6 +324,7 @@ class TrainingSessionService:
             "session": updated_session,
             "next_item": next_item,
             "media_file": media_file,
+            "praat_feature": new_praat_record,
             "audio_media_file": audio_media_file,
             "video_url": video_url,
             "has_next": has_next
