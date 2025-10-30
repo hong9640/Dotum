@@ -8,6 +8,7 @@ import FeedbackSummary from "./FeedbackSummary";
 import DetailedEvaluationItems from "./DetailedEvaluationItems";
 import { usePracticeStore } from "@/stores/practiceStore";
 import { completeTrainingSession, getTrainingSession } from "@/api/training-session";
+import ImprovementPoints from "./ImprovementPoints";
 
 interface FeedbackCardProps {
   onViewAllResults?: () => void;
@@ -148,6 +149,9 @@ const FeedbackCard: React.FC<FeedbackCardProps> = ({ onViewAllResults }) => {
 
           {/* 3. 세부 평가 항목 섹션 */}
           <DetailedEvaluationItems />
+
+          {/* 4. 개선 포인트 섹션 */}
+          <ImprovementPoints />
         </div>
       </CardContent>
       {/* 3. 버튼 섹션 */}
