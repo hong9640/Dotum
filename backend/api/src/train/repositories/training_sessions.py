@@ -212,10 +212,7 @@ class TrainingSessionRepository(BaseRepository[TrainingSession]):
         if current_item_index is not None:
             update_data['current_item_index'] = current_item_index
         
-        # 자동 상태 전환
-        if progress_percentage == 1.0:
-            update_data['status'] = TrainingSessionStatus.COMPLETED
-            update_data['completed_at'] = func.now()
+        # 상태 자동 전환을 제거하여, 완료 상태 변경은 명시적 API에서만 수행
         
         result = await self.db.execute(
             update(TrainingSession)
