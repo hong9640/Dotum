@@ -2,9 +2,10 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BarChart, RotateCcw, ListChecks, ArrowRight, Loader2 } from "lucide-react";
+import { BarChart2, RotateCcw, Activity, ListChecks } from "lucide-react";
 import PronunciationScore from "./PronunciationScore";
 import FeedbackSummary from "./FeedbackSummary";
+import DetailedEvaluationItems from "./DetailedEvaluationItems";
 import { usePracticeStore } from "@/stores/practiceStore";
 import { completeTrainingSession, getTrainingSession } from "@/api/training-session";
 
@@ -130,9 +131,9 @@ const FeedbackCard: React.FC<FeedbackCardProps> = ({ onViewAllResults }) => {
     // 사용자가 요청한 p-7을 CardHeader와 CardContent의 p-7로 구현
     <Card className="w-full shadow-lg rounded-2xl">
       <CardHeader className="p-7">
-        <CardTitle className="flex items-center text-2xl md:text-3xl font-semibold text-slate-800 pb-6">
+        <CardTitle className="flex items-center text-2xl md:text-3xl font-semibold text-slate-800 pb-2">
           {/* lucide-react 'BarChart' 아이콘으로 교체 */}
-          <BarChart className="w-6 h-6 mr-3 text-green-500" strokeWidth={2.5} />
+          <BarChart2 className="w-7 h-7 mr-3 text-green-500" strokeWidth={2.5} />
           발음 평가 피드백
         </CardTitle>
       </CardHeader>
@@ -144,6 +145,9 @@ const FeedbackCard: React.FC<FeedbackCardProps> = ({ onViewAllResults }) => {
 
           {/* 2. 피드백 요약 섹션 */}
           <FeedbackSummary />
+
+          {/* 3. 세부 평가 항목 섹션 */}
+          <DetailedEvaluationItems />
         </div>
       </CardContent>
       {/* 3. 버튼 섹션 */}
