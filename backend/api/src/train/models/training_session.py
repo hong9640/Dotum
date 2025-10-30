@@ -24,7 +24,7 @@ class TrainingType(str, Enum):
 class TrainingSessionStatus(str, Enum):
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
-    CANCELLED = "cancelled"
+    PAUSED = "paused"
 
 class TrainingSession(SQLModel, table=True):
     __tablename__ = "training_sessions"

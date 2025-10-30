@@ -556,10 +556,10 @@ class TrainingSessionService:
         valid_transitions = {
             TrainingSessionStatus.IN_PROGRESS: [
                 TrainingSessionStatus.COMPLETED,
-                TrainingSessionStatus.CANCELLED
+                TrainingSessionStatus.PAUSED
             ],
             TrainingSessionStatus.COMPLETED: [],  # 완료된 세션은 상태 변경 불가
-            TrainingSessionStatus.CANCELLED: []   # 취소된 세션은 상태 변경 불가
+            TrainingSessionStatus.PAUSED: []   # 일시중지된 세션은 상태 변경 불가
         }
         
         return new_status in valid_transitions.get(current_status, [])
