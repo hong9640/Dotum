@@ -38,6 +38,8 @@ def convert_training_item_to_response(item) -> TrainingItemResponse:
         item_index=item.item_index,
         word_id=item.word_id,
         sentence_id=item.sentence_id,
+        word=item.word.word if item.word else None,
+        sentence=item.sentence.sentence if item.sentence else None,
         is_completed=item.is_completed,
         video_url=item.video_url,
         media_file_id=item.media_file_id,

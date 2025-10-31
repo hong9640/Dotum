@@ -26,6 +26,8 @@ class TrainingItem(SQLModel, table=True):
     word_id: Optional[int] = Field(default=None, description="단어 ID (단어 훈련인 경우)")
     sentence_id: Optional[int] = Field(default=None, description="문장 ID (문장 훈련인 경우)")
     is_completed: bool = Field(default=False, description="완료 여부")
+    score: Optional[float] = Field(default=None, description="점수")
+    feedback: Optional[str] = Field(default=None, description="피드백")
     video_url: Optional[str] = Field(default=None, description="업로드된 동영상 URL")
     media_file_id: Optional[int] = Field(default=None, description="미디어 파일 ID")
     completed_at: Optional[datetime] = Field(default=None, description="완료 시간")
