@@ -8,18 +8,25 @@ import FeedbackSummary from "./FeedbackSummary";
 import DetailedEvaluationItems from "./DetailedEvaluationItems";
 import { usePracticeStore } from "@/stores/practiceStore";
 import { completeTrainingSession, getTrainingSession } from "@/api/training-session";
+import ImprovementPoints from "./ImprovementPoints";
 
 interface FeedbackCardProps {
   onViewAllResults?: () => void;
+  onNext?: () => void;
+  hasNext?: boolean;
 }
 
 // --- FeedbackCard 컴포넌트 (기존) ---
 /**
  * 발음 평가 피드백 카드 컴포넌트
  */
-const FeedbackCard: React.FC<FeedbackCardProps> = ({ onViewAllResults }) => {
+const FeedbackCard: React.FC<FeedbackCardProps> = ({ 
+  onViewAllResults,
+  onNext,
+  hasNext = false
+}) => {
   const navigate = useNavigate();
-  const { currentWordIndex, totalSteps, goToNextWord, sessionId } = usePracticeStore();
+  const { sessionId } = usePracticeStore();
   const [isCompletingSession, setIsCompletingSession] = useState(false);
   const similarity = 87; // 피드백 점수 (예시)
 
@@ -123,8 +130,9 @@ const FeedbackCard: React.FC<FeedbackCardProps> = ({ onViewAllResults }) => {
   };
 
   const handleNextWord = () => {
-    goToNextWord();
-    navigate("/practice");
+    if (onNext) {
+      onNext();
+    }
   };
 
   return (
@@ -148,6 +156,9 @@ const FeedbackCard: React.FC<FeedbackCardProps> = ({ onViewAllResults }) => {
 
           {/* 3. 세부 평가 항목 섹션 */}
           <DetailedEvaluationItems />
+
+          {/* 4. 개선 포인트 섹션 */}
+          <ImprovementPoints />
         </div>
       </CardContent>
       {/* 3. 버튼 섹션 */}
@@ -163,8 +174,8 @@ const FeedbackCard: React.FC<FeedbackCardProps> = ({ onViewAllResults }) => {
           다시 녹화
         </Button>
         
-        {/* 마지막 단어인 경우: 전체 결과 보기 버튼 표시 */}
-        {currentWordIndex === totalSteps - 1 ? (
+        {/* 마지막 아이템인 경우: 전체 결과 보기 버튼 표시 */}
+        {!hasNext ? (
           <Button
             variant="default"
             size="lg"

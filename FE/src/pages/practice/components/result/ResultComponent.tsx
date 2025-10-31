@@ -5,16 +5,24 @@ import FeedbackCard from "./FeedbackCard";
 interface ResultComponentProps {
   onViewAllResults: () => void;
   userVideoUrl?: string;
+  onNext?: () => void;
+  hasNext?: boolean;
 }
 
 const ResultComponent: React.FC<ResultComponentProps> = ({
   onViewAllResults,
-  userVideoUrl
+  userVideoUrl,
+  onNext,
+  hasNext
 }) => {
   return (
     <>
       <ResultVideoDisplay userVideoUrl={userVideoUrl} />
-      <FeedbackCard onViewAllResults={onViewAllResults} />
+      <FeedbackCard 
+        onViewAllResults={onViewAllResults}
+        onNext={onNext}
+        hasNext={hasNext}
+      />
     </>
   );
 };
