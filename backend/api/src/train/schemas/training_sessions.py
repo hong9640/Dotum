@@ -51,6 +51,12 @@ class TrainingSessionResponse(BaseModel):
     completed_items: int
     current_item_index: int
     progress_percentage: float
+
+    # 평균 점수
+    average_score: Optional[float] = None
+
+    # 세션 전체 피드백
+    overall_feedback: Optional[str] = None
     
     # 메타데이터
     session_metadata: Dict[str, Any]
