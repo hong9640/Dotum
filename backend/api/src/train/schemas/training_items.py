@@ -11,7 +11,11 @@ class TrainingItemResponse(BaseModel):
     item_index: int
     word_id: Optional[int] = None
     sentence_id: Optional[int] = None
+    word: Optional[str] = None
+    sentence: Optional[str] = None
     is_completed: bool
+    score: Optional[float] = None
+    feedback: Optional[str] = None
     video_url: Optional[str] = None
     media_file_id: Optional[int] = None
     completed_at: Optional[datetime] = None

@@ -41,6 +41,12 @@ class TrainingSession(SQLModel, table=True):
     completed_items: int = Field(default=0, description="완료된 아이템 수")
     current_item_index: int = Field(default=0, description="현재 진행 중인 아이템 인덱스")
     progress_percentage: float = Field(default=0.0, description="진행률 (0.0-1.0)")
+
+    # 평균 점수
+    average_score: Optional[float] = Field(default=0, description="평균 점수")
+
+    # 세션 전체 피드백
+    overall_feedback: Optional[str] = Field(default=None, description="세션 전체 피드백")
     
     # 메타데이터
     session_metadata: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON), description="추가 메타데이터")
