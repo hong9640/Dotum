@@ -14,7 +14,7 @@ export interface CreateTrainingSessionRequest {
 
 // 훈련 아이템 타입
 export interface TrainingItem {
-  id: number;
+  item_id: number;
   training_session_id: number;
   item_index: number;
   word_id?: number | null;
@@ -29,7 +29,7 @@ export interface TrainingItem {
 
 // 훈련 세션 생성 응답 타입
 export interface CreateTrainingSessionResponse {
-  id: number;
+  session_id: number;
   user_id: number;
   session_name: string;
   type: TrainingType;
@@ -144,7 +144,7 @@ export const createWordTrainingSession = async (
  * @returns 훈련 세션 생성 결과
  */
 export const createSentenceTrainingSession = async (
-  itemCount: number = 2,
+  itemCount: number = 10,
   sessionName?: string
 ): Promise<CreateTrainingSessionResponse> => {
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식

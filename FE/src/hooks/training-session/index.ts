@@ -32,8 +32,8 @@ export const useTrainingSession = ({ onSessionCreated }: UseTrainingSessionProps
       toast.success("단어 훈련 세션이 생성되었습니다!");
       onSessionCreated?.(session);
       
-      // 훈련 페이지로 이동 (세션 ID를 쿼리 파라미터로 전달)
-      navigate(`/practice?sessionId=${session.id}&type=word`);
+      // 훈련 페이지로 이동 (세션 ID와 itemIndex를 쿼리 파라미터로 전달)
+      navigate(`/practice?sessionId=${session.session_id}&type=word&itemIndex=0`);
       
       return session;
     } catch (error: any) {
@@ -64,8 +64,8 @@ export const useTrainingSession = ({ onSessionCreated }: UseTrainingSessionProps
       toast.success("문장 훈련 세션이 생성되었습니다!");
       onSessionCreated?.(session);
       
-      // 훈련 페이지로 이동 (세션 ID를 쿼리 파라미터로 전달)
-      navigate(`/practice?sessionId=${session.id}&type=sentence`);
+      // 훈련 페이지로 이동 (세션 ID와 itemIndex를 쿼리 파라미터로 전달)
+      navigate(`/practice?sessionId=${session.session_id}&type=sentence&itemIndex=0`);
       
       return session;
     } catch (error: any) {
