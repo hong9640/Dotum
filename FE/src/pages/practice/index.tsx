@@ -387,7 +387,6 @@ const PracticePage: React.FC = () => {
     >
       {showResult ? (
         <ResultComponent 
-          onViewAllResults={handleViewAllResults} 
           userVideoUrl={userVideoUrl}
           onNext={handleNextWord}
           hasNext={currentItem?.has_next ?? false}
