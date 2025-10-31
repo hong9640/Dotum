@@ -14,7 +14,9 @@ from ..services.media import MediaService
 from ..schemas.media import MediaListResponse
 from api.src.train.services.praat import get_praat_analysis_from_db
 from api.src.train.schemas.praat import PraatFeaturesResponse
-
+from ..services.training_sessions import TrainingSessionService
+from ..repositories.training_items import TrainingItemRepository 
+from api.src.train.services.gcs_service import get_gcs_service, GCSService
 
 router = APIRouter(
     prefix="/media",

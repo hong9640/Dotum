@@ -1,3 +1,5 @@
+from fastapi import BackgroundTasks
+import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date
@@ -20,6 +22,9 @@ from ..services.video_processor import VideoProcessor
 from api.src.user.user_model import User
 from api.src.train.models.praat import PraatFeatures
 from api.src.train.services.praat import get_praat_analysis_from_db
+from api.core.config import settings
+from ..services.gcs_service import GCSService
+from ..services.media import MediaService
 
 class TrainingSessionService:
     """통합된 훈련 세션 서비스"""
@@ -210,6 +215,58 @@ class TrainingSessionService:
         
         return await self.get_training_session(session_id, user_id)
     
+    async def trigger_wav2lip_processing(
+        self,
+        text: str,
+        user_video_gs_path: str,
+        output_video_gs_path: str,
+        user_id: int,
+        output_object_key: str
+    ):
+        """외부 wav2lip 서버에 처리를 요청하는 백그라운드 작업"""
+        WAV2LIP_API_URL = "https://ectogenetic-deutoplasmic-enrique.ngrok-free.dev/api/v1/lip-video"
+        
+        payload = {
+            "word": text,
+            "user_video_gs": f"gs://{user_video_gs_path}",
+            "output_video_gs": f"gs://{output_video_gs_path}"
+        }
+
+        try:
+            # 외부 API 호출 (httpx 라이브러리 필요)
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                response = await client.post(WAV2LIP_API_URL, json=payload)
+                response.raise_for_status()
+                print(f"wav2lip 작업 요청 성공: {response.json()}")
+
+                gcs_service = GCSService(settings)
+
+                # 2. GCS에서 결과 파일의 메타데이터(정보) 가져오기
+                blob = gcs_service.bucket.get_blob(output_object_key)
+                file_size = 0
+                if blob:
+                    file_size = blob.size # 파일 크기(bytes)
+                else:
+                    print(f"경고: GCS에서 {output_object_key} 파일을 찾을 수 없어 파일 크기를 0으로 저장합니다.")
+
+                # 3. MediaFile 객체 생성 시 file_size_bytes에 값 할당
+                result_media_file = MediaFile(
+                    user_id=user_id,
+                    object_key=output_object_key,
+                    media_type=MediaType.TRAIN,
+                    file_name=output_object_key.split('/')[-1],
+                    format="mp4",
+                    file_size_bytes=file_size,
+                )
+                self.db.add(result_media_file)
+                await self.db.commit()
+                print(f"wav2lip 결과 미디어 파일 정보 저장 성공: {result_media_file.id}")
+
+        except httpx.RequestError as e:
+            print(f"wav2lip 작업 요청 실패: {e}")
+        except Exception as e:
+            print(f"wav2lip 결과 저장 중 DB 오류 발생: {e}")
+    
     async def _submit_item_with_video(
         self,
         *,
@@ -219,7 +276,8 @@ class TrainingSessionService:
         file_bytes: bytes,
         filename: str,
         content_type: str,
-        gcs_service: GCSService
+        gcs_service: GCSService,
+        background_tasks: BackgroundTasks
     ) -> Dict[str, Any]:
         """내부 메서드: 특정 아이템에 동영상 업로드 및 완료 처리"""
         session = await self.get_training_session(session_id, user.id)
@@ -255,6 +313,20 @@ class TrainingSessionService:
         video_url = await gcs_service.get_signed_url(object_key, expiration_hours=24)
         if not video_url:
             raise RuntimeError("동영상 URL 생성에 실패했습니다.")
+        if item.word or item.sentence:
+            text_to_process = item.word.word if item.word else item.sentence.sentence
+            output_object_key = f"results/{user.username}/{session_id}/result_item_{item.id}.mp4"
+            user_video_full_path = f"{gcs_service.bucket_name}/{object_key}"
+            output_video_full_path = f"{gcs_service.bucket_name}/{output_object_key}"
+
+            background_tasks.add_task(
+                self.trigger_wav2lip_processing,
+                text=text_to_process,
+                user_video_gs_path=user_video_full_path,
+                output_video_gs_path=output_video_full_path,
+                user_id=user.id,
+                output_object_key=output_object_key
+            )
         
         # 동영상 파일 정보 저장
         media_file = MediaFile(
@@ -344,7 +416,8 @@ class TrainingSessionService:
         file_bytes: bytes,
         filename: str,
         content_type: str,
-        gcs_service: GCSService
+        gcs_service: GCSService,
+        background_tasks: BackgroundTasks
     ) -> Dict[str, Any]:
         """현재 진행 중인 아이템에 동영상 업로드 및 완료 처리"""
         session = await self.get_training_session(session_id, user.id)
@@ -367,7 +440,8 @@ class TrainingSessionService:
             file_bytes=file_bytes,
             filename=filename,
             content_type=content_type,
-            gcs_service=gcs_service
+            gcs_service=gcs_service,
+            background_tasks=background_tasks
         )
     
     async def resubmit_item_video(
@@ -497,6 +571,44 @@ class TrainingSessionService:
             "has_next": False
         }
     
+    async def get_wav2lip_result(
+        self,
+        *,
+        session_id: int,
+        item_id: int,
+        user: User,
+        gcs_service: GCSService
+    ) -> Optional[Dict[str, Any]]:
+        """Wav2Lip 결과 영상의 서명된 URL을 조회합니다."""
+        # 1. 세션 및 아이템 존재 여부와 소유권 확인
+        item = await self.item_repo.get_item(session_id, item_id, include_relations=False)
+        if not item:
+            raise LookupError("훈련 아이템을 찾을 수 없습니다.")
+        session = await self.repo.get_session_by_id(item.training_session_id)
+        if not session or session.user_id != user.id:
+            raise LookupError("훈련 아이템을 찾을 수 없거나 접근 권한이 없습니다.")
+
+        # 2. 예상되는 object_key 생성
+        object_key = f"results/{user.username}/{session_id}/result_item_{item_id}.mp4"
+
+        # 3. DB에서 해당 object_key를 가진 미디어 파일 조회
+        media_service = MediaService(self.db)
+        media_file = await media_service.get_media_file_by_object_key(object_key)
+
+        # 4. 파일이 DB에 없거나, 타입이 TRAIN이 아니면 처리 중으로 간주
+        if not media_file or media_file.media_type != MediaType.TRAIN:
+            return None
+
+        # 5. 서명된 URL 생성 및 반환
+        signed_url = await gcs_service.get_signed_url(media_file.object_key, expiration_hours=1)
+        if not signed_url:
+            raise RuntimeError("결과 영상의 URL 생성에 실패했습니다.")
+        
+        return {
+            "media_file": media_file,
+            "signed_url": signed_url
+        }
+
     async def get_current_item(
         self,
         session_id: int,
