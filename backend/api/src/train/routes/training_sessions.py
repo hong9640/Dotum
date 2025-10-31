@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, BackgroundTasks
+from fastapi import Response ,APIRouter, Depends, HTTPException, status, Query, UploadFile, File, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Dict
 from datetime import date
@@ -458,7 +458,7 @@ async def submit_current_item(
             file_bytes=file_bytes,
             filename=file.filename or "video.mp4",
             content_type=file.content_type or "video/mp4",
-            gcs_service=gcs_service
+            gcs_service=gcs_service,
             background_tasks=background_tasks
         )
     except LookupError as e:
@@ -664,3 +664,43 @@ async def resubmit_item_video(
         video_url=result["video_url"],
         message="동영상이 교체되었습니다."
     )
+
+@router.get(
+    "/{session_id}/items/{item_id}/result",
+    response_model=MediaUploadUrlResponse,
+    summary="Wav2Lip 결과 영상 URL 조회",
+    description="훈련 아이템에 대한 Wav2Lip 처리 결과 영상의 서명된 URL을 조회합니다.",
+    responses={
+        200: {"description": "URL 조회 성공"},
+        202: {"description": "영상 처리 중"},
+        401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"},
+        404: {"model": NotFoundErrorResponse, "description": "세션, 아이템 또는 결과 영상을 찾을 수 없음"}
+    }
+)
+async def get_wav2lip_result_video(
+    session_id: int,
+    item_id: int,
+    current_user: User = Depends(get_current_user),
+    service: TrainingSessionService = Depends(get_training_service),
+    gcs_service: GCSService = Depends(provide_gcs_service)
+):
+    """Wav2Lip 결과 영상 URL 조회"""
+    try:
+        result = await service.get_wav2lip_result(
+            session_id=session_id,
+            item_id=item_id,
+            user=current_user,
+            gcs_service=gcs_service
+        )
+        if result is None:
+            # 결과가 없으면 처리 중으로 간주
+            return Response(status_code=status.HTTP_202_ACCEPTED, content="Video is still processing.")
+        
+        return MediaUploadUrlResponse(
+            upload_url=result["signed_url"],
+            media_file_id=result["media_file"].id,
+            expires_in=3600  # 1시간 (초 단위)
+        )
+
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
