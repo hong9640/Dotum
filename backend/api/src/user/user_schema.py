@@ -1,5 +1,5 @@
-from pydantic import BaseModel, EmailStr
-from typing import Literal
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from typing import Literal, Optional
 from api.src.user.user_enum import UserRoleEnum
 from typing import Optional
 from datetime import datetime
@@ -7,14 +7,14 @@ from datetime import datetime
 # ---check---
 
 class Usercheckinfo(BaseModel):
-    id: int
+    user_id: int = Field(validation_alias='id')
     username: EmailStr
     name: str
     role: UserRoleEnum
     created_at: datetime
     updated_at: datetime
-    class Config:
-        from_attributes = True
+    
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 # ---update profile---
 class UserUpdateRequest(BaseModel):
