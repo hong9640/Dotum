@@ -126,11 +126,6 @@ const PracticePage: React.FC = () => {
     retake,
   } = useMediaRecorder({ onSave: handleSave });
 
-  const handleViewAllResults = () => {
-    // 전체 결과 페이지로 이동
-    navigate('/result-list');
-  };
-
   const handleViewResults = () => {
     // 녹화 완료 후 결과 페이지 표시 (진행률과 단어는 그대로 유지)
     console.log('🎬 녹화 완료 - 결과 페이지 표시:', {
@@ -387,7 +382,6 @@ const PracticePage: React.FC = () => {
     >
       {showResult ? (
         <ResultComponent 
-          onViewAllResults={handleViewAllResults} 
           userVideoUrl={userVideoUrl}
           onNext={handleNextWord}
           hasNext={currentItem?.has_next ?? false}

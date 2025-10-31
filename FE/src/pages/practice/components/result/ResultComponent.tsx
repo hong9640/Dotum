@@ -3,14 +3,12 @@ import ResultVideoDisplay from "./ResultVideoDisplay";
 import FeedbackCard from "./FeedbackCard";
 
 interface ResultComponentProps {
-  onViewAllResults: () => void;
   userVideoUrl?: string;
   onNext?: () => void;
   hasNext?: boolean;
 }
 
 const ResultComponent: React.FC<ResultComponentProps> = ({
-  onViewAllResults,
   userVideoUrl,
   onNext,
   hasNext
@@ -19,7 +17,6 @@ const ResultComponent: React.FC<ResultComponentProps> = ({
     <>
       <ResultVideoDisplay userVideoUrl={userVideoUrl} />
       <FeedbackCard 
-        onViewAllResults={onViewAllResults}
         onNext={onNext}
         hasNext={hasNext}
       />
