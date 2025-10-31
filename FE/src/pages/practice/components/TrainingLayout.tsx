@@ -1,11 +1,11 @@
 import React from "react";
 import ProgressHeader from "@/components/ProgressHeader";
 import WordDisplay from "@/components/WordDisplay";
-import { type CurrentItemResponse } from "@/api/training-session/currentItem";
+import { type SessionItemResponse } from "@/api/training-session/sessionItemSearch";
 import { type CreateTrainingSessionResponse } from "@/api/training-session";
 
 interface TrainingLayoutProps {
-  currentItem: CurrentItemResponse | null;
+  currentItem: SessionItemResponse | null;
   sessionData: CreateTrainingSessionResponse | null;
   onNext: () => void;
   onPrevious: () => void;

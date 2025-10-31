@@ -1,5 +1,5 @@
 import { apiClient } from "../axios";
-import type { CurrentItemResponse } from "../training-session/currentItem";
+import type { SessionItemResponse } from "../training-session/sessionItemSearch";
 import type { CreateTrainingSessionResponse } from "../training-session";
 
 // 제출 실패 응답 타입 (FastAPI 기본 ValidationError 형태 대응)
@@ -32,7 +32,7 @@ export interface MediaResponse {
 // 제출 성공 응답 타입
 export interface SubmitCurrentItemResponse {
   session: CreateTrainingSessionResponse;
-  next_item: CurrentItemResponse | null;
+  next_item: SessionItemResponse | null;
   media: MediaResponse;
   video_url: string | null;
   message: string;
