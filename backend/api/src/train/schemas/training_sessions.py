@@ -78,7 +78,7 @@ class ItemSubmissionResponse(BaseModel):
     session: TrainingSessionResponse
     next_item: Optional[CurrentItemResponse] = None
     media: MediaResponse
-    praat: PraatFeaturesResponse
+    praat: Optional[PraatFeaturesResponse] = None
     video_url: str
     message: str = "훈련 아이템이 완료되었습니다."
 

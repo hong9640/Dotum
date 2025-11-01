@@ -92,10 +92,19 @@ pipeline {
             steps {
                 script {
                     echo '🔨 Backend 빌드 중...'
-                    sh """
-                        cd ${WORKSPACE}
-                        ${DOCKER_COMPOSE} build backend
-                    """
+                    withCredentials([file(credentialsId: 'gcp-service-account-key', variable: 'GOOGLE_CREDENTIALS')]) {
+                        sh """
+                            cd ${WORKSPACE}
+
+                            echo "🔐 GCP 서비스 계정 키 복사"
+                            mkdir -p backend/credentials
+                            cp "$GOOGLE_CREDENTIALS" backend/credentials/key.json
+                            ls -al backend/credentials
+
+                            echo "🧱 Backend Docker 이미지 빌드 시작"
+                            ${DOCKER_COMPOSE} build backend
+                        """
+                    }
                 }
             }
         }

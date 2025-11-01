@@ -6,7 +6,7 @@ import { usePracticeStore } from "@/stores/practiceStore";
 import TrainingLayout from "@/pages/practice/components/TrainingLayout";
 import PracticeComponent from "@/pages/practice/components/practice/PracticeComponent";
 import ResultComponent from "@/pages/practice/components/result/ResultComponent";
-import { getCurrentItem, getCurrentItemErrorMessage, type CurrentItemResponse } from "@/api/training-session/currentItem";
+import { getSessionItemByIndex, getSessionItemErrorMessage, type SessionItemResponse } from "@/api/training-session/sessionItemSearch";
 import { getTrainingSession, type CreateTrainingSessionResponse } from "@/api/training-session";
 import { submitCurrentItem } from "@/api/practice";
 
@@ -15,7 +15,7 @@ const PracticePage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentItem, setCurrentItem] = useState<CurrentItemResponse | null>(null);
+  const [currentItem, setCurrentItem] = useState<SessionItemResponse | null>(null);
   const [sessionData, setSessionDataState] = useState<CreateTrainingSessionResponse | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -32,6 +32,13 @@ const PracticePage: React.FC = () => {
   // URL 파라미터에서 세션 정보 가져오기
   const sessionIdParam = searchParams.get('sessionId');
   const sessionTypeParam = searchParams.get('type') as 'word' | 'sentence' | null;
+  const itemIndexParam = searchParams.get('itemIndex');
+  
+  // URL 업데이트 헬퍼 함수
+  const updateUrl = (itemIndex: number) => {
+    if (!sessionIdParam || !sessionTypeParam) return;
+    navigate(`/practice?sessionId=${sessionIdParam}&type=${sessionTypeParam}&itemIndex=${itemIndex}`, { replace: true });
+  };
 
   // 세션 데이터 로드
   useEffect(() => {
@@ -52,14 +59,27 @@ const PracticePage: React.FC = () => {
           return;
         }
         
+        // URL에서 itemIndex 가져오기 (없으면 기본값 0)
+        const currentItemIndex = itemIndexParam !== null ? parseInt(itemIndexParam, 10) : 0;
+        if (isNaN(currentItemIndex) || currentItemIndex < 0) {
+          setError('유효하지 않은 아이템 인덱스입니다.');
+          setIsLoading(false);
+          return;
+        }
+        
         // 세션 정보와 현재 아이템을 병렬로 조회
         const [sessionData, currentItemData] = await Promise.all([
           getTrainingSession(sessionId),
-          getCurrentItem(sessionId)
+          getSessionItemByIndex(sessionId, currentItemIndex)
         ]);
         
         setSessionDataState(sessionData);
         setCurrentItem(currentItemData);
+        
+        // URL에 itemIndex가 없거나 다른 경우 URL 업데이트
+        if (itemIndexParam === null || parseInt(itemIndexParam, 10) !== currentItemData.item_index) {
+          updateUrl(currentItemData.item_index);
+        }
         
         // 아이템이 완료된 경우 결과 페이지 표시
         if (currentItemData.is_completed) {
@@ -77,14 +97,14 @@ const PracticePage: React.FC = () => {
         setIsLoading(false);
       } catch (err) {
         console.error('세션 데이터 로드 실패:', err);
-        const errorMessage = getCurrentItemErrorMessage(err);
+        const errorMessage = getSessionItemErrorMessage(err);
         setError(errorMessage);
         setIsLoading(false);
       }
     };
 
     loadSessionData();
-  }, [sessionIdParam, sessionTypeParam, setSessionData, navigate]);
+  }, [sessionIdParam, sessionTypeParam, itemIndexParam, setSessionData, navigate]);
 
   const handleSave = (file: File, blobUrl: string) => {
     console.log("Saved:", file);
@@ -105,11 +125,6 @@ const PracticePage: React.FC = () => {
     stopRecording,
     retake,
   } = useMediaRecorder({ onSave: handleSave });
-
-  const handleViewAllResults = () => {
-    // 전체 결과 페이지로 이동
-    navigate('/result-list');
-  };
 
   const handleViewResults = () => {
     // 녹화 완료 후 결과 페이지 표시 (진행률과 단어는 그대로 유지)
@@ -147,8 +162,36 @@ const PracticePage: React.FC = () => {
       // 업로드된 사용자 비디오 URL 저장 (있을 경우)
       setUserVideoUrl(response.video_url || undefined);
       
-      // 업로드 성공 시 결과 컴포넌트로 전환
+      // 응답에서 업데이트된 세션 데이터 반영
+      if (response.session) {
+        setSessionDataState(response.session);
+      }
+      
+      // 업로드 성공 시 결과 페이지 표시
       setShowResult(true);
+      
+      // TODO: 백엔드에서 자동 다음 아이템 이동 기능이 결정되면 아래 로직 활성화
+      // // 응답에서 다음 아이템이 있으면 현재 아이템 업데이트
+      // if (response.next_item) {
+      //   setCurrentItem(response.next_item);
+      //   
+      //   // URL 업데이트
+      //   updateUrl(response.next_item.item_index);
+      //   
+      //   // 다음 아이템의 단어/문장으로 업데이트
+      //   const targetText = response.next_item.word || response.next_item.sentence || '';
+      //   setSessionData(sessionIdParam, sessionTypeParam!, [targetText], response.session?.total_items || sessionData?.total_items || 10, response.next_item.item_index);
+      //   
+      //   // 다음 아이템이 완료된 경우 결과 페이지 표시
+      //   if (response.next_item.is_completed) {
+      //     setShowResult(true);
+      //   } else {
+      //     setShowResult(false);
+      //   }
+      // } else {
+      //   // 다음 아이템이 없으면 결과 페이지 표시
+      //   setShowResult(true);
+      // }
       
       // 업로드 완료 후 파일 상태 초기화
       setRecordedFile(null);
@@ -181,12 +224,24 @@ const PracticePage: React.FC = () => {
     if (isNaN(sessionId)) return;
     
     try {
+      // 다음 아이템 인덱스 계산
+      const nextItemIndex = (currentItem.item_index || 0) + 1;
+      
       // 다음 아이템 조회
-      const nextItemData = await getCurrentItem(sessionId);
+      const nextItemData = await getSessionItemByIndex(sessionId, nextItemIndex);
       
       console.log('다음 아이템 조회 결과:', nextItemData);
       
       setCurrentItem(nextItemData);
+      
+      // URL 업데이트
+      updateUrl(nextItemData.item_index);
+      
+      // 이전 아이템의 녹화 영상 상태 초기화
+      retake(); // useMediaRecorder 상태 초기화 (blobUrl 제거)
+      setRecordedFile(null); // 업로드용 파일 초기화
+      setUserVideoUrl(undefined); // 사용자 비디오 URL 초기화
+      // setShowResult(false); // 결과 페이지 숨기기
       
       // 다음 아이템이 완료된 경우 결과 페이지 표시
       if (nextItemData.is_completed) {
@@ -207,24 +262,36 @@ const PracticePage: React.FC = () => {
       });
     } catch (err) {
       console.error('다음 아이템 로드 실패:', err);
-      const errorMessage = getCurrentItemErrorMessage(err);
+      const errorMessage = getSessionItemErrorMessage(err);
       setError(errorMessage);
     }
   };
 
   const handlePreviousWord = async () => {
-    if (!sessionIdParam || currentItem?.item_index === 0) return;
+    if (!sessionIdParam || !currentItem || currentItem.item_index === 0) return;
     
     const sessionId = Number(sessionIdParam);
     if (isNaN(sessionId)) return;
     
     try {
+      // 이전 아이템 인덱스 계산
+      const prevItemIndex = (currentItem.item_index || 0) - 1;
+      
       // 이전 아이템 조회
-      const prevItemData = await getCurrentItem(sessionId);
+      const prevItemData = await getSessionItemByIndex(sessionId, prevItemIndex);
       
       console.log('이전 아이템 조회 결과:', prevItemData);
       
       setCurrentItem(prevItemData);
+      
+      // URL 업데이트
+      updateUrl(prevItemData.item_index);
+      
+      // 이전 아이템의 녹화 영상 상태 초기화
+      retake(); // useMediaRecorder 상태 초기화 (blobUrl 제거)
+      setRecordedFile(null); // 업로드용 파일 초기화
+      setUserVideoUrl(undefined); // 사용자 비디오 URL 초기화
+      // setShowResult(false); // 결과 페이지 숨기기
       
       // 이전 아이템이 완료된 경우 결과 페이지 표시
       if (prevItemData.is_completed) {
@@ -245,7 +312,7 @@ const PracticePage: React.FC = () => {
       });
     } catch (err) {
       console.error('이전 아이템 로드 실패:', err);
-      const errorMessage = getCurrentItemErrorMessage(err);
+      const errorMessage = getSessionItemErrorMessage(err);
       setError(errorMessage);
     }
   };
@@ -314,7 +381,11 @@ const PracticePage: React.FC = () => {
       onPrevious={handlePreviousWord}
     >
       {showResult ? (
-        <ResultComponent onViewAllResults={handleViewAllResults} userVideoUrl={userVideoUrl} />
+        <ResultComponent 
+          userVideoUrl={userVideoUrl}
+          onNext={handleNextWord}
+          hasNext={currentItem?.has_next ?? false}
+        />
       ) : (
         <PracticeComponent
           recordingState={recordingState}

@@ -14,7 +14,7 @@ export interface CreateTrainingSessionRequest {
 
 // 훈련 아이템 타입
 export interface TrainingItem {
-  id: number;
+  item_id: number;
   training_session_id: number;
   item_index: number;
   word_id?: number | null;
@@ -29,7 +29,7 @@ export interface TrainingItem {
 
 // 훈련 세션 생성 응답 타입
 export interface CreateTrainingSessionResponse {
-  id: number;
+  session_id: number;
   user_id: number;
   session_name: string;
   type: TrainingType;
@@ -54,6 +54,20 @@ export interface TrainingSessionErrorResponse {
     code: string;
     message: string;
   };
+}
+
+// 훈련 세션 완료 에러 응답 타입 (스웨거 스펙 기반)
+export interface CompleteSessionErrorResponse {
+  detail: string;
+}
+
+// Validation Error 응답 타입
+export interface ValidationErrorResponse {
+  detail: Array<{
+    loc: string[];
+    msg: string;
+    type: string;
+  }>;
 }
 
 // 성공 응답 타입
@@ -106,7 +120,7 @@ export const createTrainingSession = async (
  * @returns 훈련 세션 생성 결과
  */
 export const createWordTrainingSession = async (
-  itemCount: number = 10,
+  itemCount: number = 2,
   sessionName?: string
 ): Promise<CreateTrainingSessionResponse> => {
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
@@ -130,7 +144,7 @@ export const createWordTrainingSession = async (
  * @returns 훈련 세션 생성 결과
  */
 export const createSentenceTrainingSession = async (
-  itemCount: number = 5,
+  itemCount: number = 10,
   sessionName?: string
 ): Promise<CreateTrainingSessionResponse> => {
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
@@ -168,6 +182,62 @@ export const getTrainingSession = async (
 
   console.log('📥 훈련 세션 조회 응답:', response.data);
   return response.data;
+};
+
+/**
+ * 훈련 세션 완료 API 호출
+ * @param sessionId 세션 ID
+ * @returns 완료된 훈련 세션 정보
+ * @throws {Error} API 호출 실패 시 에러 발생
+ */
+export const completeTrainingSession = async (
+  sessionId: number
+): Promise<CreateTrainingSessionResponse> => {
+  console.log('📤 훈련 세션 완료 요청:', { sessionId });
+  
+  try {
+    const response = await apiClient.post<CreateTrainingSessionResponse>(
+      `/train/training-sessions/${sessionId}/complete`,
+      {}, // Body 없음
+      {
+        headers: {
+          "Accept": "application/json",
+        },
+      }
+    );
+
+    console.log('📥 훈련 세션 완료 응답:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ 훈련 세션 완료 API 에러:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      sessionId
+    });
+
+    // 에러 메시지 추출
+    let errorMessage = '훈련 세션 완료에 실패했습니다.';
+    
+    if (error.response?.data?.detail) {
+      errorMessage = error.response.data.detail;
+    } else if (error.response?.status === 400) {
+      errorMessage = '아직 모든 아이템이 완료되지 않았습니다.';
+    } else if (error.response?.status === 401) {
+      errorMessage = '인증이 필요합니다. 다시 로그인해주세요.';
+    } else if (error.response?.status === 404) {
+      errorMessage = '세션을 찾을 수 없습니다.';
+    } else if (error.response?.status === 422) {
+      errorMessage = '요청 데이터가 올바르지 않습니다.';
+    }
+
+    // 에러 객체에 사용자 친화적인 메시지 추가
+    const enhancedError = new Error(errorMessage);
+    (enhancedError as any).status = error.response?.status;
+    (enhancedError as any).originalError = error;
+    
+    throw enhancedError;
+  }
 };
 
 /**
