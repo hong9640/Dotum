@@ -342,6 +342,7 @@ class TrainingSessionService:
         
         # 음성 추출 및 저장
         audio_media_file = None
+        new_praat_record = None
         try:
             # VideoProcessor를 사용하여 음성 추출
             video_processor = VideoProcessor()

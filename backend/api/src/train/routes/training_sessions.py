@@ -30,8 +30,10 @@ router = APIRouter(
 )
 
 
-def convert_training_item_to_response(item) -> TrainingItemResponse:
+def convert_training_item_to_response(item) -> Optional[TrainingItemResponse]:
     """TrainingItem 모델을 TrainingItemResponse로 변환"""
+    if praat is None:
+        return None
     return TrainingItemResponse(
         item_id=item.id,
         training_session_id=item.training_session_id,
