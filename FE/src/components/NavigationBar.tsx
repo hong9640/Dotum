@@ -16,7 +16,7 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ isLoggedIn, onLogout }) =
           {/* 로고 섹션 */}
           <div className="flex-shrink-0">
             <a href="/" className="flex items-center">
-              <span className="text-4xl font-normal text-green-700 font-['ADLaM_Display'] leading-10">
+              <span className="text-4xl font-normal text-green-700 font-adlam leading-10">
                 Dodeum
               </span>
             </a>
