@@ -8,7 +8,11 @@ export default {
   			sans: [
   				'Pretendard',
   				'sans-serif'
-  			]
+  			],
+			adlam: [
+				'ADLaM Display',
+				'sans-serif'
+			]
   		},
   		borderRadius: {
   			lg: 'var(--radius)',

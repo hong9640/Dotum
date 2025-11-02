@@ -19,32 +19,32 @@ export interface TrainingItem {
   item_index: number;
   word_id?: number | null;
   sentence_id?: number | null;
-  is_completed: boolean;
+  is_completed?: boolean;
   video_url?: string | null;
   media_file_id?: number | null;
   completed_at?: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 // 훈련 세션 생성 응답 타입
 export interface CreateTrainingSessionResponse {
   session_id: number;
   user_id: number;
-  session_name: string;
+  session_name?: string;
   type: TrainingType;
   status: 'in_progress' | 'completed' | 'paused';
   training_date: string; // ISO8601 형식
-  total_items: number;
-  completed_items: number;
-  current_item_index: number;
-  progress_percentage: number;
+  total_items?: number;
+  completed_items?: number;
+  current_item_index?: number;
+  progress_percentage?: number;
   session_metadata?: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
   started_at?: string | null;
   completed_at?: string | null;
-  training_items: TrainingItem[];
+  training_items?: TrainingItem[];
 }
 
 // 에러 응답 타입

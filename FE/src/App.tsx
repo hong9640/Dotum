@@ -6,6 +6,7 @@ import PracticePage from '@/pages/practice';
 import LoginPage from '@/pages/login';
 import SignupPage from '@/pages/signup';
 import WordSetResults from '@/pages/result-list';
+import ResultDetailPage from '@/pages/result-detail';
 import TrainingHistoryPage from '@/pages/training-history';
 import { clearAuthCookies } from '@/lib/cookies';
 
@@ -54,6 +55,7 @@ const App: React.FC = () => {
             <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
             <Route path="/signup" element={<SignupPage onSignup={handleSignup} />} />
             <Route path="/result-list" element={<WordSetResults />} />
+            <Route path="/result-detail" element={<ResultDetailPage />} />
             <Route path="/training-history" element={<TrainingHistoryPage />} />
           </Routes>
         </main>

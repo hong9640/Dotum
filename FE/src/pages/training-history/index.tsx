@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from "react";
+import React, { useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Calendar } from "./components/Calendar";
 import TrainingDayDetail from "../training-history-detail";
 import { getTrainingCalendar } from "@/api/training-history";
@@ -10,15 +11,38 @@ interface TrainingCountMap {
 
 
 export default function TrainingHistoryPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [counts, setCounts] = React.useState<TrainingCountMap>({});
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  
+  // URL에서 date 파라미터 읽기
+  const dateParam = searchParams.get('date');
+  
+  // 날짜 형식 변환: YYYY-MM-DD -> YYYYMMDD 또는 그 반대
+  const formatDateForUrl = (date: string): string => {
+    // YYYY-MM-DD 형식이면 YYYYMMDD로 변환
+    if (date.includes('-')) {
+      return date.replace(/-/g, '');
+    }
+    return date;
+  };
+  
+  const formatDateFromUrl = (dateStr: string): string => {
+    // YYYYMMDD 형식이면 YYYY-MM-DD로 변환
+    if (dateStr.length === 8 && !dateStr.includes('-')) {
+      return `${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`;
+    }
+    return dateStr;
+  };
 
   const handleDateClick = (date: string) => {
-    setSelectedDate(date);
+    // 날짜를 YYYYMMDD 형식으로 변환하여 URL에 추가
+    const urlDate = formatDateForUrl(date);
+    setSearchParams({ date: urlDate });
   };
 
   const handleBack = () => {
-    setSelectedDate(null);
+    // URL에서 date 파라미터 제거
+    setSearchParams({});
   };
 
   const handleMonthChange = useCallback(async (year: number, month1Based: number) => {
@@ -31,11 +55,12 @@ export default function TrainingHistoryPage() {
     }
   }, []);
 
-  // 날짜 상세 페이지가 선택된 경우
-  if (selectedDate) {
+  // 날짜 상세 페이지가 선택된 경우 (URL에 date 파라미터가 있는 경우)
+  if (dateParam) {
+    const formattedDate = formatDateFromUrl(dateParam);
     return (
       <TrainingDayDetail 
-        date={selectedDate} 
+        date={formattedDate} 
         trainingSets={undefined} // API에서 받아올 데이터
         onBack={handleBack}
         onTrainingSetClick={(trainingSet: any) => {
