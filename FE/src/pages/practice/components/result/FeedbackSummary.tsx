@@ -26,7 +26,7 @@ const FeedbackSummary: React.FC<FeedbackSummaryProps> = ({
           </span>
         </div>
         <div className="self-stretch p-4 bg-slate-50 rounded-2xl inline-flex justify-start items-center">
-          <div className="flex-1 justify-center text-slate-700 text-2xl font-semibold leading-10">{feedback}</div>
+          <div className="flex-1 justify-center text-slate-700 text-xl md:text-2xl font-semibold leading-10">{feedback}</div>
         </div>
         {/* <div className="px-6 bg-slate-50 rounded-2xl">
       <div>

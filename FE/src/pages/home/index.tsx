@@ -1,12 +1,13 @@
 import React from 'react';
 import { BookOpen, ClipboardList, Languages } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import 도드미안경 from '@/assets/도드미_안경.png';
 import { useTrainingSession } from '@/hooks/training-session';
 
 const HomePage: React.FC = () => {
+  const navigate = useNavigate();
   const { createWordSession, createSentenceSession, isLoading, apiError } = useTrainingSession();
 
   // 인증 상태 확인 (localStorage auth 플래그 기준)
@@ -20,7 +21,7 @@ const HomePage: React.FC = () => {
   const handleAuthRequired = () => {
     toast.error("로그인이 필요합니다. 먼저 로그인해주세요.");
     // 로그인 페이지로 이동
-    window.location.href = '/login';
+    navigate('/login');
   };
 
   const handleWordTraining = async () => {
@@ -59,6 +60,20 @@ const HomePage: React.FC = () => {
     }
   };
 
+  const handleTrainingHistory = () => {
+    console.log('🚀 훈련 기록 버튼 클릭');
+    
+    // 인증 상태 확인
+    if (!checkAuthStatus()) {
+      console.error('❌ 토큰이 없습니다. 로그인이 필요합니다.');
+      handleAuthRequired();
+      return;
+    }
+    
+    // 로그인된 경우에만 훈련 기록 페이지로 이동
+    navigate('/training-history');
+  };
+
   return (
     <div className="w-full min-h-screen p-[49px] flex justify-center items-center">
       <div className="w-full max-w-7xl p-12 rounded-2xl flex flex-col lg:flex-row justify-center items-center gap-8 mx-1.5">
@@ -69,7 +84,7 @@ const HomePage: React.FC = () => {
           </div>
         )}
         {/* 왼쪽 섹션 - 캐릭터 및 텍스트 */}
-        <div className="w-full lg:w-auto pb-8 flex justify-center items-start">
+        <div className="w-full lg:w-auto pb-3 lg:pb-8 flex justify-center items-start">
           <div className="flex flex-col justify-start items-center gap-2.5">
             {/* 이미지 영역 */}
             <div className="pb-6 flex justify-center items-start">
@@ -80,7 +95,7 @@ const HomePage: React.FC = () => {
               />
             </div>
             {/* 메인 헤딩 */}
-            <div className="pb-4 flex justify-center items-start">
+            <div className="pb-2 flex justify-center items-start">
               <h1 className="text-center text-slate-800 text-4xl lg:text-5xl font-extrabold font-['Pretendard'] leading-tight">
                 발음 교정 서비스
               </h1>
@@ -123,18 +138,17 @@ const HomePage: React.FC = () => {
           </Button>
 
           {/* 훈련 기록 버튼 */}
-          <Link to="/training-history" className="w-[400px]">
-            <Button
-              variant="outline"
-              size="lg"
-              className="w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-white rounded-xl outline outline-2 outline-slate-200 flex justify-center items-center gap-3 hover:bg-gray-100"
-            >
-              <ClipboardList size={32} className="text-slate-800" strokeWidth={2.5} />
-              <span className="text-center text-slate-800 text-2xl lg:text-3xl font-semibold font-['Pretendard'] leading-9">
-                훈련 기록
-              </span>
-            </Button>
-          </Link>
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={handleTrainingHistory}
+            className="w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-white rounded-xl outline outline-2 outline-slate-200 flex justify-center items-center gap-3 hover:bg-gray-100"
+          >
+            <ClipboardList size={32} className="text-slate-800" strokeWidth={2.5} />
+            <span className="text-center text-slate-800 text-2xl lg:text-3xl font-semibold font-['Pretendard'] leading-9">
+              훈련 기록
+            </span>
+          </Button>
         </div>
       </div>
     </div>
