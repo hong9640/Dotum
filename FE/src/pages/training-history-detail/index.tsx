@@ -65,6 +65,15 @@ export default function TrainingDayDetail({
     fetchDailyRecords();
   }, [date, trainingSets]);
 
+  // 날짜를 YYYYMMDD 형식으로 변환하는 함수
+  const formatDateForUrl = (dateString: string): string => {
+    // YYYY-MM-DD 형식이면 YYYYMMDD로 변환
+    if (dateString.includes('-')) {
+      return dateString.replace(/-/g, '');
+    }
+    return dateString;
+  };
+
   const handleTrainingSetClick = (trainingSet: TrainingSet) => {
     // 세션이 완료되지 않은 경우
     if (trainingSet.status !== 'completed') {
@@ -78,8 +87,9 @@ export default function TrainingDayDetail({
       return;
     }
     
-    // 완료된 세션은 result-list 페이지로 이동
-    navigate(`/result-list?sessionId=${trainingSet.sessionId}&type=${trainingSet.type}`);
+    // 완료된 세션은 result-list 페이지로 이동 (date 파라미터도 함께 전달)
+    const dateParam = formatDateForUrl(date);
+    navigate(`/result-list?sessionId=${trainingSet.sessionId}&type=${trainingSet.type}&date=${dateParam}`);
     
     // 부모 컴포넌트에서 전달받은 onClick 핸들러가 있으면 호출
     if (onTrainingSetClick) {

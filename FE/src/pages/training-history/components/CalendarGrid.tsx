@@ -62,7 +62,7 @@ function CalendarGrid({ matrix, counts, onDateClick }: CalendarGridProps) {
           return (
             <div
               key={iso + idx}
-              className={`w-[124px] h-[94px] rounded-xl border border-gray-200 px-[1px] py-[8.5px] flex flex-col items-center gap-[6px] flex-shrink-0 ${
+              className={`w-[124px] h-[94px] rounded-xl border border-gray-200 px-[8.5px] py-[8.5px] flex flex-col items-center gap-[6px] flex-shrink-0 ${
                 inMonth ? "bg-white cursor-pointer hover:bg-gray-50 hover:shadow-sm transition-all duration-200" : "bg-gray-50"
               }`}
               onClick={handleDateClick}

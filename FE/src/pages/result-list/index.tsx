@@ -41,9 +41,10 @@ const WordSetResults: React.FC = () => {
   // 훈련 세션 훅 사용 (새로운 훈련 시작 시 사용)
   const { createWordSession, createSentenceSession } = useTrainingSession();
   
-  // URL 파라미터에서 sessionId와 type 가져오기
+  // URL 파라미터에서 sessionId, type, date 가져오기
   const sessionIdParam = searchParams.get('sessionId');
   const typeParam = searchParams.get('type') as 'word' | 'sentence' | null;
+  const dateParam = searchParams.get('date'); // training-history에서 온 경우 날짜 파라미터
 
   // 세션 상세 조회 API 호출
   useEffect(() => {
@@ -168,13 +169,28 @@ const WordSetResults: React.FC = () => {
   }
 
   const handleBack = () => {
-    navigate('/'); // 홈으로 이동
+    // date 파라미터가 있으면 training-history 페이지로 이동, 없으면 홈으로 이동
+    if (dateParam) {
+      navigate(`/training-history?date=${dateParam}`);
+    } else {
+      navigate('/'); // 홈으로 이동
+    }
   };
 
   const handleDetailClick = (result: WordResult) => {
-    // TODO: 상세 결과 페이지로 이동
-    console.log("상세 결과 보기:", result);
-    navigate(`/result-detail/${result.id}`);
+    // result-detail 페이지로 이동 (URL 파라미터로 sessionId, type, itemIndex 전달)
+    if (sessionIdParam && typeParam) {
+      // result.id는 itemIndex와 일치한다고 가정 (1부터 시작)
+      let detailUrl = `/result-detail?sessionId=${sessionIdParam}&type=${typeParam}&itemIndex=${result.id}`;
+      // date 파라미터가 있으면 함께 전달
+      if (dateParam) {
+        detailUrl += `&date=${dateParam}`;
+      }
+      navigate(detailUrl);
+    } else {
+      console.error('세션 정보가 없습니다.');
+      alert('세션 정보를 찾을 수 없습니다.');
+    }
   };
 
   const handleRetry = () => {
