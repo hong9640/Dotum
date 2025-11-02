@@ -19,11 +19,6 @@ class Settings(BaseSettings):
     PREFIX_FREEVC: str = "freevc"
     PREFIX_W2L: str = "wav2lip"
 
-    # ---------- AI 모델 경로 ----------
-    MODEL_BASE_PATH: str = "ai"
-    FREEVC_MODEL_PATH: str = "ai/FreeVC"
-    WAV2LIP_MODEL_PATH: str = "ai/Wav2Lip"
-    
     # ---------- 로컬 모델 경로 ----------
     LOCAL_MODEL_BASE_PATH: str = "/app/models"
     LOCAL_FREEVC_PATH: str = "/app/models/FreeVC"

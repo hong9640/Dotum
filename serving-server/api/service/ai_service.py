@@ -23,47 +23,32 @@ class AIService:
             lang: 언어 코드
             
         Returns:
-            Optional[str]: 생성된 TTS 오디오의 GCS 경로
+            Optional[str]: 생성된 TTS 오디오의 로컬 경로
         """
         try:
             # TTS 파일명 생성 (텍스트 해시 기반)
             import hashlib
             text_hash = hashlib.md5(text.encode()).hexdigest()
             tts_filename = f"{text_hash}_{lang}.wav"
-            tts_gs_path = f"gs://{settings.GCS_BUCKET}/{settings.PREFIX_TTS}/{tts_filename}"
+            tts_local_path = f"/tmp/{tts_filename}"
             
-            # 이미 TTS 파일이 존재하는지 확인
-            if self.gcs_client.file_exists(tts_gs_path):
-                logger.info(f"TTS file already exists: {tts_gs_path}")
-                return tts_gs_path
+            # 이미 로컬에 TTS 파일이 존재하는지 확인
+            if os.path.exists(tts_local_path):
+                logger.info(f"TTS file already exists locally: {tts_local_path}")
+                return tts_local_path
             
-            # 임시 파일 경로 생성
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
-                tmp_path = tmp_file.name
+            # gTTS 사용
+            from gtts import gTTS
             
-            try:
-                # gTTS 사용
-                from gtts import gTTS
+            # gTTS 객체 생성
+            tts = gTTS(text=text, lang=lang, slow=False)
+            
+            # 로컬 tmp 파일에 저장
+            tts.save(tts_local_path)
+            
+            logger.info(f"TTS generated successfully: {tts_local_path}")
+            return tts_local_path
                 
-                # gTTS 객체 생성
-                tts = gTTS(text=text, lang=lang, slow=False)
-                
-                # 임시 파일에 저장
-                tts.save(tmp_path)
-                
-                # GCS에 업로드
-                if self.gcs_client.upload_file(tmp_path, tts_gs_path):
-                    logger.info(f"TTS generated successfully: {tts_gs_path}")
-                    return tts_gs_path
-                else:
-                    logger.error("Failed to upload TTS file to GCS")
-                    return None
-                    
-            finally:
-                # 임시 파일 정리
-                if os.path.exists(tmp_path):
-                    os.unlink(tmp_path)
-                    
         except Exception as e:
             logger.error(f"Failed to generate TTS: {e}")
             return None
@@ -125,12 +110,12 @@ class AIService:
         FreeVC 모델로 음성 변환 실행
         
         Args:
-            src_audio_path: 원본 오디오 파일 경로 (GCS)
-            ref_audio_path: 참조 오디오 파일 경로 (GCS)
+            src_audio_path: 원본 오디오 파일 경로 (로컬 또는 GCS)
+            ref_audio_path: 참조 오디오 파일 경로 (로컬 또는 GCS)
             output_prefix: 출력 파일명 접두사
             
         Returns:
-            Optional[str]: 생성된 오디오의 GCS 경로
+            Optional[str]: 생성된 오디오의 로컬 경로
         """
         try:
             with tempfile.TemporaryDirectory() as tmp_dir:
@@ -149,10 +134,16 @@ class AIService:
                     shutil.copy2(src_audio_path, src_local)
                     logger.info(f"Using local audio file: {src_audio_path}")
                 
-                # ref_audio_path는 항상 GCS 경로
-                if not self.gcs_client.download_file(ref_audio_path, ref_local):
-                    logger.error(f"Failed to download ref audio: {ref_audio_path}")
-                    return None
+                # ref_audio_path가 로컬 경로인지 확인
+                if ref_audio_path.startswith("gs://"):
+                    if not self.gcs_client.download_file(ref_audio_path, ref_local):
+                        logger.error(f"Failed to download ref audio: {ref_audio_path}")
+                        return None
+                else:
+                    # 로컬 경로인 경우 복사
+                    import shutil
+                    shutil.copy2(ref_audio_path, ref_local)
+                    logger.info(f"Using local ref audio file: {ref_audio_path}")
                 
                 # 로컬 모델 파일 경로 설정
                 model_local = os.path.join(settings.LOCAL_FREEVC_PATH, "checkpoints", "freevc-s.pth")
@@ -229,15 +220,13 @@ class AIService:
                     logger.error(f"FreeVC inference failed: {result.stderr}")
                     return None
                 
-                # 결과 파일을 GCS에 업로드
-                output_gs_path = f"gs://{settings.GCS_BUCKET}/{settings.PREFIX_FREEVC}/{output_prefix}_freevc_out.wav"
+                # 결과 파일을 로컬 tmp에 저장
+                output_tmp_path = f"/tmp/{output_prefix}_freevc_out.wav"
+                import shutil
+                shutil.copy2(output_local, output_tmp_path)
                 
-                if self.gcs_client.upload_file(output_local, output_gs_path):
-                    logger.info(f"FreeVC inference completed: {output_gs_path}")
-                    return output_gs_path
-                else:
-                    logger.error("Failed to upload FreeVC output to GCS")
-                    return None
+                logger.info(f"FreeVC inference completed: {output_tmp_path}")
+                return output_tmp_path
                     
         except Exception as e:
             logger.error(f"Failed to run FreeVC inference: {e}")
@@ -299,7 +288,7 @@ class AIService:
         
         Args:
             face_video_path: 얼굴 영상 파일 경로 (GCS) - 이미지 또는 비디오
-            audio_path: 오디오 파일 경로 (GCS)
+            audio_path: 오디오 파일 경로 (로컬 또는 GCS)
             output_prefix: 출력 파일명 접두사
             
         Returns:
@@ -307,11 +296,17 @@ class AIService:
         """
         try:
             with tempfile.TemporaryDirectory() as tmp_dir:
-                # GCS에서 오디오 파일 먼저 다운로드
+                # 오디오 파일 처리 (로컬 또는 GCS)
                 audio_local = os.path.join(tmp_dir, "audio.wav")
-                if not self.gcs_client.download_file(audio_path, audio_local):
-                    logger.error(f"Failed to download audio: {audio_path}")
-                    return None
+                if audio_path.startswith("gs://"):
+                    if not self.gcs_client.download_file(audio_path, audio_local):
+                        logger.error(f"Failed to download audio: {audio_path}")
+                        return None
+                else:
+                    # 로컬 경로인 경우 복사
+                    import shutil
+                    shutil.copy2(audio_path, audio_local)
+                    logger.info(f"Using local audio file: {audio_path}")
                 
                 # GCS에서 얼굴 입력 파일 다운로드
                 face_local = os.path.join(tmp_dir, "face_input.mp4")
@@ -415,6 +410,21 @@ class AIService:
                 logger.info(f"Uploading Wav2Lip output to GCS: {output_local} -> {output_gs_path}")
                 if self.gcs_client.upload_file(output_local, output_gs_path):
                     logger.info(f"Wav2Lip inference completed: {output_gs_path}")
+                    
+                    # 캐시 파일들 정리
+                    cache_files_to_clean = [
+                        audio_path if not audio_path.startswith("gs://") else None,
+                        f"/tmp/{output_prefix}_freevc_out.wav" if output_prefix else None
+                    ]
+                    
+                    for cache_file in cache_files_to_clean:
+                        if cache_file and os.path.exists(cache_file):
+                            try:
+                                os.unlink(cache_file)
+                                logger.info(f"Cleaned up cache file: {cache_file}")
+                            except Exception as e:
+                                logger.warning(f"Failed to clean up cache file {cache_file}: {e}")
+                    
                     return output_gs_path
                 else:
                     logger.error("Failed to upload Wav2Lip output to GCS")

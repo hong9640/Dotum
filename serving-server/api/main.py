@@ -85,10 +85,6 @@ async def generate_lip_video(req: LipVideoGenerationRequest):
             raise HTTPException(status_code=500, detail="Failed to run FreeVC inference")
         log_success("FreeVC inference completed", path=freevc_output_path)
         
-        # 임시 파일 정리
-        if os.path.exists(extracted_audio_path):
-            os.unlink(extracted_audio_path)
-        
         # 4. Wav2Lip 립싱크
         log_step("Running Wav2Lip inference")
         wav2lip_output_path = await ai_service.run_wav2lip_inference(
@@ -100,8 +96,10 @@ async def generate_lip_video(req: LipVideoGenerationRequest):
             raise HTTPException(status_code=500, detail="Failed to run Wav2Lip inference")
         log_success("Wav2Lip inference completed", path=wav2lip_output_path)
         
-        # 5. 결과 파일을 지정된 경로로 복사
+        # 5. 결과 파일을 지정된 경로로 복사 (GCS 내에서 복사)
         log_step("Copying result to specified path", details=req.output_video_gs)
+        
+        # Wav2Lip 결과를 지정된 경로로 복사
         if not gcs_client.download_file(wav2lip_output_path, "/tmp/result_temp.mp4"):
             raise HTTPException(status_code=500, detail="Failed to download result file")
         
