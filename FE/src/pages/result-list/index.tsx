@@ -81,11 +81,11 @@ const WordSetResults: React.FC = () => {
         setFormattedDate(formatted);
         
         // 더미데이터 생성 (completed_items와 total_items 중 큰 값 사용, 최소 10개)
-        const dataCount = Math.max(sessionDetailData.completed_items, 10);
-        const dummyResults = generateDummyWordResults(dataCount);
+        const completedItems = sessionDetailData.completed_items ?? 0;
+        const dummyResults = generateDummyWordResults(completedItems);
         
         // completed_items만큼 slice
-        const slicedResults = dummyResults.slice(0, sessionDetailData.completed_items);
+        const slicedResults = dummyResults.slice(0, completedItems);
         setResultsData(slicedResults);
         
         // 전체 평균 점수 계산

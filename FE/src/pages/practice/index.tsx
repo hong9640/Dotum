@@ -8,7 +8,8 @@ import PracticeComponent from "@/pages/practice/components/practice/PracticeComp
 import ResultComponent from "@/pages/practice/components/result/ResultComponent";
 import { getSessionItemByIndex, getSessionItemErrorMessage, type SessionItemResponse } from "@/api/training-session/sessionItemSearch";
 import { getTrainingSession, type CreateTrainingSessionResponse } from "@/api/training-session";
-import { submitCurrentItem } from "@/api/practice";
+import { submitCurrentItem, type SubmitCurrentItemResponse } from "@/api/practice";
+import { reuploadVideo, type VideoReuploadResponse } from "@/api/practice/videoReupload";
 
 const PracticePage: React.FC = () => {
   const navigate = useNavigate();
@@ -137,8 +138,22 @@ const PracticePage: React.FC = () => {
     setShowResult(true);
   };
 
+  const handleRetake = () => {
+    // 다시 녹화 버튼 클릭 시 녹화 화면으로 돌아가기
+    console.log('🔄 다시 녹화 버튼 클릭');
+    
+    // 결과 페이지 숨기기
+    setShowResult(false);
+    
+    // 녹화 상태 초기화
+    retake(); // useMediaRecorder 상태 초기화 (blobUrl 제거)
+    setRecordedFile(null); // 업로드용 파일 초기화
+    setUserVideoUrl(undefined); // 사용자 비디오 URL 초기화
+    setUploadError(null); // 업로드 에러 초기화
+  };
+
   const handleUpload = async () => {
-    if (!recordedFile || !sessionIdParam) {
+    if (!recordedFile || !sessionIdParam || !currentItem) {
       setUploadError('업로드할 파일이나 세션 정보가 없습니다.');
       return;
     }
@@ -153,11 +168,25 @@ const PracticePage: React.FC = () => {
       setIsUploading(true);
       setUploadError(null);
       
-      console.log('📤 영상 업로드 시작:', { sessionId, fileName: recordedFile.name });
+      console.log('📤 영상 업로드 시작:', { 
+        sessionId, 
+        itemId: currentItem.item_id,
+        isCompleted: currentItem.is_completed,
+        fileName: recordedFile.name 
+      });
       
-      const response = await submitCurrentItem(sessionId, recordedFile);
+      let response: SubmitCurrentItemResponse | VideoReuploadResponse;
       
-      console.log('📥 영상 업로드 성공:', response);
+      // is_completed가 true이면 재업로드 API 호출, 아니면 일반 업로드 API 호출
+      if (currentItem.is_completed) {
+        // 재업로드 API (PUT)
+        response = await reuploadVideo(sessionId, currentItem.item_id, recordedFile);
+        console.log('📥 영상 재업로드 성공:', response);
+      } else {
+        // 일반 업로드 API (POST)
+        response = await submitCurrentItem(sessionId, recordedFile);
+        console.log('📥 영상 업로드 성공:', response);
+      }
       
       // 업로드된 사용자 비디오 URL 저장 (있을 경우)
       setUserVideoUrl(response.video_url || undefined);
@@ -165,6 +194,44 @@ const PracticePage: React.FC = () => {
       // 응답에서 업데이트된 세션 데이터 반영
       if (response.session) {
         setSessionDataState(response.session);
+        
+        // 업로드 성공 후 응답의 training_items에서 현재 아이템 정보를 찾아 업데이트
+        const updatedItem = response.session.training_items?.find(
+          (item) => item.item_id === currentItem.item_id
+        );
+        
+        if (updatedItem) {
+          // 변경되는 필드만 업데이트: is_completed, video_url, media_file_id
+          setCurrentItem({
+            ...currentItem,
+            is_completed: updatedItem.is_completed,
+            video_url: updatedItem.video_url ?? currentItem.video_url,
+            media_file_id: updatedItem.media_file_id ?? currentItem.media_file_id,
+          });
+          console.log('📥 업로드 후 아이템 정보 갱신:', {
+            is_completed: updatedItem.is_completed,
+            video_url: updatedItem.video_url,
+            media_file_id: updatedItem.media_file_id,
+          });
+        } else {
+          // training_items에서 찾지 못한 경우 (없어야 하지만 방어적 코드)
+          console.warn('응답의 training_items에서 현재 아이템을 찾지 못했습니다.');
+          // 최소한 is_completed는 업데이트
+          setCurrentItem({
+            ...currentItem,
+            is_completed: true,
+            video_url: response.video_url || currentItem.video_url,
+          });
+        }
+      } else {
+        // response.session이 없는 경우 (없어야 하지만 방어적 코드)
+        console.warn('응답에 session 정보가 없습니다.');
+        // 최소한 is_completed는 업데이트
+        setCurrentItem({
+          ...currentItem,
+          is_completed: true,
+          video_url: response.video_url || currentItem.video_url,
+        });
       }
       
       // 업로드 성공 시 결과 페이지 표시
@@ -385,6 +452,7 @@ const PracticePage: React.FC = () => {
           userVideoUrl={userVideoUrl}
           onNext={handleNextWord}
           hasNext={currentItem?.has_next ?? false}
+          onRetake={handleRetake}
         />
       ) : (
         <PracticeComponent
