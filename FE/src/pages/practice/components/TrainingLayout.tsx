@@ -26,7 +26,7 @@ const TrainingLayout: React.FC<TrainingLayoutProps> = ({
           {/* 진행률 헤더 */}
           <ProgressHeader 
             step={currentItem ? currentItem.item_index + 1 : 1} 
-            totalSteps={sessionData ? sessionData.total_items : 1} 
+            totalSteps={sessionData?.total_items ?? 1} 
           />
 
           {/* 발음할 단어 표시 */}

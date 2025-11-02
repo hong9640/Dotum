@@ -39,8 +39,8 @@ export function Header({ date, totalSets, onBack }: HeaderProps) {
         className="px-2 md:px-4 py-2 md:py-3.5 left-4 md:left-[32px] top-4 md:top-[30px] absolute rounded-lg flex justify-center items-center gap-2 md:gap-3 group transition-opacity hover:opacity-80"
         onClick={onBack}
       >
-        <ChevronLeft className="w-6 h-6 md:w-8 md:h-8 text-slate-500" strokeWidth={3} />
-        <span className="justify-start text-slate-500 text-xl md:text-3xl font-normal leading-7 md:leading-9">
+        <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 text-slate-500" strokeWidth={2.5} />
+        <span className="justify-start text-slate-500 text-xl md:text-2xl font-normal leading-7 md:leading-9">
           돌아가기
         </span>
       </Button>
