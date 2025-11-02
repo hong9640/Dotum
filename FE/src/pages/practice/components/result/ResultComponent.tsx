@@ -11,20 +11,27 @@ interface ResultComponentProps {
   onNext?: () => void;
   hasNext?: boolean;
   onBack?: () => void; // result-detail 페이지용 돌아가기 핸들러
+  onRetake?: () => void; // 다시 녹화 핸들러
 }
 
 const ResultComponent: React.FC<ResultComponentProps> = ({
   userVideoUrl,
   onNext,
   hasNext,
-  onBack
+  onBack,
+  onRetake,
 }) => {
   const navigate = useNavigate();
   const { sessionId } = usePracticeStore();
   const [isCompletingSession, setIsCompletingSession] = useState(false);
 
   const handleRetake = () => {
-    navigate("/practice");
+    // onRetake prop이 있으면 그것을 사용, 없으면 기본 동작 (navigate)
+    if (onRetake) {
+      onRetake();
+    } else {
+      navigate("/practice");
+    }
   };
 
   const handleViewAllResults = async () => {
