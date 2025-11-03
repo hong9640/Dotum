@@ -25,7 +25,9 @@ export interface TrainingItem {
   score?: number | null; // 점수
   is_completed?: boolean;
   video_url?: string | null;
+  composited_video_url?: string | null;
   media_file_id?: number | null;
+  composited_media_file_id?: number | null;
   completed_at?: string | null;
   created_at?: string;
   updated_at?: string;

@@ -8,6 +8,9 @@ import { getTrainingSession, completeTrainingSession, type CreateTrainingSession
 
 interface ResultComponentProps {
   userVideoUrl?: string;
+  compositedVideoUrl?: string;
+  isLoadingCompositedVideo?: boolean;
+  compositedVideoError?: string | null;
   onNext?: () => void;
   hasNext?: boolean;
   onBack?: () => void; // result-detail 페이지용 돌아가기 핸들러
@@ -16,6 +19,9 @@ interface ResultComponentProps {
 
 const ResultComponent: React.FC<ResultComponentProps> = ({
   userVideoUrl,
+  compositedVideoUrl,
+  isLoadingCompositedVideo = false,
+  compositedVideoError,
   onNext,
   hasNext,
   onBack,
@@ -110,7 +116,12 @@ const ResultComponent: React.FC<ResultComponentProps> = ({
 
   return (
     <>
-      <ResultVideoDisplay userVideoUrl={userVideoUrl} />
+      <ResultVideoDisplay 
+        userVideoUrl={userVideoUrl}
+        compositedVideoUrl={compositedVideoUrl}
+        isLoadingCompositedVideo={isLoadingCompositedVideo}
+        compositedVideoError={compositedVideoError}
+      />
       <FeedbackCard />
       <ActionButtons
         onRetake={onBack ? undefined : handleRetake}
