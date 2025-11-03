@@ -1,10 +1,8 @@
 import os
-import tempfile
-from typing import Optional
 from google.cloud import storage
 from google.cloud.exceptions import NotFound
 from api.core.config import settings
-from api.core.logger import logger, log_success, log_error
+from api.core.logger import logger
 
 
 class GCSClient:
@@ -27,7 +25,7 @@ class GCSClient:
         except Exception as e:
             logger.error(f"Failed to initialize GCS client: {e}")
             raise
-    
+
     def download_file(self, gs_path: str, local_path: str) -> bool:
         """
         GCS에서 파일 다운로드
@@ -81,55 +79,6 @@ class GCSClient:
         except Exception as e:
             logger.error(f"Failed to upload {local_path} to {gs_path}: {e}")
             return False
-    
-    def file_exists(self, gs_path: str) -> bool:
-        """
-        GCS에서 파일 존재 여부 확인
-        
-        Args:
-            gs_path: GCS 경로 (gs://bucket/path/to/file)
-            
-        Returns:
-            bool: 파일 존재 여부
-        """
-        try:
-            blob_name = self._extract_blob_name(gs_path)
-            blob = self.bucket.blob(blob_name)
-            return blob.exists()
-            
-        except Exception as e:
-            logger.error(f"Failed to check file existence {gs_path}: {e}")
-            return False
-    
-    def list_files(self, prefix: str = "") -> list:
-        """
-        GCS 버킷에서 파일 목록 조회
-        
-        Args:
-            prefix: 검색할 경로 접두사
-            
-        Returns:
-            list: 파일 경로 목록
-        """
-        try:
-            blobs = self.bucket.list_blobs(prefix=prefix)
-            return [f"gs://{settings.GCS_BUCKET}/{blob.name}" for blob in blobs]
-            
-        except Exception as e:
-            logger.error(f"Failed to list files with prefix {prefix}: {e}")
-            return []
-    
-    def get_model_path(self, model_name: str) -> str:
-        """
-        모델 파일의 GCS 경로 반환
-        
-        Args:
-            model_name: 모델 파일명
-            
-        Returns:
-            str: 모델의 GCS 경로
-        """
-        return f"gs://{settings.GCS_BUCKET}/models/{model_name}"
     
     def _extract_blob_name(self, gs_path: str) -> str:
         """

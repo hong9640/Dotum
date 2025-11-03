@@ -14,11 +14,6 @@ class Settings(BaseSettings):
     FREEVC_SDK_PATH: str | None = None
     W2L_SDK_PATH: str | None = None
 
-    # ---------- GCS 업로드 Prefix ----------
-    PREFIX_TTS: str = "tts_cache"
-    PREFIX_FREEVC: str = "freevc"
-    PREFIX_W2L: str = "wav2lip"
-
     # ---------- 로컬 모델 경로 ----------
     LOCAL_MODEL_BASE_PATH: str = "/app/models"
     LOCAL_FREEVC_PATH: str = "/app/models/FreeVC"
