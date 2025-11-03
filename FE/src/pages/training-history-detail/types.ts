@@ -9,7 +9,8 @@ export interface TrainingSet {
   type: 'word' | 'sentence';
   status: 'completed' | 'in_progress';
   totalItems: number;
-  currentItemIndex: number; // 현재 진행 중인 아이템 인덱스
+  completedItems?: number; // 완료된 아이템 수
+  currentItemIndex?: number; // 현재 진행 중인 아이템 인덱스
 }
 
 // 점수별 색상 규칙을 위한 타입

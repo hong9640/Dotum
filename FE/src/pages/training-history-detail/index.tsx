@@ -5,6 +5,7 @@ import { Header, TrainingSetGrid } from './components';
 import { convertSessionsToTrainingSets } from './utils';
 import { useTrainingDayDetail } from '@/hooks/useTrainingDayDetail';
 import { getDailyRecordSearch } from '@/api/training-history/dailyRecordSearch';
+import { completeTrainingSession } from '@/api/training-session';
 
 export interface TrainingDayDetailProps {
   date: string; // "YYYY-MM-DD" 형식
@@ -13,18 +14,18 @@ export interface TrainingDayDetailProps {
   onTrainingSetClick?: (trainingSet: TrainingSet) => void;
 }
 
-export default function TrainingDayDetail({ 
-  date, 
-  trainingSets, 
+export default function TrainingDayDetail({
+  date,
+  trainingSets,
   onBack,
-  onTrainingSetClick 
+  onTrainingSetClick
 }: TrainingDayDetailProps) {
   const navigate = useNavigate();
   const [actualTrainingSets, setActualTrainingSets] = useState<TrainingSet[]>(trainingSets || []);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [totalSessions, setTotalSessions] = useState<number>(0);
-  
+
   const { statistics } = useTrainingDayDetail({ trainingSets: actualTrainingSets });
 
   // API 호출
@@ -43,10 +44,10 @@ export default function TrainingDayDetail({
     const fetchDailyRecords = async () => {
       setIsLoading(true);
       setError(null);
-      
+
       try {
         const response = await getDailyRecordSearch(date);
-        
+
         // API 응답을 TrainingSet 배열로 변환
         const convertedSets = convertSessionsToTrainingSets(response);
         setActualTrainingSets(convertedSets);
@@ -74,23 +75,45 @@ export default function TrainingDayDetail({
     return dateString;
   };
 
-  const handleTrainingSetClick = (trainingSet: TrainingSet) => {
+  const handleTrainingSetClick = async (trainingSet: TrainingSet) => {
     // 세션이 완료되지 않은 경우
     if (trainingSet.status !== 'completed') {
+      // 총 아이템 수와 완료된 아이템 수가 같은 경우 (실제로는 완료되었지만 status가 in_progress인 경우)
+      if (trainingSet.completedItems !== undefined && trainingSet.totalItems === trainingSet.completedItems) {
+        try {
+          // 세션 종료 API 호출
+          await completeTrainingSession(trainingSet.sessionId);
+
+          // result-list 페이지로 이동
+          const dateParam = formatDateForUrl(date);
+          navigate(`/result-list?sessionId=${trainingSet.sessionId}&type=${trainingSet.type}&date=${dateParam}`);
+
+          // 부모 컴포넌트에서 전달받은 onClick 핸들러가 있으면 호출
+          if (onTrainingSetClick) {
+            onTrainingSetClick(trainingSet);
+          }
+        } catch (error: any) {
+          console.error('세션 종료 실패:', error);
+          alert(error.message || '세션을 종료하는데 실패했습니다.');
+        }
+        return;
+      }
+
+      // 총 아이템 수와 완료된 아이템 수가 다른 경우 (실제로 진행 중인 경우)
       const message = '아직 훈련이 완료되지 않았습니다.\n훈련을 이어서 진행할까요? 😊';
       const shouldNavigate = window.confirm(message); // 확인 버튼 클릭 시 true, 취소 버튼 클릭 시 false
-      
+
       if (shouldNavigate) {
         // practice 페이지로 이동 (current_item_index 사용)
         navigate(`/practice?sessionId=${trainingSet.sessionId}&type=${trainingSet.type}&itemIndex=${trainingSet.currentItemIndex}`);
       }
       return;
     }
-    
+
     // 완료된 세션은 result-list 페이지로 이동 (date 파라미터도 함께 전달)
     const dateParam = formatDateForUrl(date);
     navigate(`/result-list?sessionId=${trainingSet.sessionId}&type=${trainingSet.type}&date=${dateParam}`);
-    
+
     // 부모 컴포넌트에서 전달받은 onClick 핸들러가 있으면 호출
     if (onTrainingSetClick) {
       onTrainingSetClick(trainingSet);
@@ -119,16 +142,16 @@ export default function TrainingDayDetail({
 
   return (
     <div className="min-h-screen w-full bg-slate-50">
-      <Header 
-        date={date} 
-        totalSets={displayTotalSets} 
-        onBack={onBack} 
+      <Header
+        date={date}
+        totalSets={displayTotalSets}
+        onBack={onBack}
       />
-      
+
       <main className="container mx-auto px-6 xl:px-8 py-8">
         <div className="max-w-4xl mx-auto space-y-6">
           <div className="space-y-4">
-            <TrainingSetGrid 
+            <TrainingSetGrid
               trainingSets={actualTrainingSets}
               onTrainingSetClick={handleTrainingSetClick}
             />
