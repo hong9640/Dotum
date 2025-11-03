@@ -224,7 +224,7 @@ class TrainingSessionService:
         output_object_key: str
     ):
         """외부 wav2lip 서버에 처리를 요청하는 백그라운드 작업"""
-        WAV2LIP_API_URL = "https://ectogenetic-deutoplasmic-enrique.ngrok-free.dev/api/v1/lip-video"
+        WAV2LIP_API_URL = f"{settings.ML_SERVER_URL}/api/v1/lip-video"
         
         payload = {
             "word": text,
