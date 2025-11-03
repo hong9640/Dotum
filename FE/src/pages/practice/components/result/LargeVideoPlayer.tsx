@@ -13,6 +13,7 @@ interface LargeVideoPlayerProps {
   icon: React.ReactNode;
   videoSrc?: string;
   posterSrc?: string;
+  flipHorizontal?: boolean; // 좌우 반전 여부
 }
 
 const LargeVideoPlayer: React.FC<LargeVideoPlayerProps> = ({
@@ -20,6 +21,7 @@ const LargeVideoPlayer: React.FC<LargeVideoPlayerProps> = ({
   icon,
   videoSrc,
   posterSrc,
+  flipHorizontal = false,
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -65,6 +67,7 @@ const LargeVideoPlayer: React.FC<LargeVideoPlayerProps> = ({
           <video
             ref={videoRef}
             className="w-full h-full object-cover"
+            style={flipHorizontal ? { transform: 'scaleX(-1)' } : undefined}
             src={videoSrc}
             poster={
               posterSrc ||
