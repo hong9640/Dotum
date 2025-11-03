@@ -1,0 +1,374 @@
+pipeline {
+    agent any
+    
+    environment {
+        DOCKER_COMPOSE = 'docker-compose'
+        PROJECT_NAME = 'dotum'
+        // Mattermost Webhook URL은 .env 파일에서 로드됨
+    }
+    
+    triggers {
+        // GitLab webhook trigger - master와 develop 브랜치에서만 실행
+        // GitLab Settings → Webhooks에서 Secret Token 설정 필요
+        gitlab(
+            triggerOnPush: true, 
+            triggerOnMergeRequest: true, 
+            branchFilterType: 'NameBasedFilter',
+            includeBranchesSpec: 'master,develop'
+        )
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                script {
+                    echo '🔄 Git에서 코드 체크아웃 중...'
+                    checkout scm
+                    
+                    // 호스트의 .env 파일을 workspace로 복사
+                    sh '''
+                        if [ -f /home/ubuntu/.env ]; then
+                            cp /home/ubuntu/.env .env
+                            echo "✅ .env 파일 복사 완료"
+                        else
+                            echo "⚠️ /home/ubuntu/.env 파일이 없습니다"
+                        fi
+                    '''
+                    
+                    // .env 파일에서 MATTERMOST_WEBHOOK_URL 읽기
+                    if (fileExists('.env')) {
+                        def envFile = readFile('.env')
+                        def lines = envFile.split('\n')
+                        for (String line : lines) {
+                            if (line.startsWith('MATTERMOST_WEBHOOK_URL=')) {
+                                env.MATTERMOST_WEBHOOK_URL = line.split('=', 2)[1].trim()
+                                echo "📢 Mattermost Webhook URL 설정됨"
+                                break
+                            }
+                        }
+                    }
+                    
+                    // 변경된 파일 확인
+                    def changedFiles = sh(
+                        script: 'git diff --name-only HEAD~1 HEAD',
+                        returnStdout: true
+                    ).trim()
+                    
+                    echo "📝 변경된 파일:"
+                    echo changedFiles
+                    
+                    // 변경된 파일을 환경 변수에 저장 (알림용)
+                    env.CHANGED_FILES = changedFiles ?: '없음'
+                    
+                    // 변경 감지
+                    env.BACKEND_CHANGED = 'false'
+                    env.FRONTEND_CHANGED = 'false'
+                    env.FULL_DEPLOY = 'false'
+                    
+                    if (changedFiles.contains('backend/')) {
+                        env.BACKEND_CHANGED = 'true'
+                    }
+                    
+                    if (changedFiles.contains('FE/')) {
+                        env.FRONTEND_CHANGED = 'true'
+                    }
+                    
+                    if (changedFiles.contains('docker-compose.yml') || changedFiles.contains('Jenkinsfile')) {
+                        env.FULL_DEPLOY = 'true'
+                    }
+                    
+                    echo "변경 상태: BACKEND=${env.BACKEND_CHANGED}, FRONTEND=${env.FRONTEND_CHANGED}, FULL=${env.FULL_DEPLOY}"
+                }
+            }
+        }
+        
+        stage('Backend Build') {
+            when {
+                anyOf {
+                    expression { return env.BACKEND_CHANGED == 'true' }
+                    expression { return env.FULL_DEPLOY == 'true' }
+                }
+            }
+            steps {
+                script {
+                    echo '🔨 Backend 빌드 중...'
+                    withCredentials([file(credentialsId: 'gcp-service-account-key', variable: 'GOOGLE_CREDENTIALS')]) {
+                        sh """
+                            cd ${WORKSPACE}
+
+                            echo "🔐 GCP 서비스 계정 키 복사"
+                            mkdir -p backend/credentials
+                            cp "$GOOGLE_CREDENTIALS" backend/credentials/key.json
+                            ls -al backend/credentials
+
+                            echo "🧱 Backend Docker 이미지 빌드 시작"
+                            ${DOCKER_COMPOSE} build backend
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Frontend Build') {
+            when {
+                anyOf {
+                    expression { return env.FRONTEND_CHANGED == 'true' }
+                    expression { return env.FULL_DEPLOY == 'true' }
+                }
+            }
+            steps {
+                script {
+                    echo '🔨 Frontend 빌드 중...'
+                    sh """
+                        cd ${WORKSPACE}
+                        ${DOCKER_COMPOSE} build frontend
+                    """
+                }
+            }
+        }
+        
+stage('Deploy') {
+    when {
+        anyOf {
+            expression { return env.BACKEND_CHANGED == 'true' }
+            expression { return env.FRONTEND_CHANGED == 'true' }
+            expression { return env.FULL_DEPLOY == 'true' }
+        }
+    }
+    steps {
+        script {
+            echo '🚀 배포 중...'
+            
+            // 변경된 서비스 확인
+            def backendChanged = env.BACKEND_CHANGED == 'true'
+            def frontendChanged = env.FRONTEND_CHANGED == 'true'
+            def fullDeploy = env.FULL_DEPLOY == 'true'
+            
+            def deployBackend = backendChanged || fullDeploy
+            def deployFrontend = frontendChanged || fullDeploy
+            
+            // 배포 정보 저장
+            def deployedServices = []
+            if (deployBackend) {
+                deployedServices.add('Backend')
+                env.DEPLOYED_BACKEND = 'true'
+            } else {
+                env.DEPLOYED_BACKEND = 'false'
+            }
+            if (deployFrontend) {
+                deployedServices.add('Frontend')
+                env.DEPLOYED_FRONTEND = 'true'
+            } else {
+                env.DEPLOYED_FRONTEND = 'false'
+            }
+            env.DEPLOYED_SERVICES = deployedServices.join(', ') ?: '없음'
+            
+            echo "📦 배포 대상 - Backend: ${deployBackend}, Frontend: ${deployFrontend}"
+            
+            sh """
+                cd ${WORKSPACE}
+                
+                echo "🔍 기존 컨테이너 상태 확인..."
+                docker-compose -p dotum ps || true
+                
+                # Postgres 컨테이너 확인
+                if docker-compose -p dotum ps | grep -q 'dotum-postgres'; then
+                    echo "✅ Postgres가 이미 실행 중입니다."
+                else
+                    echo "⚠️ Postgres 컨테이너가 없습니다. Postgres를 먼저 시작합니다..."
+                    docker-compose -p dotum up -d postgres
+                    echo "⏳ Postgres 시작 대기..."
+                    sleep 2
+                fi
+                
+                echo "🛑 기존 backend, frontend 컨테이너 중지 및 제거..."
+                
+                # Backend 컨테이너 중지 및 제거
+                if docker-compose -p dotum ps | grep -q 'dotum-backend'; then
+                    echo "Backend 컨테이너 중지 및 제거..."
+                    docker-compose -p dotum stop backend 2>/dev/null || true
+                    docker-compose -p dotum rm -f backend 2>/dev/null || true
+                fi
+                
+                # Frontend 컨테이너 중지 및 제거
+                if docker-compose -p dotum ps | grep -q 'dotum-frontend'; then
+                    echo "Frontend 컨테이너 중지 및 제거..."
+                    docker-compose -p dotum stop frontend 2>/dev/null || true
+                    docker-compose -p dotum rm -f frontend 2>/dev/null || true
+                fi
+                
+                echo "⏳ 대기 중..."
+                sleep 1
+                
+                echo "🚀 backend, frontend 시작..."
+                docker-compose -p dotum up -d --no-deps backend frontend
+                
+                echo "⏳ 컨테이너 시작 대기..."
+                sleep 2
+                
+                echo "✅ 배포된 컨테이너 상태:"
+                docker-compose -p dotum ps
+                
+                echo "🔍 Backend 컨테이너 로그 확인:"
+                docker-compose -p dotum logs --tail=20 backend 2>/dev/null || true
+                
+                # 컨테이너 상태 저장
+                echo "💾 컨테이너 상태 저장 중..."
+                docker-compose -p dotum ps > /tmp/dotum_containers.txt 2>/dev/null || true
+            """
+            
+            // 컨테이너 상태를 환경 변수에 저장
+            try {
+                def containerStatus = sh(
+                    script: 'cat /tmp/dotum_containers.txt 2>/dev/null || echo "상태 정보 없음"',
+                    returnStdout: true
+                ).trim()
+                env.CONTAINER_STATUS = containerStatus.take(500) // 최대 500자
+            } catch (Exception e) {
+                env.CONTAINER_STATUS = '상태 정보 없음'
+            }
+        }
+    }
+}
+
+    }
+    
+    post {
+        success {
+            echo '✅ 배포 성공!'
+            script {
+                echo "🔍 Webhook URL 확인: ${env.MATTERMOST_WEBHOOK_URL ?: '설정되지 않음'}"
+                // Mattermost 알림 (Webhook URL이 설정된 경우)
+                if (env.MATTERMOST_WEBHOOK_URL) {
+                    echo "📤 Mattermost 알림 발송 중..."
+                    
+                    // 변경된 파일 목록 정리
+                    def changedFilesList = env.CHANGED_FILES ?: '없음'
+                    if (changedFilesList.length() > 200) {
+                        changedFilesList = changedFilesList.substring(0, 200) + '...'
+                    }
+                    
+                    // 배포 정보 정리
+                    def deployedInfo = []
+                    if (env.DEPLOYED_BACKEND == 'true') {
+                        deployedInfo.add('✅ Backend')
+                    }
+                    if (env.DEPLOYED_FRONTEND == 'true') {
+                        deployedInfo.add('✅ Frontend')
+                    }
+                    def deployedServicesInfo = deployedInfo.join('\\n') ?: '없음'
+                    
+                    def payload = """
+                    {
+                        "username": "Jenkins",
+                        "icon_url": "https://jenkins.io/images/logos/jenkins/jenkins.png",
+                        "text": "✅ **배포 성공**",
+                        "attachments": [{
+                            "color": "good",
+                            "title": "${env.PROJECT_NAME} - 빌드 #${env.BUILD_NUMBER}",
+                            "text": "✅ 배포가 성공적으로 완료되었습니다.\\n\\n🔗 [Jenkins Build](${env.BUILD_URL})",
+                            "fields": [{
+                                "short": true,
+                                "title": "브랜치",
+                                "value": "${env.GIT_BRANCH ?: 'unknown'}"
+                            }, {
+                                "short": true,
+                                "title": "빌드 번호",
+                                "value": "#${env.BUILD_NUMBER}"
+                            }, {
+                                "short": false,
+                                "title": "배포된 서비스",
+                                "value": "${deployedServicesInfo}"
+                            }, {
+                                "short": false,
+                                "title": "변경된 파일",
+                                "value": "${changedFilesList}"
+                            }]
+                        }]
+                    }
+                    """
+                    sh """
+                        curl -X POST '${env.MATTERMOST_WEBHOOK_URL}' \\
+                            -H 'Content-Type: application/json' \\
+                            -d '${payload}' || true
+                    """
+                    echo "✅ 알림 발송 완료"
+                } else {
+                    echo "⚠️ Webhook URL이 설정되지 않아 알림을 발송하지 않습니다"
+                }
+            }
+        }
+        failure {
+            echo '❌ 배포 실패!'
+            script {
+                echo "🔍 Webhook URL 확인: ${env.MATTERMOST_WEBHOOK_URL ?: '설정되지 않음'}"
+                // Mattermost 알림 (Webhook URL이 설정된 경우)
+                if (env.MATTERMOST_WEBHOOK_URL) {
+                    echo "📤 Mattermost 알림 발송 중..."
+                    
+                    // 변경된 파일 목록 정리
+                    def changedFilesList = env.CHANGED_FILES ?: '없음'
+                    if (changedFilesList.length() > 200) {
+                        changedFilesList = changedFilesList.substring(0, 200) + '...'
+                    }
+                    
+                    // 배포 정보 정리
+                    def deployedInfo = []
+                    if (env.DEPLOYED_BACKEND == 'true') {
+                        deployedInfo.add('Backend (시도)')
+                    }
+                    if (env.DEPLOYED_FRONTEND == 'true') {
+                        deployedInfo.add('Frontend (시도)')
+                    }
+                    def deployedServicesInfo = deployedInfo.join(', ') ?: '없음'
+                    
+                    // 실패한 단계 확인
+                    def failedStage = env.STAGE_NAME ?: '알 수 없음'
+                    
+                    def payload = """
+                    {
+                        "username": "Jenkins",
+                        "icon_url": "https://jenkins.io/images/logos/jenkins/jenkins.png",
+                        "text": "❌ **배포 실패**",
+                        "attachments": [{
+                            "color": "danger",
+                            "title": "${env.PROJECT_NAME} - 빌드 #${env.BUILD_NUMBER}",
+                            "text": "❌ 배포 중 오류가 발생했습니다.\\n\\n**실패한 단계:** ${failedStage}\\n\\n🔗 [Jenkins Build](${env.BUILD_URL})",
+                            "fields": [{
+                                "short": true,
+                                "title": "브랜치",
+                                "value": "${env.GIT_BRANCH ?: 'unknown'}"
+                            }, {
+                                "short": true,
+                                "title": "빌드 번호",
+                                "value": "#${env.BUILD_NUMBER}"
+                            }, {
+                                "short": false,
+                                "title": "배포 시도한 서비스",
+                                "value": "${deployedServicesInfo}"
+                            }, {
+                                "short": false,
+                                "title": "변경된 파일",
+                                "value": "${changedFilesList}"
+                            }]
+                        }]
+                    }
+                    """
+                    sh """
+                        curl -X POST '${env.MATTERMOST_WEBHOOK_URL}' \\
+                            -H 'Content-Type: application/json' \\
+                            -d '${payload}' || true
+                    """
+                    echo "✅ 알림 발송 완료"
+                } else {
+                    echo "⚠️ Webhook URL이 설정되지 않아 알림을 발송하지 않습니다"
+                }
+            }
+        }
+        always {
+            echo '🧹 정리 중...'
+            cleanWs()
+        }
+    }
+}
+

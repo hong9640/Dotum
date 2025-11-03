@@ -1,0 +1,171 @@
+name: dotum
+
+services:
+  # ============================================================
+  # Jenkins - CI/CD 파이프라인
+  # ============================================================
+  jenkins:
+    build:
+      context: ./ci
+      dockerfile: Dockerfile
+    container_name: jenkins
+    restart: always
+    user: root
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # Docker socket
+      - ./ci:/var/jenkins_home/custom  # CI 관련 설정
+      - /home/ubuntu/.env:/home/ubuntu/.env:ro  # 환경변수 파일 (읽기 전용)
+    environment:
+      - TZ=Asia/Seoul
+      - JENKINS_OPTS=--httpPort=8080
+      - PROJECT_NAME=dotum
+    networks:
+      - dotum-braindeck-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/login"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+  # ============================================================
+  # Portainer - Docker 관리 UI
+  # ============================================================
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: always
+    ports:
+      - "55555:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    networks:
+      - dotum-braindeck-network
+
+  # ============================================================
+  # PostgreSQL Database
+  # ============================================================
+  postgres:
+    image: postgres:15
+    container_name: dotum-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_ID}
+      POSTGRES_PASSWORD: ${DB_PW}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_ID} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - dotum-braindeck-network
+
+  # ============================================================
+  # Backend - FastAPI Application
+  # ============================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: dotum-backend
+    restart: always
+    env_file:
+      - ./.env
+    environment:
+      - TZ=Asia/Seoul
+      - DB_NETWORK=postgres
+      - DB_NAME=${DB_NAME:-s201_db}
+      - DB_PORT=${DB_PORT}
+      - JWT_SECRET=${JWT_SECRET}
+      - DB_ID=${DB_ID}
+      - DB_PW=${DB_PW}
+      - DEBUG=${DEBUG:-True}
+      - GCS_BUCKET_NAME=${GCS_BUCKET_NAME}
+      - GCS_PROJECT_ID=${GCS_PROJECT_ID}
+      - GCS_CREDENTIALS_PATH=${GCS_CREDENTIALS_PATH:-./credentials/key.json}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/credentials:/app/credentials
+    networks:
+      - dotum-braindeck-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --log-level debug
+
+  # ============================================================
+  # Frontend - React/Vue SPA with Nginx
+  # ============================================================
+  frontend:
+    build:
+      context: ./FE
+      dockerfile: Dockerfile
+      args:
+        VITE_BASE_URL: ${VITE_BASE_URL}
+    container_name: dotum-frontend
+    restart: always
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt
+      - /var/www/certbot:/var/www/certbot
+    networks:
+      - dotum-braindeck-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# ============================================================
+# Volumes
+# ============================================================
+volumes:
+  jenkins_home:
+    driver: local
+  portainer_data:
+    driver: local
+  postgres_data:
+    driver: local
+
+# ============================================================
+# Networks
+# ============================================================
+networks:
+  dotum-braindeck-network:
+    driver: bridge
