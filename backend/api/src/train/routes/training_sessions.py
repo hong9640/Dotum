@@ -30,10 +30,8 @@ router = APIRouter(
 )
 
 
-def convert_training_item_to_response(item) -> Optional[TrainingItemResponse]:
+def convert_training_item_to_response(item) -> TrainingItemResponse:
     """TrainingItem 모델을 TrainingItemResponse로 변환"""
-    if item is None:
-        return None
     return TrainingItemResponse(
         item_id=item.id,
         training_session_id=item.training_session_id,
@@ -93,8 +91,10 @@ def convert_media_to_response(media) -> MediaResponse:
     )
 
 
-def convert_praat_to_response(praat) -> PraatFeaturesResponse:
+def convert_praat_to_response(praat) -> Optional[PraatFeaturesResponse]:
     """PraatFeatures 모델을 PraatFeaturesResponse로 변환"""
+    if praat is None:
+        return None
     return PraatFeaturesResponse(
         praat_id=praat.id,
         media_id=praat.media_id,
