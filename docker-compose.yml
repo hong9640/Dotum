@@ -102,6 +102,7 @@ services:
       - GCS_PROJECT_ID=${GCS_PROJECT_ID}
       - GCS_CREDENTIALS_PATH=${GCS_CREDENTIALS_PATH:-./credentials/key.json}
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173}
+      - ML_SERVER_URL=${ML_SERVER_URL}
     ports:
       - "8000:8000"
     volumes:

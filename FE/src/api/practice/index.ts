@@ -16,17 +16,17 @@ export interface MediaResponse {
   id: number;
   user_id: number;
   object_key: string;
-  media_type: "audio" | "video";
-  file_name: string;
-  file_size_bytes: number;
-  format: string;
-  duration_ms: number;
-  width_px: number;
-  height_px: number;
+  media_type?: "audio" | "video";
+  file_name?: string;
+  file_size_bytes?: number;
+  format?: string;
+  duration_ms?: number;
+  width_px?: number;
+  height_px?: number;
   status: "uploading" | "processing" | "completed" | "failed";
-  is_public: boolean;
-  created_at: string;
-  updated_at: string;
+  is_public?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 // 제출 성공 응답 타입

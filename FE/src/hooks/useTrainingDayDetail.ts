@@ -10,14 +10,10 @@ export function useTrainingDayDetail({ trainingSets }: UseTrainingDayDetailProps
 
   const statistics = useMemo(() => {
     const totalSets = trainingSets.length;
-    const averageScore = totalSets > 0 
-      ? Math.round(trainingSets.reduce((sum, set) => sum + set.score, 0) / totalSets)
-      : 0;
     const totalWords = trainingSets.reduce((sum, set) => sum + set.words.length, 0);
 
     return {
       totalSets,
-      averageScore,
       totalWords
     };
   }, [trainingSets]);

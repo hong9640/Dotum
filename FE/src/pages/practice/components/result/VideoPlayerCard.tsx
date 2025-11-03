@@ -16,6 +16,7 @@ interface VideoPlayerCardProps {
   icon: React.ReactNode;
   videoSrc?: string;
   dialogContent: React.ReactNode;
+  flipHorizontal?: boolean; // 좌우 반전 여부
 }
 
 const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
@@ -23,6 +24,7 @@ const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
   icon,
   videoSrc,
   dialogContent,
+  flipHorizontal = false,
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -67,6 +69,7 @@ const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
           <video
             ref={videoRef}
             className="w-full h-full object-cover"
+            style={flipHorizontal ? { transform: 'scaleX(-1)' } : undefined}
             src={videoSrc}
             poster={videoSrc ? undefined : "https://placehold.co/510x323/e2e8f0/64748b?text=Video+Stream"}
             preload="metadata"

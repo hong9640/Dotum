@@ -2,9 +2,15 @@
 export interface TrainingSet {
   id: string;
   title: string;
-  score: number;
-  words: string[];
-  completedAt: string; // ISO date string
+  score: number | null; // null은 진행중 상태
+  words: string[]; // word_id 또는 sentence_id를 문자열로 저장 (임시)
+  completedAt: string | null; // ISO date string, null은 진행중
+  sessionId: number; // API의 session_id
+  type: 'word' | 'sentence';
+  status: 'completed' | 'in_progress';
+  totalItems: number;
+  completedItems?: number; // 완료된 아이템 수
+  currentItemIndex?: number; // 현재 진행 중인 아이템 인덱스
 }
 
 // 점수별 색상 규칙을 위한 타입
@@ -39,5 +45,12 @@ export const scoreColorClasses = {
     border: 'border-amber-300',
     text: 'text-amber-600',
     outline: 'outline-amber-300'
+  },
+  in_progress: {
+    background: 'bg-gray-100',
+    backgroundHover: 'hover:bg-gray-50',
+    border: 'border-gray-300',
+    text: 'text-gray-600',
+    outline: 'outline-gray-300'
   }
 };

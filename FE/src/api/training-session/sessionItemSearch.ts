@@ -2,32 +2,32 @@ import { apiClient } from "../axios";
 
 // Praat 분석 결과 타입 (나중에 확장될 수 있음)
 export interface PraatResult {
-  praat_id: number;
-  media_id: number;
-  jitter_local: number;
-  shimmer_local: number;
-  hnr: number;
-  nhr: number;
-  f0: number;
-  max_f0: number;
-  min_f0: number;
-  cpp: number;
-  csid: number;
+  praat_id?: number;
+  media_id?: number;
+  jitter_local?: number;
+  shimmer_local?: number;
+  hnr?: number;
+  nhr?: number;
+  f0?: number;
+  max_f0?: number;
+  min_f0?: number;
+  cpp?: number;
+  csid?: number;
 }
 
 // 단일 아이템 상세 조회 응답 타입
 export interface SessionItemResponse {
   item_id: number;
   item_index: number;
-  word_id: number | null;
-  sentence_id: number | null;
-  word: string | null;
-  sentence: string | null;
-  is_completed: boolean;
-  video_url: string | null;
-  media_file_id: number | null;
-  has_next: boolean;
-  praat: PraatResult | null;
+  word_id?: number | null;
+  sentence_id?: number | null;
+  word?: string | null;
+  sentence?: string | null;
+  is_completed?: boolean;
+  video_url?: string | null;
+  media_file_id?: number | null;
+  has_next?: boolean;
+  praat?: PraatResult | null;
 }
 
 // 에러 응답 타입
