@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import ResultHeader from '@/pages/result-list/components/ResultHeader';
 import ResultComponent from '@/pages/practice/components/result/ResultComponent';
 import { getSessionItemByIndex, getSessionItemErrorMessage, type SessionItemResponse } from '@/api/training-session/sessionItemSearch';
+import { useCompositedVideoPolling } from '@/hooks/useCompositedVideoPolling';
 
 const ResultDetailPage: React.FC = () => {
   const navigate = useNavigate();
@@ -10,6 +11,10 @@ const ResultDetailPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [itemData, setItemData] = useState<SessionItemResponse | null>(null);
+  const [compositedVideoUrl, setCompositedVideoUrl] = useState<string | undefined>(undefined);
+  const [compositedVideoError, setCompositedVideoError] = useState<string | null>(null);
+  const [isLoadingCompositedVideo, setIsLoadingCompositedVideo] = useState(false);
+
 
   // URL 파라미터에서 sessionId, type, itemIndex, date 가져오기
   const sessionIdParam = searchParams.get('sessionId');
@@ -47,6 +52,27 @@ const ResultDetailPage: React.FC = () => {
         console.log('세션 아이템 상세 조회 성공:', itemDetailData);
         
         setItemData(itemDetailData);
+        
+        // composited_video_url이 있고 null이 아니면 바로 설정
+        // 필드가 없거나(null 또는 undefined) null이면 초기화
+        if (itemDetailData.composited_video_url != null) {
+          setCompositedVideoUrl(itemDetailData.composited_video_url);
+          setCompositedVideoError(null);
+          setIsLoadingCompositedVideo(false);
+        } else {
+          // 없거나 null이면 초기화
+          setCompositedVideoUrl(undefined);
+          setCompositedVideoError(null);
+          // is_completed가 true이고 composited_video_url이 없으면 폴링 시작
+          if (itemDetailData.is_completed && !itemDetailData.composited_video_url) {
+            console.log('🚀 직접 폴링 시작 (result-detail):', {
+              item_id: itemDetailData.item_id,
+              sessionId,
+            });
+            setIsLoadingCompositedVideo(true);
+          }
+        }
+        
         setIsLoading(false);
       } catch (err: any) {
         console.error('세션 아이템 상세 조회 실패:', err);
@@ -59,6 +85,52 @@ const ResultDetailPage: React.FC = () => {
 
     loadItemDetail();
   }, [sessionIdParam, typeParam, itemIndexParam]);
+
+  // 폴링 조건 계산
+  const sessionIdNum = sessionIdParam ? Number(sessionIdParam) : undefined;
+  const pollingEnabled = Boolean(
+    itemData?.is_completed &&
+    sessionIdParam &&
+    !isNaN(sessionIdNum || NaN) &&
+    itemData?.item_id &&
+    !compositedVideoUrl && // 이미 받은 로컬 URL 없음
+    !itemData?.composited_video_url // 서버에도 없음
+  );
+
+  // 공통 폴링 훅 사용
+  const { url: polledUrl, loading: polledLoading, error: polledError } = useCompositedVideoPolling(
+    sessionIdNum,
+    itemData?.item_id,
+    {
+      enabled: pollingEnabled,
+      maxTries: 10,
+      baseIntervalMs: 10_000,
+      backoff: false, // 기본적으로 고정 간격 사용 (필요시 true로 변경)
+    }
+  );
+
+  // 폴링 결과를 로컬 상태에 반영
+  useEffect(() => {
+    if (polledUrl) {
+      setCompositedVideoUrl(polledUrl);
+      setIsLoadingCompositedVideo(false);
+      setCompositedVideoError(null);
+      // itemData에도 반영하여 중복 폴링 방지
+      setItemData((prev) =>
+        prev ? { ...prev, composited_video_url: polledUrl } : prev
+      );
+    }
+  }, [polledUrl]);
+
+  useEffect(() => {
+    setIsLoadingCompositedVideo(pollingEnabled && polledLoading);
+  }, [pollingEnabled, polledLoading]);
+
+  useEffect(() => {
+    if (polledError) {
+      setCompositedVideoError(polledError);
+    }
+  }, [polledError]);
 
   // 이전 페이지(result-list)로 돌아가기
   const handleBack = () => {
@@ -144,6 +216,9 @@ const ResultDetailPage: React.FC = () => {
         {/* 결과 컴포넌트 (비디오 표시 + 피드백 카드) */}
         <ResultComponent
           userVideoUrl={itemData.video_url || undefined}
+          compositedVideoUrl={compositedVideoUrl}
+          isLoadingCompositedVideo={isLoadingCompositedVideo}
+          compositedVideoError={compositedVideoError}
           onBack={handleBack}
         />
       </div>
