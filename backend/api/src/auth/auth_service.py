@@ -1,3 +1,4 @@
+from jose.exceptions import ExpiredSignatureError
 import os
 import hashlib
 from dotenv import load_dotenv
@@ -156,28 +157,52 @@ async def login_user(user_data: UserLoginRequest, db: AsyncSession) -> dict:
     }
 
 
+
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
     db: AsyncSession = Depends(get_session)
 ) -> User:
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+    # 토큰이 없는 경우 (oauth2_scheme에서 자동으로 처리되지만 명시적 메시지)
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token not provided",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         print(username)
         if username is None:
-            raise credentials_exception
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+    except ExpiredSignatureError:
+        # 토큰이 만료된 경우
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     except JWTError:
-        raise credentials_exception
+        # 기타 JWT 검증 실패 (유효하지 않은 토큰 등)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     
     user = await get_user_by_email(email=username, db=db)
     print(user)
     if user is None:
-        raise credentials_exception
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
         
     return user
 

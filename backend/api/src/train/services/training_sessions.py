@@ -280,6 +280,7 @@ class TrainingSessionService:
         background_tasks: BackgroundTasks
     ) -> Dict[str, Any]:
         """내부 메서드: 특정 아이템에 동영상 업로드 및 완료 처리"""
+        print(f"[WAV] ========== _submit_item_with_video 메서드 시작 - session_id: {session_id}, item_id: {item_id} ==========")
         session = await self.get_training_session(session_id, user.id)
         if not session:
             raise LookupError("훈련 세션을 찾을 수 없습니다.")
@@ -337,20 +338,25 @@ class TrainingSessionService:
             file_size_bytes=len(file_bytes),
             format=(content_type.split('/')[-1] if '/' in content_type else content_type)
         )
+        print(f"[WAV] ========== 동영상 저장 완료, 이제 음성 추출 시작 ==========")
         
         # 음성 추출 및 저장
         audio_media_file = None
         new_praat_record = None
         try:
+            print(f"[WAV] 음성 처리 시작 - video: {object_key}")
             # VideoProcessor를 사용하여 음성 추출
             video_processor = VideoProcessor()
             processing_result = await video_processor.process_uploaded_video_with_audio(
                 gcs_bucket=gcs_service.bucket_name,
                 gcs_blob_name=object_key
             )
+            print(f"[WAV] 음성 처리 완료 - audio_blob_name: {processing_result.get('audio_blob_name')}")
+            
             praat_data = processing_result.get('praat_features')
             # 음성 파일 정보 저장
             if processing_result.get('audio_blob_name'):
+                print(f"[WAV] DB 저장 시작 - audio_blob_name: {processing_result['audio_blob_name']}")
                 audio_media_file = await self.media_repo.create_and_flush(
                     user_id=user.id,
                     object_key=processing_result['audio_blob_name'],
@@ -359,16 +365,23 @@ class TrainingSessionService:
                     file_size_bytes=0,  # 크기는 나중에 업데이트
                     format="wav"
                 )
+                print(f"[WAV] DB 저장 완료 - media_id: {audio_media_file.id}")
+            else:
+                print(f"[WAV] 경고: audio_blob_name이 없습니다")
             
             if praat_data and audio_media_file:
+                print(f"[WAV] Praat DB 저장 - media_id: {audio_media_file.id}")
                 new_praat_record = await self.praat_repo.create_and_flush(
                     media_id=audio_media_file.id,
                     **praat_data
                 )
+                print(f"[WAV] Praat DB 저장 완료 - praat_id: {new_praat_record.id}")
 
         except Exception as e:
             # 음성 추출 실패해도 동영상 업로드는 계속 진행
-            print(f"Audio extraction failed: {str(e)}")
+            print(f"[WAV] Audio extraction failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
         
         await self.item_repo.complete_item(
             item_id=item.id,
@@ -511,16 +524,20 @@ class TrainingSessionService:
 
         audio_media_file = None
         try:
+            print(f"[WAV] 재업로드 - 음성 처리 시작 - video: {object_key}")
             video_processor = VideoProcessor()
             processing_result = await video_processor.process_uploaded_video_with_audio(
                 gcs_bucket=gcs_service.bucket_name,
                 gcs_blob_name=object_key
             )
+            print(f"[WAV] 재업로드 - 음성 처리 완료 - audio_blob_name: {processing_result.get('audio_blob_name')}")
+            
             if processing_result.get('audio_blob_name'):
                 from ..services.media import MediaService
                 media_service = MediaService(self.db)
                 existing_audio = await media_service.get_media_file_by_object_key(processing_result['audio_blob_name'])
                 if existing_audio:
+                    print(f"[WAV] 재업로드 - 기존 DB 레코드 업데이트 - media_id: {existing_audio.id}")
                     # 메타데이터 갱신만 수행
                     audio_media_file = await self.media_repo.update_media_file(
                         media_file=existing_audio,
@@ -528,6 +545,7 @@ class TrainingSessionService:
                         format="wav"
                     )
                 else:
+                    print(f"[WAV] 재업로드 - 새 DB 레코드 생성")
                     audio_media_file = await self.media_repo.create_and_flush(
                         user_id=user.id,
                         object_key=processing_result['audio_blob_name'],
@@ -536,8 +554,13 @@ class TrainingSessionService:
                         file_size_bytes=0,
                         format="wav"
                     )
+                print(f"[WAV] 재업로드 - DB 저장 완료 - media_id: {audio_media_file.id}")
+            else:
+                print(f"[WAV] 재업로드 - 경고: audio_blob_name이 없습니다")
         except Exception as e:
-            print(f"Audio extraction failed: {str(e)}")
+            print(f"[WAV] 재업로드 - Audio extraction failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
 
         # 아이템의 동영상 정보 업데이트 (완료 상태 유지)
         await self.item_repo.complete_item(
