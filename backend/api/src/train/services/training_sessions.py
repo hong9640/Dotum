@@ -523,6 +523,7 @@ class TrainingSessionService:
             )
 
         audio_media_file = None
+        new_praat_record = None
         try:
             print(f"[WAV] 재업로드 - 음성 처리 시작 - video: {object_key}")
             video_processor = VideoProcessor()
@@ -555,6 +556,27 @@ class TrainingSessionService:
                         format="wav"
                     )
                 print(f"[WAV] 재업로드 - DB 저장 완료 - media_id: {audio_media_file.id}")
+
+                # Praat 분석 결과 생성 또는 업데이트
+                praat_data = processing_result.get('praat_features')
+                if praat_data and audio_media_file:
+                    # 기존 분석 결과가 있는지 확인
+                    existing_praat = await self.praat_repo.get_by_media_id(audio_media_file.id)
+                    if existing_praat:
+                        print(f"[WAV] 재업로드 - Praat DB 업데이트 - praat_id: {existing_praat.id}")
+                        # 1. 업데이트할 객체의 속성을 직접 변경
+                        for key, value in praat_data.items():
+                            setattr(existing_praat, key, value)
+                        # 2. 변경된 객체를 전달하여 업데이트
+                        new_praat_record = await self.praat_repo.update(existing_praat)
+                    else:
+                        print(f"[WAV] 재업로드 - Praat DB 생성 - media_id: {audio_media_file.id}")
+                        new_praat_record = await self.praat_repo.create_and_flush(
+                            media_id=audio_media_file.id,
+                            **praat_data
+                        )
+                    print(f"[WAV] 재업로드 - Praat DB 처리 완료 - praat_id: {new_praat_record.id}")
+
             else:
                 print(f"[WAV] 재업로드 - 경고: audio_blob_name이 없습니다")
         except Exception as e:
@@ -574,6 +596,8 @@ class TrainingSessionService:
         await self.db.refresh(media_file)
         if audio_media_file:
             await self.db.refresh(audio_media_file)
+        if new_praat_record:
+            await self.db.refresh(new_praat_record)
 
         updated_session = await self.get_training_session(session_id, user.id)
 
@@ -581,6 +605,7 @@ class TrainingSessionService:
             "session": updated_session,
             "next_item": None,
             "media_file": media_file,
+            "praat_feature": new_praat_record,
             "audio_media_file": audio_media_file,
             "video_url": video_url,
             "has_next": False

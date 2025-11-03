@@ -612,6 +612,7 @@ async def resubmit_item_video(
         session=await convert_session_to_response(result["session"], service.db, gcs_service, current_user.username),
         next_item=None,
         media=convert_media_to_response(result["media_file"]),
+        praat=convert_praat_to_response(result["praat_feature"]),
         video_url=result["video_url"],
         message="동영상이 교체되었습니다."
     )
