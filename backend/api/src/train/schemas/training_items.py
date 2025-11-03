@@ -17,7 +17,9 @@ class TrainingItemResponse(BaseModel):
     score: Optional[float] = None
     feedback: Optional[str] = None
     video_url: Optional[str] = None
+    composited_video_url: Optional[str] = None
     media_file_id: Optional[int] = None
+    composited_media_file_id: Optional[int] = None
     completed_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
@@ -35,7 +37,9 @@ class CurrentItemResponse(BaseModel):
     sentence: Optional[str] = None
     is_completed: bool
     video_url: Optional[str] = None
+    composited_video_url: Optional[str] = None
     media_file_id: Optional[int] = None
+    composited_media_file_id: Optional[int] = None
     has_next: bool
     praat: Optional[PraatFeaturesResponse] = None
     
