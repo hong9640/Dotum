@@ -10,6 +10,7 @@ import { getSessionItemByIndex, getSessionItemErrorMessage, type SessionItemResp
 import { getTrainingSession, type CreateTrainingSessionResponse } from "@/api/training-session";
 import { submitCurrentItem, type SubmitCurrentItemResponse } from "@/api/practice";
 import { reuploadVideo, type VideoReuploadResponse } from "@/api/practice/videoReupload";
+import { useCompositedVideoPolling } from "@/hooks/useCompositedVideoPolling";
 
 const PracticePage: React.FC = () => {
   const navigate = useNavigate();
@@ -23,6 +24,9 @@ const PracticePage: React.FC = () => {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [recordedFile, setRecordedFile] = useState<File | null>(null);
   const [userVideoUrl, setUserVideoUrl] = useState<string | undefined>(undefined);
+  const [compositedVideoUrl, setCompositedVideoUrl] = useState<string | undefined>(undefined);
+  const [compositedVideoError, setCompositedVideoError] = useState<string | null>(null);
+  const [isLoadingCompositedVideo, setIsLoadingCompositedVideo] = useState(false);
   
   // 상태 관리
   const { 
@@ -77,10 +81,46 @@ const PracticePage: React.FC = () => {
         setSessionDataState(sessionData);
         setCurrentItem(currentItemData);
         
+        // userVideoUrl 설정 (video_url이 있으면 설정)
+        if (currentItemData.video_url != null) {
+          setUserVideoUrl(currentItemData.video_url);
+        } else {
+          setUserVideoUrl(undefined);
+        }
+        
+        // composited_video_url이 있고 null이 아니면 바로 설정
+        // 필드가 없거나(null 또는 undefined) null이면 초기화 (폴링으로 가져올 예정)
+        if (currentItemData.composited_video_url != null) {
+          setCompositedVideoUrl(currentItemData.composited_video_url);
+          setCompositedVideoError(null);
+          setIsLoadingCompositedVideo(false);
+        } else {
+          // 없거나 null이면 초기화
+          setCompositedVideoUrl(undefined);
+          setCompositedVideoError(null);
+          
+          // is_completed가 true이고 composited_video_url이 없으면 폴링 시작
+          if (currentItemData.is_completed && !currentItemData.composited_video_url) {
+            console.log('🚀 직접 폴링 시작 (loadSessionData 내부):', {
+              item_id: currentItemData.item_id,
+              sessionId,
+            });
+            // 폴링을 즉시 시작하도록 상태 설정
+            setIsLoadingCompositedVideo(true);
+            // 폴링은 useEffect 내에서 처리 (showResult 설정 후 실행될 것)
+          }
+        }
+        
         // URL에 itemIndex가 없거나 다른 경우 URL 업데이트
         if (itemIndexParam === null || parseInt(itemIndexParam, 10) !== currentItemData.item_index) {
           updateUrl(currentItemData.item_index);
         }
+        
+        // 현재 아이템의 단어/문장 설정
+        const targetText = currentItemData.word || currentItemData.sentence || '';
+        
+        // 세션 데이터 설정 (실제 API 데이터 반영)
+        setSessionData(sessionIdParam, sessionTypeParam, [targetText], sessionData?.total_items || 10, currentItemData.item_index);
         
         // 아이템이 완료된 경우 결과 페이지 표시
         if (currentItemData.is_completed) {
@@ -89,11 +129,12 @@ const PracticePage: React.FC = () => {
           setShowResult(false);
         }
         
-        // 현재 아이템의 단어/문장 설정
-        const targetText = currentItemData.word || currentItemData.sentence || '';
-        
-        // 세션 데이터 설정 (실제 API 데이터 반영)
-        setSessionData(sessionIdParam, sessionTypeParam, [targetText], sessionData?.total_items || 10, currentItemData.item_index);
+        console.log('📋 합성 영상 데이터 설정 완료:', {
+          is_completed: currentItemData.is_completed,
+          item_id: currentItemData.item_id,
+          composited_video_url: currentItemData.composited_video_url,
+          showResultWillBe: currentItemData.is_completed,
+        });
         
         setIsLoading(false);
       } catch (err) {
@@ -106,6 +147,53 @@ const PracticePage: React.FC = () => {
 
     loadSessionData();
   }, [sessionIdParam, sessionTypeParam, itemIndexParam, setSessionData, navigate]);
+
+  // 폴링 조건 계산
+  const sessionIdNum = sessionIdParam ? Number(sessionIdParam) : undefined;
+  const pollingEnabled = Boolean(
+    showResult &&
+    currentItem?.is_completed &&
+    sessionIdParam &&
+    !isNaN(sessionIdNum || NaN) &&
+    currentItem?.item_id &&
+    !compositedVideoUrl && // 이미 받은 로컬 URL 없음
+    !currentItem?.composited_video_url // 서버에도 없음
+  );
+
+  // 공통 폴링 훅 사용
+  const { url: polledUrl, loading: polledLoading, error: polledError } = useCompositedVideoPolling(
+    sessionIdNum,
+    currentItem?.item_id,
+    {
+      enabled: pollingEnabled,
+      maxTries: 10,
+      baseIntervalMs: 10_000,
+      backoff: false, // 기본적으로 고정 간격 사용 (필요시 true로 변경)
+    }
+  );
+
+  // 폴링 결과를 로컬 상태에 반영
+  useEffect(() => {
+    if (polledUrl) {
+      setCompositedVideoUrl(polledUrl);
+      setIsLoadingCompositedVideo(false);
+      setCompositedVideoError(null);
+      // currentItem에도 반영하여 중복 폴링 방지
+      setCurrentItem((prev) =>
+        prev ? { ...prev, composited_video_url: polledUrl } : prev
+      );
+    }
+  }, [polledUrl]);
+
+  useEffect(() => {
+    setIsLoadingCompositedVideo(pollingEnabled && polledLoading);
+  }, [pollingEnabled, polledLoading]);
+
+  useEffect(() => {
+    if (polledError) {
+      setCompositedVideoError(polledError);
+    }
+  }, [polledError]);
 
   const handleSave = (file: File, blobUrl: string) => {
     console.log("Saved:", file);
@@ -149,6 +237,9 @@ const PracticePage: React.FC = () => {
     retake(); // useMediaRecorder 상태 초기화 (blobUrl 제거)
     setRecordedFile(null); // 업로드용 파일 초기화
     setUserVideoUrl(undefined); // 사용자 비디오 URL 초기화
+    setCompositedVideoUrl(undefined); // Wav2Lip 비디오 URL 초기화
+    setCompositedVideoError(null); // Wav2Lip 에러 초기화
+    setIsLoadingCompositedVideo(false); // 로딩 상태 초기화
     setUploadError(null); // 업로드 에러 초기화
   };
 
@@ -201,18 +292,45 @@ const PracticePage: React.FC = () => {
         );
         
         if (updatedItem) {
-          // 변경되는 필드만 업데이트: is_completed, video_url, media_file_id
+          // 변경되는 필드만 업데이트: is_completed, video_url, composited_video_url, media_file_id
           setCurrentItem({
             ...currentItem,
             is_completed: updatedItem.is_completed,
             video_url: updatedItem.video_url ?? currentItem.video_url,
+            composited_video_url: updatedItem.composited_video_url ?? currentItem.composited_video_url,
             media_file_id: updatedItem.media_file_id ?? currentItem.media_file_id,
           });
+          
+          // composited_video_url이 응답에 있고 null이 아니면 바로 설정
+          // 필드가 없거나 null이면 초기화 (폴링으로 가져올 예정)
+          if (updatedItem.composited_video_url != null) {
+            setCompositedVideoUrl(updatedItem.composited_video_url);
+            setCompositedVideoError(null);
+            setIsLoadingCompositedVideo(false);
+          } else {
+            // 없거나 null이면 초기화하여 폴링이 시작되도록 함
+            setCompositedVideoUrl(undefined);
+            setCompositedVideoError(null);
+          }
+          
           console.log('📥 업로드 후 아이템 정보 갱신:', {
             is_completed: updatedItem.is_completed,
             video_url: updatedItem.video_url,
+            composited_video_url: updatedItem.composited_video_url,
             media_file_id: updatedItem.media_file_id,
           });
+          
+          // 업로드 성공 시 결과 페이지 표시
+          // 업로드 응답에서 is_completed === true && !composited_video_url이면
+          // showResult(true)를 먼저 켠 뒤 setIsLoadingCompositedVideo(true)를 함께 세팅
+          const needsPolling = updatedItem.is_completed && !updatedItem.composited_video_url;
+          
+          setShowResult(true);
+          
+          // 폴링이 필요하면 로딩 상태 설정
+          if (needsPolling) {
+            setIsLoadingCompositedVideo(true);
+          }
         } else {
           // training_items에서 찾지 못한 경우 (없어야 하지만 방어적 코드)
           console.warn('응답의 training_items에서 현재 아이템을 찾지 못했습니다.');
@@ -222,6 +340,9 @@ const PracticePage: React.FC = () => {
             is_completed: true,
             video_url: response.video_url || currentItem.video_url,
           });
+          
+          // 기본적으로 결과 페이지 표시
+          setShowResult(true);
         }
       } else {
         // response.session이 없는 경우 (없어야 하지만 방어적 코드)
@@ -232,10 +353,10 @@ const PracticePage: React.FC = () => {
           is_completed: true,
           video_url: response.video_url || currentItem.video_url,
         });
+        
+        // 기본적으로 결과 페이지 표시
+        setShowResult(true);
       }
-      
-      // 업로드 성공 시 결과 페이지 표시
-      setShowResult(true);
       
       // TODO: 백엔드에서 자동 다음 아이템 이동 기능이 결정되면 아래 로직 활성화
       // // 응답에서 다음 아이템이 있으면 현재 아이템 업데이트
@@ -304,10 +425,27 @@ const PracticePage: React.FC = () => {
       // URL 업데이트
       updateUrl(nextItemData.item_index);
       
+      // userVideoUrl 설정 (video_url이 있으면 설정)
+      if (nextItemData.video_url != null) {
+        setUserVideoUrl(nextItemData.video_url);
+      } else {
+        setUserVideoUrl(undefined);
+      }
+      
+      // composited_video_url 처리
+      // 필드가 있고 null이 아니면 설정, 없거나 null이면 초기화 (폴링으로 가져올 예정)
+      if (nextItemData.composited_video_url != null) {
+        setCompositedVideoUrl(nextItemData.composited_video_url);
+        setCompositedVideoError(null);
+        setIsLoadingCompositedVideo(false);
+      } else {
+        setCompositedVideoUrl(undefined);
+        setCompositedVideoError(null);
+      }
+
       // 이전 아이템의 녹화 영상 상태 초기화
       retake(); // useMediaRecorder 상태 초기화 (blobUrl 제거)
       setRecordedFile(null); // 업로드용 파일 초기화
-      setUserVideoUrl(undefined); // 사용자 비디오 URL 초기화
       // setShowResult(false); // 결과 페이지 숨기기
       
       // 다음 아이템이 완료된 경우 결과 페이지 표시
@@ -354,10 +492,27 @@ const PracticePage: React.FC = () => {
       // URL 업데이트
       updateUrl(prevItemData.item_index);
       
+      // userVideoUrl 설정 (video_url이 있으면 설정)
+      if (prevItemData.video_url != null) {
+        setUserVideoUrl(prevItemData.video_url);
+      } else {
+        setUserVideoUrl(undefined);
+      }
+      
+      // composited_video_url 처리
+      // 필드가 있고 null이 아니면 설정, 없거나 null이면 초기화
+      if (prevItemData.composited_video_url != null) {
+        setCompositedVideoUrl(prevItemData.composited_video_url);
+        setCompositedVideoError(null);
+        setIsLoadingCompositedVideo(false);
+      } else {
+        setCompositedVideoUrl(undefined);
+        setCompositedVideoError(null);
+      }
+
       // 이전 아이템의 녹화 영상 상태 초기화
       retake(); // useMediaRecorder 상태 초기화 (blobUrl 제거)
       setRecordedFile(null); // 업로드용 파일 초기화
-      setUserVideoUrl(undefined); // 사용자 비디오 URL 초기화
       // setShowResult(false); // 결과 페이지 숨기기
       
       // 이전 아이템이 완료된 경우 결과 페이지 표시
@@ -450,6 +605,9 @@ const PracticePage: React.FC = () => {
       {showResult ? (
         <ResultComponent 
           userVideoUrl={userVideoUrl}
+          compositedVideoUrl={compositedVideoUrl}
+          isLoadingCompositedVideo={isLoadingCompositedVideo}
+          compositedVideoError={compositedVideoError}
           onNext={handleNextWord}
           hasNext={currentItem?.has_next ?? false}
           onRetake={handleRetake}

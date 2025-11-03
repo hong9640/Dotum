@@ -12,9 +12,17 @@ import LargeVideoPlayer from "./LargeVideoPlayer";
  */
 interface ResultVideoDisplayProps {
   userVideoUrl?: string;
+  compositedVideoUrl?: string;
+  isLoadingCompositedVideo?: boolean;
+  compositedVideoError?: string | null;
 }
 
-const ResultVideoDisplay: React.FC<ResultVideoDisplayProps> = ({ userVideoUrl }) => {
+const ResultVideoDisplay: React.FC<ResultVideoDisplayProps> = ({ 
+  userVideoUrl,
+  compositedVideoUrl,
+  isLoadingCompositedVideo = false,
+  compositedVideoError,
+}) => {
   return (
     // 카드들을 감싸는 flex 컨테이너. gap-8 적용.
     // 모바일에선 세로(flex-col), 데스크탑에선 가로(lg:flex-row)로 배치.
@@ -22,12 +30,17 @@ const ResultVideoDisplay: React.FC<ResultVideoDisplayProps> = ({ userVideoUrl })
       <VideoPlayerCard
         title="정확한 발음 (wav2lip)"
         icon={<MonitorPlay className="w-7 h-7 text-blue-600" />}
+        videoSrc={compositedVideoUrl}
+        isLoading={isLoadingCompositedVideo}
+        errorMessage={compositedVideoError || undefined}
+        flipHorizontal={true}
         dialogContent={
           <LargeVideoPlayer
             title="정확한 발음 (wav2lip)"
             icon={<MonitorPlay className="w-8 h-8 mr-2.5 text-blue-600" strokeWidth={2} />}
-            videoSrc=""
+            videoSrc={compositedVideoUrl}
             posterSrc="https://placehold.co/867x549/e2e8f0/64748b?text=Wav2Lip+Video"
+            flipHorizontal={true}
           />
         }
       />
