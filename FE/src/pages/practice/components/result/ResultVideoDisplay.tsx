@@ -35,6 +35,7 @@ const ResultVideoDisplay: React.FC<ResultVideoDisplayProps> = ({ userVideoUrl })
         title="현재 내 발음 (사용자 녹화 영상)"
         icon={<User className="w-7 h-7 text-green-500" />}
         videoSrc={userVideoUrl || ""}
+        flipHorizontal={true}
         dialogContent={
           <LargeVideoPlayer
             key={userVideoUrl || 'empty-user-video'}
@@ -42,6 +43,7 @@ const ResultVideoDisplay: React.FC<ResultVideoDisplayProps> = ({ userVideoUrl })
             icon={<User className="w-8 h-8 mr-2.5 text-green-500" strokeWidth={2} />}
             videoSrc={userVideoUrl || ""}
             posterSrc="https://placehold.co/867x549/e2e8f0/64748b?text=User+Video"
+            flipHorizontal={true}
           />
         }
       />
