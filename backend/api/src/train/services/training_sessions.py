@@ -7,6 +7,8 @@ from datetime import datetime, date
 from ..models.training_session import TrainingSession, TrainingType, TrainingSessionStatus
 from ..repositories.training_sessions import TrainingSessionRepository
 from ..repositories.training_items import TrainingItemRepository
+from ..repositories.media import MediaRepository
+from ..repositories.praat import PraatRepository
 from ..schemas.training_sessions import (
     TrainingSessionCreate,
     TrainingSessionUpdate,
@@ -18,13 +20,10 @@ from ..schemas.training_sessions import (
 from ..models.media import MediaFile, MediaType
 from ..services.gcs_service import GCSService
 from ..services.video_processor import VideoProcessor
-from ..services.video_processor import VideoProcessor
-from api.src.user.user_model import User
-from api.src.train.models.praat import PraatFeatures
-from api.src.train.services.praat import get_praat_analysis_from_db
-from api.core.config import settings
-from ..services.gcs_service import GCSService
 from ..services.media import MediaService
+from ..services.praat import get_praat_analysis_from_db
+from api.src.user.user_model import User
+from api.core.config import settings
 
 class TrainingSessionService:
     """통합된 훈련 세션 서비스"""
@@ -33,6 +32,8 @@ class TrainingSessionService:
         self.db = db
         self.repo = TrainingSessionRepository(db)
         self.item_repo = TrainingItemRepository(db)
+        self.media_repo = MediaRepository(db)
+        self.praat_repo = PraatRepository(db)
     
     async def create_training_session(
         self, 
@@ -250,7 +251,7 @@ class TrainingSessionService:
                     print(f"경고: GCS에서 {output_object_key} 파일을 찾을 수 없어 파일 크기를 0으로 저장합니다.")
 
                 # 3. MediaFile 객체 생성 시 file_size_bytes에 값 할당
-                result_media_file = MediaFile(
+                result_media_file = await self.media_repo.create_and_flush(
                     user_id=user_id,
                     object_key=output_object_key,
                     media_type=MediaType.TRAIN,
@@ -258,7 +259,6 @@ class TrainingSessionService:
                     format="mp4",
                     file_size_bytes=file_size,
                 )
-                self.db.add(result_media_file)
                 await self.db.commit()
                 print(f"wav2lip 결과 미디어 파일 정보 저장 성공: {result_media_file.id}")
 
@@ -329,7 +329,7 @@ class TrainingSessionService:
             )
         
         # 동영상 파일 정보 저장
-        media_file = MediaFile(
+        media_file = await self.media_repo.create_and_flush(
             user_id=user.id,
             object_key=object_key,
             media_type=MediaType.VIDEO,
@@ -337,8 +337,6 @@ class TrainingSessionService:
             file_size_bytes=len(file_bytes),
             format=(content_type.split('/')[-1] if '/' in content_type else content_type)
         )
-        self.db.add(media_file)
-        await self.db.flush()
         
         # 음성 추출 및 저장
         audio_media_file = None
@@ -353,7 +351,7 @@ class TrainingSessionService:
             praat_data = processing_result.get('praat_features')
             # 음성 파일 정보 저장
             if processing_result.get('audio_blob_name'):
-                audio_media_file = MediaFile(
+                audio_media_file = await self.media_repo.create_and_flush(
                     user_id=user.id,
                     object_key=processing_result['audio_blob_name'],
                     media_type=MediaType.AUDIO,
@@ -361,17 +359,12 @@ class TrainingSessionService:
                     file_size_bytes=0,  # 크기는 나중에 업데이트
                     format="wav"
                 )
-                self.db.add(audio_media_file)
-                await self.db.flush()
             
-            if praat_data:
-                new_praat_record = PraatFeatures(
-                    media_id=audio_media_file.id,  
-                    
-                    # 'praat_data' 딕셔너리 매핑
-                    **praat_data  
+            if praat_data and audio_media_file:
+                new_praat_record = await self.praat_repo.create_and_flush(
+                    media_id=audio_media_file.id,
+                    **praat_data
                 )
-                self.db.add(new_praat_record)
 
         except Exception as e:
             # 음성 추출 실패해도 동영상 업로드는 계속 진행
@@ -499,14 +492,15 @@ class TrainingSessionService:
         # 기존 미디어 파일이 있으면 업데이트, 없으면 새로 생성
         if old_media_file:
             # 기존 미디어 파일 정보 업데이트
-            old_media_file.file_name = upload_result.get("filename") or filename
-            old_media_file.file_size_bytes = len(file_bytes)
-            old_media_file.format = content_type.split('/')[-1] if '/' in content_type else content_type
-            old_media_file.updated_at = datetime.now()
-            media_file = old_media_file
+            media_file = await self.media_repo.update_media_file(
+                media_file=old_media_file,
+                file_name=upload_result.get("filename") or filename,
+                file_size_bytes=len(file_bytes),
+                format=content_type.split('/')[-1] if '/' in content_type else content_type
+            )
         else:
             # 새 미디어 파일 생성
-            media_file = MediaFile(
+            media_file = await self.media_repo.create_and_flush(
                 user_id=user.id,
                 object_key=object_key,
                 media_type=MediaType.VIDEO,
@@ -514,8 +508,6 @@ class TrainingSessionService:
                 file_size_bytes=len(file_bytes),
                 format=(content_type.split('/')[-1] if '/' in content_type else content_type)
             )
-            self.db.add(media_file)
-            await self.db.flush()
 
         audio_media_file = None
         try:
@@ -530,12 +522,13 @@ class TrainingSessionService:
                 existing_audio = await media_service.get_media_file_by_object_key(processing_result['audio_blob_name'])
                 if existing_audio:
                     # 메타데이터 갱신만 수행
-                    existing_audio.file_name = processing_result['audio_blob_name'].split('/')[-1]
-                    existing_audio.format = "wav"
-                    existing_audio.updated_at = datetime.now()
-                    audio_media_file = existing_audio
+                    audio_media_file = await self.media_repo.update_media_file(
+                        media_file=existing_audio,
+                        file_name=processing_result['audio_blob_name'].split('/')[-1],
+                        format="wav"
+                    )
                 else:
-                    audio_media_file = MediaFile(
+                    audio_media_file = await self.media_repo.create_and_flush(
                         user_id=user.id,
                         object_key=processing_result['audio_blob_name'],
                         media_type=MediaType.AUDIO,
@@ -543,8 +536,6 @@ class TrainingSessionService:
                         file_size_bytes=0,
                         format="wav"
                     )
-                    self.db.add(audio_media_file)
-                    await self.db.flush()
         except Exception as e:
             print(f"Audio extraction failed: {str(e)}")
 
@@ -736,3 +727,58 @@ class TrainingSessionService:
         }
         
         return new_status in valid_transitions.get(current_status, [])
+    
+    async def retry_completed_session(
+        self,
+        session_id: int,
+        user_id: int,
+        session_name: Optional[str] = None
+    ) -> TrainingSession:
+        """완료된 세션을 똑같은 단어/문장으로 재훈련 세션 생성"""
+        # 기존 세션 조회
+        original_session = await self.get_training_session(session_id, user_id)
+        if not original_session:
+            raise LookupError("훈련 세션을 찾을 수 없습니다.")
+        
+        # 완료된 세션인지 확인
+        if original_session.status != TrainingSessionStatus.COMPLETED:
+            raise ValueError("완료된 세션만 재훈련할 수 있습니다.")
+        
+        # 기존 세션의 모든 훈련 아이템 조회
+        items = original_session.training_items
+        if not items:
+            raise ValueError("훈련 아이템이 없습니다.")
+        
+        # 훈련 아이템에서 word_id 또는 sentence_id 추출 (순서 유지)
+        item_ids = []
+        for item in sorted(items, key=lambda x: x.item_index):
+            if original_session.type == TrainingType.WORD and item.word_id:
+                item_ids.append(item.word_id)
+            elif original_session.type == TrainingType.SENTENCE and item.sentence_id:
+                item_ids.append(item.sentence_id)
+        
+        if not item_ids:
+            raise ValueError("재훈련할 아이템을 찾을 수 없습니다.")
+        
+        # 새 세션 이름 생성 (지정되지 않은 경우)
+        new_session_name = session_name or f"{original_session.session_name} (재훈련)"
+        
+        # 새 훈련 세션 생성
+        new_session = await self.repo.create_session(
+            user_id=user_id,
+            session_name=new_session_name,
+            type=original_session.type,
+            total_items=len(item_ids),
+            training_date=None,  # 현재 날짜로 설정됨
+            session_metadata={"retried_from": session_id, **original_session.session_metadata}
+        )
+        
+        # 동일한 순서로 훈련 아이템들 생성
+        await self.item_repo.create_batch(
+            new_session.id,
+            item_ids,
+            original_session.type
+        )
+        
+        await self.db.commit()
+        return new_session
