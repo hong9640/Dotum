@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     GCS_PROJECT_ID: str
     GCS_CREDENTIALS_PATH: str = ""  # 서비스 계정 키 파일 경로 (선택사항)
 
+    #ML sever URL
+
+    ML_SERVER_URL: str
+
     # CORS Settings
     CORS_ORIGINS: str | None = None
 
