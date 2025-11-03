@@ -25,6 +25,7 @@ export const generateSampleData = (count: number, date: string): TrainingSet[] =
     type: 'word' as const,
     status: 'completed' as const,
     totalItems: 10,
+    completedItems: 10,
     currentItemIndex: 10
   }));
 };
@@ -68,9 +69,11 @@ export const convertSessionsToTrainingSets = (
     
     // 점수 계산
     // - completed 상태이고 average_score가 있으면 average_score 사용 (향후 백엔드 추가 예정)
-    // - 현재는 임시로 completed 상태면 50점으로 하드코딩
-    // - 진행중이면 null
-    const score = session.status === 'completed' 
+    // - status가 in_progress이지만 모든 아이템이 완료된 경우 (totalItems === completedItems)도 점수 표시
+    // - 현재는 임시로 점수가 없으면 50점으로 하드코딩
+    // - 실제 진행중이면 null
+    const isAllItemsCompleted = session.total_items === session.completed_items;
+    const score = (session.status === 'completed' || isAllItemsCompleted || session.total_items === session.completed_items)
       ? (session.average_score ?? 50) // average_score가 있으면 사용, 없으면 임시로 50점
       : null;
     
@@ -84,6 +87,7 @@ export const convertSessionsToTrainingSets = (
       type: session.type,
       status: session.status,
       totalItems: session.total_items,
+      completedItems: session.completed_items,
       currentItemIndex: session.current_item_index
     };
   });
