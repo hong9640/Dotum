@@ -1,4 +1,4 @@
-from fastapi import Response ,APIRouter, Depends, HTTPException, status, Query, UploadFile, File, BackgroundTasks
+from fastapi import Response, APIRouter, Depends, HTTPException, status, Query, UploadFile, File, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Dict
 from datetime import date
@@ -11,18 +11,19 @@ from ..schemas.training_sessions import (
     ItemSubmissionResponse,
 )
 from ..schemas.training_items import CurrentItemResponse, TrainingItemResponse
-from ..schemas.media import MediaResponse
+from ..schemas.media import MediaResponse, MediaUploadUrlResponse
 from ..schemas.praat import PraatFeaturesResponse
-from ..schemas.common import NotFoundErrorResponse, BadRequestErrorResponse, UnauthorizedErrorResponse
-from ..services.training_sessions import TrainingSessionService
+from ..schemas.common import NotFoundErrorResponse, BadRequestErrorResponse, UnauthorizedErrorResponse, ProcessingErrorResponse
 from ..models.training_session import TrainingType, TrainingSessionStatus
+from ..services.training_sessions import TrainingSessionService
+from ..services.media import MediaService
+from ..services.gcs_service import get_gcs_service, GCSService
+from ..services.praat import get_praat_analysis_from_db
+from ..repositories.training_items import TrainingItemRepository
 from api.core.database import get_session
 from api.src.auth.auth_router import get_current_user
 from api.src.user.user_model import User
-from api.core.config import settings
-from api.src.train.services.gcs_service import get_gcs_service, GCSService
-from ..schemas.media import MediaUploadUrlResponse
-
+from api.core.config import settings 
 
 router = APIRouter(
     prefix="/training-sessions",
@@ -30,8 +31,87 @@ router = APIRouter(
 )
 
 
-def convert_training_item_to_response(item) -> TrainingItemResponse:
+async def get_composited_media_info(
+    db: AsyncSession,
+    gcs_service: GCSService,
+    username: str,
+    session_id: int,
+    item_id: int
+) -> tuple[Optional[str], Optional[int]]:
+    """Composited media 정보 조회 (wav2lip 결과)
+    
+    Returns:
+        tuple: (composited_video_url, composited_media_file_id)
+    """
+    composited_video_url = None
+    composited_media_file_id = None
+    composited_object_key = f"results/{username}/{session_id}/result_item_{item_id}.mp4"
+    
+    media_service = MediaService(db)
+    composited_media = await media_service.get_media_file_by_object_key(composited_object_key)
+    
+    if composited_media:
+        composited_media_file_id = composited_media.id
+        composited_video_url = await gcs_service.get_signed_url(composited_media.object_key, expiration_hours=24)
+    
+    return composited_video_url, composited_media_file_id
+
+
+async def build_current_item_response(
+    item,
+    has_next: bool,
+    praat,
+    service: TrainingSessionService,
+    gcs_service: GCSService,
+    username: str,
+    session_id: int
+) -> CurrentItemResponse:
+    """CurrentItemResponse 객체 생성 (중복 제거용 헬퍼)"""
+    # 단어 또는 문장 정보 추출
+    word = item.word.word if item.word else None
+    sentence = item.sentence.sentence if item.sentence else None
+    
+    # Private 버킷이므로 signed URL 생성
+    video_url = None
+    if item.video_url and item.media_file_id:
+        media_file = await service.get_media_file_by_id(item.media_file_id)
+        if media_file:
+            video_url = await gcs_service.get_signed_url(media_file.object_key, expiration_hours=24)
+    
+    # Composited media 조회
+    composited_video_url, composited_media_file_id = await get_composited_media_info(
+        service.db, gcs_service, username, session_id, item.id
+    )
+    
+    return CurrentItemResponse(
+        item_id=item.id,
+        item_index=item.item_index,
+        word_id=item.word_id,
+        sentence_id=item.sentence_id,
+        word=word,
+        sentence=sentence,
+        is_completed=item.is_completed,
+        video_url=video_url,
+        composited_video_url=composited_video_url,
+        media_file_id=item.media_file_id,
+        composited_media_file_id=composited_media_file_id,
+        has_next=has_next,
+        praat=(convert_praat_to_response(praat) if praat else None)
+    )
+
+
+async def convert_training_item_to_response(
+    item, 
+    db: AsyncSession,
+    gcs_service: GCSService,
+    username: str,
+    session_id: int
+) -> Optional[TrainingItemResponse]:
     """TrainingItem 모델을 TrainingItemResponse로 변환"""
+    composited_video_url, composited_media_file_id = await get_composited_media_info(
+        db, gcs_service, username, session_id, item.id
+    )
+    
     return TrainingItemResponse(
         item_id=item.id,
         training_session_id=item.training_session_id,
@@ -45,12 +125,27 @@ def convert_training_item_to_response(item) -> TrainingItemResponse:
         media_file_id=item.media_file_id,
         completed_at=item.completed_at,
         created_at=item.created_at,
-        updated_at=item.updated_at
+        updated_at=item.updated_at,
+        composited_video_url=composited_video_url,
+        composited_media_file_id=composited_media_file_id
     )
 
 
-def convert_session_to_response(session) -> TrainingSessionResponse:
+async def convert_session_to_response(
+    session,
+    db: AsyncSession,
+    gcs_service: GCSService,
+    username: str
+) -> TrainingSessionResponse:
     """TrainingSession 모델을 TrainingSessionResponse로 변환"""
+    # training_items를 비동기로 변환
+    training_items = []
+    for item in session.training_items:
+        item_response = await convert_training_item_to_response(
+            item, db, gcs_service, username, session.id
+        )
+        training_items.append(item_response)
+    
     return TrainingSessionResponse(
         session_id=session.id,
         user_id=session.user_id,
@@ -67,7 +162,7 @@ def convert_session_to_response(session) -> TrainingSessionResponse:
         updated_at=session.updated_at,
         started_at=session.started_at,
         completed_at=session.completed_at,
-        training_items=[convert_training_item_to_response(item) for item in session.training_items]
+        training_items=training_items
     )
 
 
@@ -134,14 +229,17 @@ def provide_gcs_service() -> GCSService:
 async def create_training_session(
     session_data: TrainingSessionCreate,
     current_user: User = Depends(get_current_user),
-    service: TrainingSessionService = Depends(get_training_service)
+    service: TrainingSessionService = Depends(get_training_service),
+    gcs_service: GCSService = Depends(provide_gcs_service)
 ):
     """훈련 세션 생성"""
     try:
         new_session = await service.create_training_session(current_user.id, session_data)
         # 생성된 세션을 다시 조회하여 전체 정보 반환
         session = await service.get_training_session(new_session.id, current_user.id)
-        return convert_session_to_response(session) if session else None
+        if session:
+            return await convert_session_to_response(session, service.db, gcs_service, current_user.username)
+        return None
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -165,7 +263,8 @@ async def get_user_training_sessions(
     status: Optional[TrainingSessionStatus] = Query(None, description="상태 필터"),
     limit: Optional[int] = Query(None, description="조회 개수 제한"),
     offset: int = Query(0, description="조회 시작 위치"),
-    service: TrainingSessionService = Depends(get_training_service)
+    service: TrainingSessionService = Depends(get_training_service),
+    gcs_service: GCSService = Depends(provide_gcs_service)
 ):
     """사용자의 훈련 세션 목록 조회"""
     sessions = await service.get_user_training_sessions(
@@ -176,7 +275,11 @@ async def get_user_training_sessions(
         offset=offset
     )
     # DB 모델을 Response 스키마로 명시적으로 변환
-    return [convert_session_to_response(session) for session in sessions]
+    result = []
+    for session in sessions:
+        response = await convert_session_to_response(session, service.db, gcs_service, current_user.username)
+        result.append(response)
+    return result
 
 
 @router.get(
@@ -193,7 +296,8 @@ async def get_user_training_sessions(
 async def get_training_session(
     session_id: int,
     current_user: User = Depends(get_current_user),
-    service: TrainingSessionService = Depends(get_training_service)
+    service: TrainingSessionService = Depends(get_training_service),
+    gcs_service: GCSService = Depends(provide_gcs_service)
 ):
     """특정 훈련 세션 조회"""
     session = await service.get_training_session(session_id, current_user.id)
@@ -202,7 +306,7 @@ async def get_training_session(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="훈련 세션을 찾을 수 없습니다."
         )
-    return convert_session_to_response(session)
+    return await convert_session_to_response(session, service.db, gcs_service, current_user.username)
 
 
 
@@ -222,7 +326,8 @@ async def get_training_session(
 async def complete_training_session(
     session_id: int,
     current_user: User = Depends(get_current_user),
-    service: TrainingSessionService = Depends(get_training_service)
+    service: TrainingSessionService = Depends(get_training_service),
+    gcs_service: GCSService = Depends(provide_gcs_service)
 ):
     """훈련 세션 완료"""
     try:
@@ -232,7 +337,7 @@ async def complete_training_session(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="훈련 세션을 찾을 수 없습니다."
             )
-        return convert_session_to_response(session)
+        return await convert_session_to_response(session, service.db, gcs_service, current_user.username)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -258,7 +363,8 @@ async def update_training_session_status(
     session_id: int,
     status_update: TrainingSessionStatusUpdate,
     current_user: User = Depends(get_current_user),
-    service: TrainingSessionService = Depends(get_training_service)
+    service: TrainingSessionService = Depends(get_training_service),
+    gcs_service: GCSService = Depends(provide_gcs_service)
 ):
     """훈련 세션 상태 업데이트 (유연한 상태 전환)"""
     try:
@@ -268,7 +374,7 @@ async def update_training_session_status(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="훈련 세션을 찾을 수 없습니다."
             )
-        return convert_session_to_response(session)
+        return await convert_session_to_response(session, service.db, gcs_service, current_user.username)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -312,7 +418,8 @@ async def get_daily_training_records(
     date_str: str,
     type: Optional[TrainingType] = Query(None, description="훈련 타입 필터"),
     current_user: User = Depends(get_current_user),
-    service: TrainingSessionService = Depends(get_training_service)
+    service: TrainingSessionService = Depends(get_training_service),
+    gcs_service: GCSService = Depends(provide_gcs_service)
 ):
     """특정 날짜의 훈련 기록 조회"""
     try:
@@ -322,7 +429,10 @@ async def get_daily_training_records(
             training_date, 
             type
         )
-        converted_sessions = [convert_session_to_response(session) for session in sessions]
+        converted_sessions = []
+        for session in sessions:
+            response = await convert_session_to_response(session, service.db, gcs_service, current_user.username)
+            converted_sessions.append(response)
         return DailyTrainingResponse(
             date=date_str, 
             sessions=converted_sessions,
@@ -389,34 +499,14 @@ async def get_current_item(
             detail="진행 중인 아이템을 찾을 수 없습니다."
         )
     
-    item = result['item']
-    has_next = result['has_next']
-    praat = result.get('praat')
-    
-    # 단어 또는 문장 정보 추출
-    word = item.word.word if item.word else None
-    sentence = item.sentence.sentence if item.sentence else None
-    
-    # Private 버킷이므로 signed URL 생성
-    video_url = None
-    if item.video_url and item.media_file_id:
-        # 기존 동영상이 있으면 signed URL 생성
-        media_file = await service.get_media_file_by_id(item.media_file_id)
-        if media_file:
-            video_url = await gcs_service.get_signed_url(media_file.object_key, expiration_hours=24)
-    
-    return CurrentItemResponse(
-        item_id=item.id,
-        item_index=item.item_index,
-        word_id=item.word_id,
-        sentence_id=item.sentence_id,
-        word=word,
-        sentence=sentence,
-        is_completed=item.is_completed,
-        video_url=video_url,
-        media_file_id=item.media_file_id,
-        has_next=has_next,
-        praat=(convert_praat_to_response(praat) if praat else None)
+    return await build_current_item_response(
+        item=result['item'],
+        has_next=result['has_next'],
+        praat=result.get('praat'),
+        service=service,
+        gcs_service=gcs_service,
+        username=current_user.username,
+        session_id=session_id
     )
 
 
@@ -504,7 +594,7 @@ async def submit_current_item(
         )
     
     return ItemSubmissionResponse(
-        session=convert_session_to_response(session),
+        session=await convert_session_to_response(session, service.db, gcs_service, current_user.username),
         next_item=next_item_response,
         media=convert_media_to_response(media_file),
         praat=convert_praat_to_response(praat_feature),
@@ -538,31 +628,14 @@ async def get_item_by_index(
             detail="해당 인덱스의 아이템을 찾을 수 없습니다."
         )
 
-    item = result['item']
-    has_next = result['has_next']
-    praat = result.get('praat')
-
-    word = item.word.word if item.word else None
-    sentence = item.sentence.sentence if item.sentence else None
-
-    video_url = None
-    if item.video_url and item.media_file_id:
-        media_file = await service.get_media_file_by_id(item.media_file_id)
-        if media_file:
-            video_url = await gcs_service.get_signed_url(media_file.object_key, expiration_hours=24)
-
-    return CurrentItemResponse(
-        item_id=item.id,
-        item_index=item.item_index,
-        word_id=item.word_id,
-        sentence_id=item.sentence_id,
-        word=word,
-        sentence=sentence,
-        is_completed=item.is_completed,
-        video_url=video_url,
-        media_file_id=item.media_file_id,
-        has_next=has_next,
-        praat=(convert_praat_to_response(praat) if praat else None)
+    return await build_current_item_response(
+        item=result['item'],
+        has_next=result['has_next'],
+        praat=result.get('praat'),
+        service=service,
+        gcs_service=gcs_service,
+        username=current_user.username,
+        session_id=session_id
     )
 
 
@@ -662,7 +735,7 @@ async def resubmit_item_video(
         )
 
     return ItemSubmissionResponse(
-        session=convert_session_to_response(result["session"]),
+        session=await convert_session_to_response(result["session"], service.db, gcs_service, current_user.username),
         next_item=None,
         media=convert_media_to_response(result["media_file"]),
         video_url=result["video_url"],
@@ -676,7 +749,7 @@ async def resubmit_item_video(
     description="훈련 아이템에 대한 Wav2Lip 처리 결과 영상의 서명된 URL을 조회합니다.",
     responses={
         200: {"description": "URL 조회 성공"},
-        202: {"description": "영상 처리 중"},
+        202: {"model": ProcessingErrorResponse, "description": "영상 처리 중"},
         401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"},
         404: {"model": NotFoundErrorResponse, "description": "세션, 아이템 또는 결과 영상을 찾을 수 없음"}
     }
@@ -708,3 +781,50 @@ async def get_wav2lip_result_video(
 
     except LookupError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    
+
+@router.get(
+    "/{session_id}/items/{item_id}/praat",
+    response_model=PraatFeaturesResponse,
+    status_code=status.HTTP_200_OK,
+    summary="praat 데이터 가져오기",
+    responses={
+        202: {"description": "Analysis is still processing"},
+        403: {"description": "Forbidden (Not owner)"},
+        404: {"description": "Media file not found"},
+    }
+)
+async def read_praat_analysis(
+    session_id: int,
+    item_id: int,
+    db: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    특정 미디어 파일의 Praat 분석 결과를 조회합니다.
+    - (200 OK): 분석 완료
+    - (202 Accepted): 분석 처리 중
+    - (404 Not Found): 원본 미디어 파일 없음
+    - (403 Forbidden): 파일 소유자가 아님
+    """
+    try:
+        analysis_results = await get_praat_analysis_from_db(
+            session_id=session_id,
+            item_id=item_id,
+            db=db,
+            user_id=current_user.id
+        )
+        
+        if analysis_results:
+            return analysis_results
+        else:
+            # Case 2: 분석 처리 중
+            # 202 코드를 반환하기 위해 Response 객체를 사용
+            return Response(status_code=status.HTTP_202_ACCEPTED)
+
+    except LookupError as e:
+        # Case 3: 원본 미디어 파일이 없음
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except PermissionError as e:
+        # Case 4: 파일 소유자가 아님
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))

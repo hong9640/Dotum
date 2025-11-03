@@ -11,8 +11,12 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from typing import Optional
 from api.src.train.models.praat import PraatFeatures
-from api.src.train.models.media import MediaFile
-
+from api.src.train.models.media import MediaFile, MediaType
+from api.src.train.repositories.training_items import TrainingItemRepository
+from api.src.train.services.media import MediaService
+from api.src.user.user_model import User
+from ..repositories.training_items import TrainingItemRepository
+from ..repositories.training_sessions import TrainingSessionRepository
 
 # ============================
 # 1. 파라미터 정의
@@ -187,39 +191,45 @@ async def extract_all_features(voice_data: bytes) -> dict:
         raise ValueError(f"전체 특징 추출 중 오디오 데이터 처리 오류: {e}")
 
 async def get_praat_analysis_from_db(
-    db: AsyncSession, 
-    media_id: int,
-    user_id: int
+    db: AsyncSession,
+    session_id: int,
+    item_id: int,
+    user_id: int,
 ) -> Optional[PraatFeatures]:
     """
-    특정 미디어 ID의 Praat 분석 결과를 조회합니다.
-    소유권을 먼저 확인합니다.
+    특정 훈련 아이템(item_id)의 Praat 분석 결과를 조회합니다.
+    소유권을 먼저 확인하고, 연결된 오디오 파일의 분석 결과를 찾습니다.
     """
-    
-    # 1. 미디어 파일 조회 (SQLAlchemy 2.0 방식)
-    statement_media = select(MediaFile).where(MediaFile.id == media_id)
-    
-    # [수정 1] .exec() -> .execute()
-    result_media = await db.execute(statement_media) 
-    
-    # [수정 2] SELECT 결과는 .scalars()로 꺼내야 합니다
-    media_file = result_media.scalars().first()
-    
-    # 2. 미디어 파일이 없는 경우
-    if not media_file:
-        raise LookupError("Media file not found") # 404 Not Found 유도
-    
-    # 3. 소유권이 다른 경우
-    if media_file.user_id != user_id:
-        raise PermissionError("Forbidden") # 403 Forbidden 유도
-        
-    # 4. Praat 분석 결과 조회 (SQLAlchemy 2.0 방식)
-    statement_praat = select(PraatFeatures).where(PraatFeatures.media_id == media_id)
-    
-    # [수정 1] .exec() -> .execute()
+    item_repo = TrainingItemRepository(db)
+    media_service = MediaService(db)
+
+    # 1. 훈련 아이템 조회 및 소유권 확인
+    item = await item_repo.get_item(session_id, item_id)
+    if not item:
+        raise LookupError("훈련 아이템을 찾을 수 없습니다.")
+
+    # 2. 비디오 미디어 파일 조회
+    if not item.media_file_id:
+        # 비디오가 아직 업로드되지 않았으므로 분석 결과도 없음
+        return None
+
+    video_media = await media_service.get_media_file_by_id(item.media_file_id)
+    if not video_media:
+        raise LookupError("연결된 비디오 미디어 파일을 찾을 수 없습니다.")
+
+    # 3. 소유권 확인
+    if video_media.user_id != user_id:
+        raise PermissionError("접근 권한이 없습니다.")
+
+    # 4. 비디오 object_key를 기반으로 오디오 object_key 추론
+    audio_object_key = video_media.object_key.replace('.mp4', '.wav')
+    audio_media = await media_service.get_media_file_by_object_key(audio_object_key)
+    if not audio_media:
+        return None
+
+    # 5. Praat 분석 결과 조회
+    statement_praat = select(PraatFeatures).where(PraatFeatures.media_id == audio_media.id)
     result_praat = await db.execute(statement_praat)
-    
-    # [수정 2] SELECT 결과는 .scalars()로 꺼내야 합니다
     analysis = result_praat.scalars().first()
 
     return analysis
