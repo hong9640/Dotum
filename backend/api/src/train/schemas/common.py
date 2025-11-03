@@ -35,3 +35,7 @@ class BadRequestErrorResponse(BaseModel):
 class UnauthorizedErrorResponse(BaseModel):
     """401 Unauthorized 에러 응답"""
     detail: str = "인증이 필요합니다."
+
+class ProcessingErrorResponse(BaseModel):
+    """202 Accepted 에러 응답"""
+    detail: str = "요청이 성공적으로 접수되었으나, 처리가 완료되지 않았습니다."

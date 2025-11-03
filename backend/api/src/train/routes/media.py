@@ -12,10 +12,6 @@ from api.src.auth.auth_router import get_current_user
 from api.src.user.user_model import User
 from ..services.media import MediaService
 from ..schemas.media import MediaListResponse
-from api.src.train.services.praat import get_praat_analysis_from_db
-from api.src.train.schemas.praat import PraatFeaturesResponse
-from ..services.training_sessions import TrainingSessionService
-from ..repositories.training_items import TrainingItemRepository 
 from api.src.train.services.gcs_service import get_gcs_service, GCSService
 
 router = APIRouter(
@@ -62,47 +58,3 @@ async def get_user_videos(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"동영상 목록 조회 중 오류: {str(e)}"
         )
-
-@router.get(
-    "/{media_id}/praat",
-    response_model=PraatFeaturesResponse,
-    status_code=status.HTTP_200_OK,
-    summary="praat 데이터 가져오기(임시)",
-    responses={
-        202: {"description": "Analysis is still processing"},
-        403: {"description": "Forbidden (Not owner)"},
-        404: {"description": "Media file not found"},
-    }
-)
-async def read_praat_analysis(
-    media_id: int,
-    db: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user)
-):
-    """
-    특정 미디어 파일의 Praat 분석 결과를 조회합니다.
-    - (200 OK): 분석 완료
-    - (202 Accepted): 분석 처리 중
-    - (404 Not Found): 원본 미디어 파일 없음
-    - (403 Forbidden): 파일 소유자가 아님
-    """
-    try:
-        analysis_results = await get_praat_analysis_from_db(
-            db=db,
-            media_id=media_id + 1,
-            user_id=current_user.id
-        )
-        
-        if analysis_results:
-            return analysis_results
-        else:
-            # Case 2: 분석 처리 중
-            # 202 코드를 반환하기 위해 Response 객체를 사용
-            return Response(status_code=status.HTTP_202_ACCEPTED)
-
-    except LookupError as e:
-        # Case 3: 원본 미디어 파일이 없음
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except PermissionError as e:
-        # Case 4: 파일 소유자가 아님
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))

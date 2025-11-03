@@ -13,7 +13,7 @@ from ..schemas.training_sessions import (
 from ..schemas.training_items import CurrentItemResponse, TrainingItemResponse
 from ..schemas.media import MediaResponse
 from ..schemas.praat import PraatFeaturesResponse
-from ..schemas.common import NotFoundErrorResponse, BadRequestErrorResponse, UnauthorizedErrorResponse
+from ..schemas.common import NotFoundErrorResponse, BadRequestErrorResponse, UnauthorizedErrorResponse, ProcessingErrorResponse
 from ..services.training_sessions import TrainingSessionService
 from ..models.training_session import TrainingType, TrainingSessionStatus
 from api.core.database import get_session
@@ -22,7 +22,10 @@ from api.src.user.user_model import User
 from api.core.config import settings
 from api.src.train.services.gcs_service import get_gcs_service, GCSService
 from ..schemas.media import MediaUploadUrlResponse
-
+from api.src.train.services.praat import get_praat_analysis_from_db
+from api.src.train.schemas.praat import PraatFeaturesResponse
+from ..services.training_sessions import TrainingSessionService
+from ..repositories.training_items import TrainingItemRepository 
 
 router = APIRouter(
     prefix="/training-sessions",
@@ -32,8 +35,6 @@ router = APIRouter(
 
 def convert_training_item_to_response(item) -> Optional[TrainingItemResponse]:
     """TrainingItem 모델을 TrainingItemResponse로 변환"""
-    if praat is None:
-        return None
     return TrainingItemResponse(
         item_id=item.id,
         training_session_id=item.training_session_id,
@@ -95,6 +96,8 @@ def convert_media_to_response(media) -> MediaResponse:
 
 def convert_praat_to_response(praat) -> PraatFeaturesResponse:
     """PraatFeatures 모델을 PraatFeaturesResponse로 변환"""
+    if praat is None:
+        return None
     return PraatFeaturesResponse(
         praat_id=praat.id,
         media_id=praat.media_id,
@@ -676,7 +679,7 @@ async def resubmit_item_video(
     description="훈련 아이템에 대한 Wav2Lip 처리 결과 영상의 서명된 URL을 조회합니다.",
     responses={
         200: {"description": "URL 조회 성공"},
-        202: {"description": "영상 처리 중"},
+        202: {"model": ProcessingErrorResponse, "description": "영상 처리 중"},
         401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"},
         404: {"model": NotFoundErrorResponse, "description": "세션, 아이템 또는 결과 영상을 찾을 수 없음"}
     }
@@ -708,3 +711,50 @@ async def get_wav2lip_result_video(
 
     except LookupError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    
+
+@router.get(
+    "/{session_id}/items/{item_id}/praat",
+    response_model=PraatFeaturesResponse,
+    status_code=status.HTTP_200_OK,
+    summary="praat 데이터 가져오기",
+    responses={
+        202: {"description": "Analysis is still processing"},
+        403: {"description": "Forbidden (Not owner)"},
+        404: {"description": "Media file not found"},
+    }
+)
+async def read_praat_analysis(
+    session_id: int,
+    item_id: int,
+    db: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    특정 미디어 파일의 Praat 분석 결과를 조회합니다.
+    - (200 OK): 분석 완료
+    - (202 Accepted): 분석 처리 중
+    - (404 Not Found): 원본 미디어 파일 없음
+    - (403 Forbidden): 파일 소유자가 아님
+    """
+    try:
+        analysis_results = await get_praat_analysis_from_db(
+            session_id=session_id,
+            item_id=item_id,
+            db=db,
+            user_id=current_user.id
+        )
+        
+        if analysis_results:
+            return analysis_results
+        else:
+            # Case 2: 분석 처리 중
+            # 202 코드를 반환하기 위해 Response 객체를 사용
+            return Response(status_code=status.HTTP_202_ACCEPTED)
+
+    except LookupError as e:
+        # Case 3: 원본 미디어 파일이 없음
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except PermissionError as e:
+        # Case 4: 파일 소유자가 아님
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
