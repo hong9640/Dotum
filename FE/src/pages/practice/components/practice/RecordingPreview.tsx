@@ -39,10 +39,10 @@ const RecordingPreview: React.FC<RecordingPreviewProps> = ({
               aria-hidden
               className={cn(
                 "pointer-events-none absolute inset-0 grid place-items-center transition-opacity",
-                recordingState === "recording" ? "opacity-0" : "opacity-100"
+                "opacity-70"
               )}
             >
-              <div className="w-64 sm:w-72 md:w-80 aspect-[3/4] rounded-full border-4 border-white/80 opacity-60" />
+              <div className="w-48 sm:w-52 md:w-56 aspect-[3/4] rounded-full border-4 border-white/80 opacity-60" />
             </div>
 
             {/* 안내 배너 */}
