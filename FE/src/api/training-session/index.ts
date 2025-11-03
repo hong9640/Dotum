@@ -19,6 +19,10 @@ export interface TrainingItem {
   item_index: number;
   word_id?: number | null;
   sentence_id?: number | null;
+  word?: string | null; // 단어 텍스트
+  sentence?: string | null; // 문장 텍스트
+  feedback?: string | null; // 피드백
+  score?: number | null; // 점수
   is_completed?: boolean;
   video_url?: string | null;
   media_file_id?: number | null;
@@ -39,6 +43,8 @@ export interface CreateTrainingSessionResponse {
   completed_items?: number;
   current_item_index?: number;
   progress_percentage?: number;
+  average_score?: number | null; // 전체 평균 점수
+  overall_feedback?: string | null; // 전체 피드백
   session_metadata?: Record<string, unknown>;
   created_at?: string;
   updated_at?: string;

@@ -6,7 +6,6 @@ import WordResultsList from './components/WordResultsList';
 import ActionButtons from './components/ActionButtons';
 import type { WordResult } from './types';
 import { getSessionDetail } from '@/api/result-list/sessionDetailSearch';
-import { generateDummyWordResults } from './utils';
 import { useTrainingSession } from '@/hooks/training-session';
 
 // 날짜 포맷팅 함수
@@ -37,6 +36,7 @@ const WordSetResults: React.FC = () => {
   const [sessionType, setSessionType] = useState<'word' | 'sentence'>('word');
   const [formattedDate, setFormattedDate] = useState<string>('');
   const [totalScore, setTotalScore] = useState<number>(0);
+  const [overallFeedback, setOverallFeedback] = useState<string>('피드백 정보가 없습니다.');
   
   // 훈련 세션 훅 사용 (새로운 훈련 시작 시 사용)
   const { createWordSession, createSentenceSession } = useTrainingSession();
@@ -80,19 +80,30 @@ const WordSetResults: React.FC = () => {
         const formatted = formatDate(sessionDetailData.training_date);
         setFormattedDate(formatted);
         
-        // 더미데이터 생성 (completed_items와 total_items 중 큰 값 사용, 최소 10개)
-        const completedItems = sessionDetailData.completed_items ?? 0;
-        const dummyResults = generateDummyWordResults(completedItems);
+        // training_items에서 완료된 아이템만 필터링하여 WordResult로 변환
+        const completedItems = sessionDetailData.training_items?.filter(
+          (item) => item.is_completed
+        ) ?? [];
         
-        // completed_items만큼 slice
-        const slicedResults = dummyResults.slice(0, completedItems);
-        setResultsData(slicedResults);
+        const wordResults: WordResult[] = completedItems.map((item) => {
+          // word 또는 sentence 필드에서 텍스트 가져오기
+          const text = item.word || item.sentence || '';
+          
+          return {
+            id: item.item_index + 1, // 1부터 시작하는 ID
+            word: text,
+            feedback: item.feedback || '피드백 정보가 없습니다.',
+            score: item.score ?? 0, // score가 null이면 0으로 설정
+          };
+        });
         
-        // 전체 평균 점수 계산
-        const avgScore = slicedResults.length > 0
-          ? Math.round(slicedResults.reduce((acc, r) => acc + r.score, 0) / slicedResults.length)
-          : 0;
-        setTotalScore(avgScore);
+        setResultsData(wordResults);
+        
+        // 전체 평균 점수 설정 (백엔드에서 제공하는 average_score 사용, null이면 0)
+        setTotalScore(sessionDetailData.average_score ?? 0);
+        
+        // 전체 피드백 설정 (백엔드에서 제공하는 overall_feedback 사용, null이면 기본 메시지)
+        setOverallFeedback(sessionDetailData.overall_feedback || '피드백 정보가 없습니다.');
         
         setIsLoading(false);
       } catch (err: any) {
@@ -180,8 +191,8 @@ const WordSetResults: React.FC = () => {
   const handleDetailClick = (result: WordResult) => {
     // result-detail 페이지로 이동 (URL 파라미터로 sessionId, type, itemIndex 전달)
     if (sessionIdParam && typeParam) {
-      // result.id는 itemIndex와 일치한다고 가정 (1부터 시작)
-      let detailUrl = `/result-detail?sessionId=${sessionIdParam}&type=${typeParam}&itemIndex=${result.id}`;
+      // result.id는 1부터 시작, itemIndex는 0부터 시작하므로 -1 필요
+      let detailUrl = `/result-detail?sessionId=${sessionIdParam}&type=${typeParam}&itemIndex=${result.id - 1}`;
       // date 파라미터가 있으면 함께 전달
       if (dateParam) {
         detailUrl += `&date=${dateParam}`;
@@ -231,7 +242,7 @@ const WordSetResults: React.FC = () => {
         {/* 전체 평균 점수 카드 */}
         <AverageScoreCard
           totalScore={totalScore}
-          feedback="아주 잘했어요. 조금만 더 연습하면 완벽해질 것 같아요."
+          feedback={overallFeedback}
         />
         
         {/* 단어별 결과 목록 */}
