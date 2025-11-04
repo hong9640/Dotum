@@ -34,10 +34,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
-          memory: 2G
+          cpus: '0.5'
+          memory: 1.5G
         reservations:
-          cpus: '1'
+          cpus: '0.25'
           memory: 1G
   # ============================================================
   # Portainer - Docker 관리 UI
@@ -53,6 +53,14 @@ services:
       - portainer_data:/data
     networks:
       - dotum-braindeck-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
 
   # ============================================================
   # PostgreSQL Database
@@ -77,6 +85,14 @@ services:
       start_period: 5s
     networks:
       - dotum-braindeck-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
 
   # ============================================================
   # Backend - FastAPI Application
@@ -121,6 +137,14 @@ services:
         max-size: "10m"
         max-file: "3"
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --log-level debug
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 3G
+        reservations:
+          cpus: '0.5'
+          memory: 2G
 
   # ============================================================
   # Frontend - React/Vue SPA with Nginx
@@ -152,6 +176,14 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
 
 # ============================================================
 # Volumes
