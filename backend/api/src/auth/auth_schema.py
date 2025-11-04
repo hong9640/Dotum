@@ -1,38 +1,35 @@
 from pydantic import BaseModel, EmailStr
 from typing import Literal
-from api.src.users.user_enum import UserRoleEnum
+from api.src.user.user_enum import UserRoleEnum
+from typing import Optional
+from datetime import datetime
 
 # ---login---
 
 class UserLoginRequest(BaseModel):
-    """로그인 요청 본문 스키마"""
     username: EmailStr
     password: str
 
 class UserInfo(BaseModel):
-    """성공 응답의 user 객체 스키마"""
     id: int
     username: EmailStr
     name: str
     role: UserRoleEnum
+    class Config:
+        from_attributes = True
 
 class TokenInfo(BaseModel):
-    """성공 응답의 token 객체 스키마"""
     access_token: str
-    refresh_token: str
     token_type: str
     expires_in: int
 
 class LoginSuccessData(BaseModel):
-    """성공 응답의 data 객체 스키마"""
     user: UserInfo
     token: TokenInfo
 
 class LoginSuccessResponse(BaseModel):
-    """로그인 성공 시 전체 응답 스키마"""
-    status: Literal["SUCCESS"]
+    status: str = "SUCCESS"
     data: LoginSuccessData
-
 
 # ---Fail Response Schemas ---
 
@@ -49,34 +46,37 @@ class FailResponse(BaseModel):
 # ---logout---
 
 class UserLogoutRequest(BaseModel):
-    """로그아웃 요청 데이터"""
     refresh_token: str
 
-class UserLogoutSuccess(BaseModel):
-    status: Literal["SUCCESS"]
+class UserLogoutSuccessResponse(BaseModel):
+    status: str = "SUCCESS"
     message: str
 
-# ---singin---
-
-class SigninRequest(BaseModel):
+# ---singup---
+class SignupRequest(BaseModel):
     username: EmailStr
     password: str
     name: str
     phone_number: str
     gender: str
 
-class SigininUserinfo(BaseModel):
+class SignupSuccessUser(BaseModel):
     id: int
     username: EmailStr
     name: str
-    role: UserRoleEnum
+    role: str 
+    gender: str
+    created_at: datetime
 
-class Signininfo(BaseModel):
-    user: SigininUserinfo
+    class Config:
+        from_attributes = True
 
-class SigninSuccessData(BaseModel):
-    status: Literal["SUCCESS"]
-    data: Signininfo
+class SignupSuccessData(BaseModel):
+    user: SignupSuccessUser
+
+class SignupSuccessResponse(BaseModel):
+    status: str = "SUCCESS"
+    data: SignupSuccessData
     message: str
 
 # ---signout---
@@ -84,11 +84,32 @@ class SigninSuccessData(BaseModel):
 class SignoutRequest(BaseModel):
     password: str
 
-class Signoutdata(BaseModel):
+class SignoutData(BaseModel):
     user_id: int
     deleted_at: Optional[datetime]
+    class Config:
+        from_attributes = True
 
 class SignoutResponse(BaseModel):
-    status: Literal["SUCCESS"]
+    status: str = "SUCCESS"
     message: str
-    data: Signoutdata
+    data: SignoutData
+
+# ---verify---
+
+class VerifyInfo(BaseModel):
+    email: EmailStr
+    is_duplicate: bool
+    message: str
+    class Config:
+        from_attributes = True
+
+class VerifyEmailResponse(BaseModel):
+    status: str 
+    data: VerifyInfo
+
+# ---tocken---
+class TokenRefreshResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int

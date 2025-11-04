@@ -3,6 +3,11 @@ FROM python:3.11-slim
 # 컨테이너 내 작업 디렉토리 설정
 WORKDIR /code
 
+# FFmpeg 설치
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
 # uv 설치
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 

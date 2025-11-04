@@ -33,6 +33,9 @@ services:
       - DB_NAME=${DB_NAME}
       - DB_PORT=${DB_PORT}
       - JWT_SECRET=${JWT_SECRET}
+      - GCS_BUCKET_NAME=${GCS_BUCKET_NAME}
+      - GCS_PROJECT_ID=${GCS_PROJECT_ID}
+      - GCS_CREDENTIALS_PATH=${GCS_CREDENTIALS_PATH}
     depends_on:
       postgres:
         condition: service_healthy
@@ -40,6 +43,7 @@ services:
       - ./api:/code/api
       - ./migrations:/code/migrations
       - ./alembic.ini:/code/alembic.ini
+      - ./credentials:/app/credentials
     networks:
       - app-network
     #back-end 로그 추적을 위해 override
