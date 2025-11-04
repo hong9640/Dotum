@@ -81,6 +81,21 @@ class TrainingItemRepository(BaseRepository[TrainingItem]):
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_item_by_index(
+        self,
+        session_id: int,
+        item_index: int,
+        include_relations: bool = True
+    ) -> Optional[TrainingItem]:
+        """item_index로 특정 훈련 아이템 조회"""
+        stmt = self._get_base_query(include_relations)
+        stmt = stmt.where(
+            TrainingItem.training_session_id == session_id,
+            TrainingItem.item_index == item_index
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_items_by_status(
         self, 
         session_id: int,
@@ -127,10 +142,13 @@ class TrainingItemRepository(BaseRepository[TrainingItem]):
         if not item:
             return None
         
+        original_completed = item.is_completed
         item.is_completed = is_completed
         item.video_url = video_url
         item.media_file_id = media_file_id
-        item.completed_at = datetime.now() if is_completed else None
+        # 완료 상태 전환일 때만 completed_at 갱신
+        if not original_completed and is_completed:
+            item.completed_at = datetime.now()
         item.updated_at = datetime.now()
         
         return item

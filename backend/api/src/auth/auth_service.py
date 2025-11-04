@@ -94,8 +94,6 @@ async def create_user(user_data: SignupRequest, db: AsyncSession) -> User:
         username=user_data.username,
         password=hashed_password,
         name=user_data.name,
-        phone_number=user_data.phone_number,
-        gender=user_data.gender,
         role=UserRoleEnum.USER
     )
 

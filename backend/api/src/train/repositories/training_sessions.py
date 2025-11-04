@@ -7,6 +7,7 @@ from datetime import datetime, date
 from ..models.training_session import TrainingSession, TrainingType, TrainingSessionStatus
 from ..models.training_item import TrainingItem
 from .base import BaseRepository
+from ..models.words import TrainWords
 
 
 class TrainingSessionRepository(BaseRepository[TrainingSession]):
@@ -17,7 +18,13 @@ class TrainingSessionRepository(BaseRepository[TrainingSession]):
         """기본 세션 쿼리 생성"""
         stmt = select(TrainingSession)
         if include_items:
-            stmt = stmt.options(selectinload(TrainingSession.training_items))
+            # training_items를 로드하고, 각 item에 연결된 word와 sentence까지 미리 로드합니다.
+            stmt = stmt.options(
+                selectinload(TrainingSession.training_items)
+                .selectinload(TrainingItem.word)
+            ).options(
+                selectinload(TrainingSession.training_items)
+                .selectinload(TrainingItem.sentence))
         return stmt
 
     async def create_session(
@@ -212,10 +219,7 @@ class TrainingSessionRepository(BaseRepository[TrainingSession]):
         if current_item_index is not None:
             update_data['current_item_index'] = current_item_index
         
-        # 자동 상태 전환
-        if progress_percentage == 1.0:
-            update_data['status'] = TrainingSessionStatus.COMPLETED
-            update_data['completed_at'] = func.now()
+        # 상태 자동 전환을 제거하여, 완료 상태 변경은 명시적 API에서만 수행
         
         result = await self.db.execute(
             update(TrainingSession)

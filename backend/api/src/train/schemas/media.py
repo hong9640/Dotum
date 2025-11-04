@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 from datetime import datetime
 from ..models.media import MediaType, MediaStatus
@@ -19,7 +19,7 @@ class MediaCreate(BaseModel):
 
 class MediaResponse(BaseModel):
     """미디어 파일 응답 스키마"""
-    id: int
+    media_id: int = Field(description="미디어 파일 ID")
     user_id: int
     object_key: str
     media_type: MediaType
@@ -34,8 +34,7 @@ class MediaResponse(BaseModel):
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name=False)
 
 
 class MediaUpdate(BaseModel):
@@ -49,7 +48,7 @@ class MediaUpdate(BaseModel):
 
 class MediaListResponse(BaseModel):
     """미디어 파일 목록 응답 스키마"""
-    id: int
+    media_id: int = Field(description="미디어 파일 ID")
     object_key: str
     media_type: MediaType
     file_name: str
@@ -61,9 +60,9 @@ class MediaListResponse(BaseModel):
     status: MediaStatus
     is_public: Optional[bool]
     created_at: Optional[datetime]
+    signed_url: Optional[str] = Field(None, description="동영상 시청용 서명된 URL")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name=False)
 
 
 class MediaUploadUrlResponse(BaseModel):

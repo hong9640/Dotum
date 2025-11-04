@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import Literal
 from api.src.user.user_enum import UserRoleEnum
 from typing import Optional
@@ -11,12 +11,12 @@ class UserLoginRequest(BaseModel):
     password: str
 
 class UserInfo(BaseModel):
-    id: int
+    user_id: int = Field(validation_alias='id')
     username: EmailStr
     name: str
     role: UserRoleEnum
-    class Config:
-        from_attributes = True
+    
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 class TokenInfo(BaseModel):
     access_token: str
@@ -57,19 +57,15 @@ class SignupRequest(BaseModel):
     username: EmailStr
     password: str
     name: str
-    phone_number: str
-    gender: str
 
 class SignupSuccessUser(BaseModel):
-    id: int
+    user_id: int = Field(validation_alias='id')
     username: EmailStr
     name: str
     role: str 
-    gender: str
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 class SignupSuccessData(BaseModel):
     user: SignupSuccessUser

@@ -31,7 +31,8 @@ from api.src.train.models import (
     TrainingSession,
     TrainingType,
     TrainingSessionStatus,
-    TrainingItem
+    TrainingItem,
+    PraatFeatures
 )
 from api.src.user.user_model import User
 from api.src.token.token_model import RefreshToken

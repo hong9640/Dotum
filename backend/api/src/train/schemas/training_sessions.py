@@ -1,10 +1,12 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date
 from enum import Enum
 
 from ..models.training_session import TrainingType, TrainingSessionStatus
-from .training_items import TrainingItemResponse
+from .training_items import TrainingItemResponse, CurrentItemResponse
+from .media import MediaResponse
+from api.src.train.schemas.praat import PraatFeaturesResponse
 
 
 class TrainingSessionCreate(BaseModel):
@@ -37,7 +39,7 @@ class TrainingSessionStatusUpdate(BaseModel):
 
 class TrainingSessionResponse(BaseModel):
     """훈련 세션 응답"""
-    id: int
+    session_id: int = Field(description="세션 ID", serialization_alias=None)
     user_id: int
     session_name: str
     type: TrainingType
@@ -49,6 +51,12 @@ class TrainingSessionResponse(BaseModel):
     completed_items: int
     current_item_index: int
     progress_percentage: float
+
+    # 평균 점수
+    average_score: Optional[float] = None
+
+    # 세션 전체 피드백
+    overall_feedback: Optional[str] = None
     
     # 메타데이터
     session_metadata: Dict[str, Any]
@@ -62,8 +70,19 @@ class TrainingSessionResponse(BaseModel):
     # 훈련 아이템들
     training_items: List[TrainingItemResponse] = Field(default_factory=list, description="훈련 아이템 목록")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, by_alias=False)
+
+
+class ItemSubmissionResponse(BaseModel):
+    """아이템 제출 응답 (업로드 + 완료 + 다음 아이템 정보)"""
+    session: TrainingSessionResponse
+    next_item: Optional[CurrentItemResponse] = None
+    media: MediaResponse
+    praat: Optional[PraatFeaturesResponse] = None
+    video_url: str
+    message: str = "훈련 아이템이 완료되었습니다."
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class TrainingSessionListResponse(BaseModel):
