@@ -37,6 +37,13 @@ export const useTrainingSession = ({ onSessionCreated }: UseTrainingSessionProps
       
       return session;
     } catch (error: any) {
+      // 401 에러 처리 - 로그인 필요
+      if (error.response?.status === 401) {
+        alert("로그인이 필요합니다.\n로그인 페이지로 이동합니다.");
+        navigate('/login');
+        return;
+      }
+
       const errorMessage = error.response?.data?.error?.code 
         ? getTrainingSessionErrorMessage(error.response.data.error.code, error.response.data.error.message)
         : "네트워크 오류가 발생했습니다. 다시 시도해주세요.";
@@ -69,6 +76,13 @@ export const useTrainingSession = ({ onSessionCreated }: UseTrainingSessionProps
       
       return session;
     } catch (error: any) {
+      // 401 에러 처리 - 로그인 필요
+      if (error.response?.status === 401) {
+        alert("로그인이 필요합니다.\n로그인 페이지로 이동합니다.");
+        navigate('/login');
+        return;
+      }
+
       const errorMessage = error.response?.data?.error?.code 
         ? getTrainingSessionErrorMessage(error.response.data.error.code, error.response.data.error.message)
         : "네트워크 오류가 발생했습니다. 다시 시도해주세요.";

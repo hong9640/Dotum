@@ -2,7 +2,6 @@ import React from 'react';
 import { BookOpen, ClipboardList, Languages } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
 import 도드미안경 from '@/assets/도드미_안경.png';
 import { useTrainingSession } from '@/hooks/training-session';
 
@@ -10,67 +9,23 @@ const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const { createWordSession, createSentenceSession, isLoading, apiError } = useTrainingSession();
 
-  // 인증 상태 확인 (localStorage auth 플래그 기준)
-  const checkAuthStatus = () => {
-    const isAuthenticated = localStorage.getItem('auth') === 'true';
-    console.log('🔍 인증 상태 확인(auth 플래그):', isAuthenticated ? '인증됨' : '인증 안됨');
-    return isAuthenticated;
-  };
-
-  // 로그인이 필요한 경우 알림
-  const handleAuthRequired = () => {
-    toast.error("로그인이 필요합니다. 먼저 로그인해주세요.");
-    // 로그인 페이지로 이동
-    navigate('/login');
-  };
-
   const handleWordTraining = async () => {
-    console.log('🚀 단어 훈련 시작 버튼 클릭');
-    
-    // 인증 상태 확인
-    if (!checkAuthStatus()) {
-      console.error('❌ 토큰이 없습니다. 로그인이 필요합니다.');
-      handleAuthRequired();
-      return;
-    }
-    
     try {
       await createWordSession(2); // 2개 단어
     } catch (error) {
-      // 에러는 훅에서 처리됨
       console.error('단어 훈련 세션 생성 실패:', error);
     }
   };
 
   const handleSentenceTraining = async () => {
-    console.log('🚀 문장 훈련 시작 버튼 클릭');
-    
-    // 인증 상태 확인
-    if (!checkAuthStatus()) {
-      console.error('❌ 토큰이 없습니다. 로그인이 필요합니다.');
-      handleAuthRequired();
-      return;
-    }
-    
     try {
       await createSentenceSession(2); // 2개 문장
     } catch (error) {
-      // 에러는 훅에서 처리됨
       console.error('문장 훈련 세션 생성 실패:', error);
     }
   };
 
   const handleTrainingHistory = () => {
-    console.log('🚀 훈련 기록 버튼 클릭');
-    
-    // 인증 상태 확인
-    if (!checkAuthStatus()) {
-      console.error('❌ 토큰이 없습니다. 로그인이 필요합니다.');
-      handleAuthRequired();
-      return;
-    }
-    
-    // 로그인된 경우에만 훈련 기록 페이지로 이동
     navigate('/training-history');
   };
 
