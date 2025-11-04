@@ -12,6 +12,10 @@ export default {
 			adlam: [
 				'ADLaM Display',
 				'sans-serif'
+			],
+			seoulhangang: [
+				'SeoulHangang',
+				'sans-serif'
 			]
   		},
   		borderRadius: {

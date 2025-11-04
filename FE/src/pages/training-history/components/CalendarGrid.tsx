@@ -38,7 +38,7 @@ function CalendarGrid({ matrix, counts, onDateClick }: CalendarGridProps) {
       </div>
 
       {/* 날짜 그리드 */}
-      <div className="grid grid-cols-7 gap-2 w-[892px]">
+      <div className="grid grid-cols-7 gap-[2px] sm:gap-1 md:gap-2 w-full max-w-full overflow-hidden">
         {matrix.map(({ date, inMonth }, idx) => {
           const y = date.getFullYear();
           const m1 = date.getMonth() + 1;
@@ -47,7 +47,7 @@ function CalendarGrid({ matrix, counts, onDateClick }: CalendarGridProps) {
           const setCnt = counts[iso] ?? 0;
 
           // 배지 색상 규칙
-          const badgeClass = setCnt >= 3 ? "bg-green-500" : setCnt >= 1 ? "bg-green-400" : "";
+          const badgeClass = setCnt >= 5 ? "bg-green-500" : setCnt >= 1 ? "bg-green-400" : "";
 
           // 주말 색상
           const dow = date.getDay();
@@ -62,23 +62,52 @@ function CalendarGrid({ matrix, counts, onDateClick }: CalendarGridProps) {
           return (
             <div
               key={iso + idx}
-              className={`w-[124px] h-[94px] rounded-xl border border-gray-200 px-[8.5px] py-[8.5px] flex flex-col items-center gap-[6px] flex-shrink-0 ${
-                inMonth ? "bg-white cursor-pointer hover:bg-gray-50 hover:shadow-sm transition-all duration-200" : "bg-gray-50"
-              }`}
+              className={`
+                aspect-[124/94] rounded-md sm:rounded-lg border border-gray-200 
+                flex flex-col items-center justify-start 
+                p-[4px] sm:p-[6px] md:p-[8px]
+                transition-all duration-200
+                ${inMonth
+                  ? "bg-white cursor-pointer hover:bg-slate-50 hover:shadow-sm transition-all duration-200"
+                  : "bg-slate-50"
+                }`}
               onClick={handleDateClick}
             >
+              {/* <div
+              key={iso + idx}
+              className={`
+                aspect-square rounded-xl border border-gray-200 
+                px-[8.5px] py-[8.5px] 
+                flex flex-col items-center justify-start 
+                p-[6px] sm:p-[8px] md:p-[10px]
+                ${inMonth
+                  ? "bg-white cursor-pointer hover:bg-slate-50 hover:shadow-sm transition-all duration-200"
+                  : "bg-slate-50"
+                }`}
+              onClick={handleDateClick}
+            > */}
+              {/* <div className="w-full flex items-start justify-start"> */}
               <div className="w-full flex items-center justify-start">
-                <span className={`text-lg font-semibold ${
-                  inMonth ? numClass : "text-gray-300"
-                }`}>
+                <span
+                  className={`font-semibold text-sm sm:text-base md:text-lg ${inMonth ? numClass : "text-gray-300"
+                    }`}>
                   {d}
                 </span>
               </div>
 
               {setCnt > 0 && (
-                <div className="flex-1 flex items-center justify-center">
-                  <div className={`w-[92px] px-2 py-1.5 rounded-xl text-center ${badgeClass}`}>
-                    <span className="text-white text-sm font-semibold">
+                <div className="w-full flex-1 flex items-center justify-center">
+                <div className={`hidden sm:flex justify-center w-full px-2 py-1.5 rounded-xl text-center ${badgeClass}`}>
+                  <span className="flex lg:hidden text-white text-[16px] font-semibold">
+                {/* <div className="flex-1 flex items-center justify-center w-full">
+                  <div className={`hidden sm:flex w-full rounded-xl text-center ${badgeClass} items-center justify-center`}>
+                    <span className="text-white text-[10px] sm:text-xs md:text-sm font-semibold text-center"> */}
+                      {setCnt}회
+                    </span>
+                  <span className="hidden lg:flex text-white text-[16px] font-semibold">
+                {/* <div className="flex-1 flex items-center justify-center w-full">
+                  <div className={`hidden sm:flex w-full rounded-xl text-center ${badgeClass} items-center justify-center`}>
+                    <span className="text-white text-[10px] sm:text-xs md:text-sm font-semibold text-center"> */}
                       {setCnt}회 학습
                     </span>
                   </div>

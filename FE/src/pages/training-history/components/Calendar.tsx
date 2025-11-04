@@ -26,8 +26,8 @@ export function Calendar({ counts, onDateClick, onMonthChange }: CalendarProps) 
   }, [year, monthIndex0, onMonthChange]);
 
   return (
-    <Card className="rounded-2xl border-gray-200 shadow-sm w-[932px]">
-      <CardHeader className="pb-4">
+    <Card className="rounded-2xl border-gray-200 shadow-sm w-full max-w-[942px] mx-auto">
+      <CardHeader className="pt-4 pb-4 sm:pt-8 sm:pb-10 px-4">
         <CalendarHeader
           year={year}
           monthLabel={monthLabel}
@@ -36,7 +36,7 @@ export function Calendar({ counts, onDateClick, onMonthChange }: CalendarProps) 
           onYearChange={setYear}
         />
       </CardHeader>
-      <CardContent className="w-[932px]">
+      <CardContent className="w-full px-2 sm:px-4 md:px-6">
         <CalendarGrid matrix={matrix} counts={counts} onDateClick={onDateClick} />
         <CalendarLegend />
       </CardContent>

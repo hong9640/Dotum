@@ -48,7 +48,7 @@ export const scoreColorClasses = {
   },
   in_progress: {
     background: 'bg-gray-100',
-    backgroundHover: 'hover:bg-gray-50',
+    backgroundHover: 'hover:bg-slate-50',
     border: 'border-gray-300',
     text: 'text-gray-600',
     outline: 'outline-gray-300'

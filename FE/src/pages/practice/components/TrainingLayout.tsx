@@ -20,7 +20,7 @@ const TrainingLayout: React.FC<TrainingLayoutProps> = ({
   children
 }) => {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <div className="min-h-[1105px] px-8 sm:px-12 md:px-24 lg:px-32 py-6 flex justify-center items-start">
         <div className="w-full max-w-[1152px] flex flex-col gap-8">
           {/* 진행률 헤더 */}

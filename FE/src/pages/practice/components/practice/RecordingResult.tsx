@@ -84,7 +84,7 @@ const RecordingResult: React.FC<RecordingResultProps> = ({
             </button>
             <button
               onClick={handleReplay}
-              className="flex items-center justify-center gap-2 px-8 py-4 bg-gray-500 hover:bg-gray-600 text-white rounded-full font-semibold transition-colors text-lg"
+              className="flex items-center justify-center gap-2 px-8 py-4 bg-slate-500 hover:bg-gray-600 text-white rounded-full font-semibold transition-colors text-lg"
             >
               <RotateCcw className="size-5" />
               다시 재생
