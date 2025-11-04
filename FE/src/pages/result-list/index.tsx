@@ -130,7 +130,7 @@ const WordSetResults: React.FC = () => {
   // 로딩 상태
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-lg text-gray-600">결과 데이터를 불러오는 중...</p>
@@ -142,7 +142,7 @@ const WordSetResults: React.FC = () => {
   // 에러 상태
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-6">
           <div className="text-6xl mb-4">⚠️</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">오류 발생</h2>
@@ -161,7 +161,7 @@ const WordSetResults: React.FC = () => {
   // 데이터가 없는 경우 처리
   if (resultsData.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-6">
           <div className="text-6xl mb-4">📊</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">결과 데이터가 없습니다</h2>

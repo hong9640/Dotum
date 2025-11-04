@@ -21,7 +21,7 @@ export function TrainingSetCard({ trainingSet, onClick }: TrainingSetCardProps) 
         w-full cursor-pointer transition-all duration-200
         hover:shadow-md hover:scale-[1.02] active:scale-[0.98]
         border-gray-200 hover:border-gray-300
-        ${onClick ? 'hover:bg-gray-50' : ''}
+        ${onClick ? 'hover:bg-slate-50' : ''}
       `}
       onClick={handleClick}
     >

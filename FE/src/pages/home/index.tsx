@@ -31,7 +31,7 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="w-full min-h-screen p-[49px] flex justify-center items-center">
-      <div className="w-full max-w-7xl p-12 rounded-2xl flex flex-col lg:flex-row justify-center items-center gap-8 mx-1.5">
+      <div className="w-full max-w-7xl pt-0 sm:pt-10 pb-12 px-12 rounded-2xl flex flex-col lg:flex-row justify-center items-center sm:gap-7 gap-4 mx-1.5">
         {/* 에러 메시지 표시 */}
         {apiError && (
           <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50">
@@ -40,7 +40,7 @@ const HomePage: React.FC = () => {
         )}
         {/* 왼쪽 섹션 - 캐릭터 및 텍스트 */}
         <div className="w-full lg:w-auto pb-3 lg:pb-8 flex justify-center items-start">
-          <div className="flex flex-col justify-start items-center gap-2.5">
+          <div className="flex flex-col justify-start items-center gap-0.5 sm:gap-2.5">
             {/* 이미지 영역 */}
             <div className="pb-6 flex justify-center items-start">
               <img
@@ -51,13 +51,13 @@ const HomePage: React.FC = () => {
             </div>
             {/* 메인 헤딩 */}
             <div className="pb-2 flex justify-center items-start">
-              <h1 className="text-center text-slate-800 text-4xl lg:text-5xl font-extrabold font-['Pretendard'] leading-tight">
+              <h1 className="text-center text-slate-800 text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-tight">
                 발음 교정 서비스
               </h1>
             </div>
             {/* 서브 헤딩 */}
             <div className="flex justify-center items-start">
-              <p className="text-center text-slate-600 text-xl lg:text-2xl font-semibold font-['Pretendard'] leading-8 whitespace-nowrap">
+              <p className="text-center text-slate-600 text-lg sm:text-xl lg:text-2xl font-semibold leading-8 whitespace-nowrap">
                 정상 발화 영상과 비교하며 발음을 교정해보세요.
               </p>
             </div>
@@ -71,10 +71,10 @@ const HomePage: React.FC = () => {
             size="lg"
             onClick={handleWordTraining}
             disabled={isLoading}
-            className="w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-green-500 rounded-xl flex justify-center items-center gap-3 hover:bg-green-600 disabled:opacity-50"
+            className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-green-500 rounded-xl flex justify-center items-center gap-3 hover:bg-green-600 disabled:opacity-50"
           >
             <Languages size={32} className="text-white" strokeWidth={2.5} />
-            <span className="text-center text-white text-2xl lg:text-3xl font-semibold font-['Pretendard'] leading-9">
+            <span className="text-center text-white text-2xl lg:text-3xl font-semibold leading-9">
               {isLoading ? "세션 생성 중..." : "단어 연습 시작"}
             </span>
           </Button>
@@ -84,10 +84,10 @@ const HomePage: React.FC = () => {
             size="lg"
             onClick={handleSentenceTraining}
             disabled={isLoading}
-            className="w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-cyan-500 rounded-xl flex justify-center items-center gap-3 hover:bg-cyan-600 disabled:opacity-50"
+            className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-cyan-500 rounded-xl flex justify-center items-center gap-3 hover:bg-cyan-600 disabled:opacity-50"
           >
             <BookOpen size={32} className="text-white" strokeWidth={2.5} />
-            <span className="text-center text-white text-2xl lg:text-3xl font-semibold font-['Pretendard'] leading-9">
+            <span className="text-center text-white text-2xl lg:text-3xl font-semibold leading-9">
               {isLoading ? "세션 생성 중..." : "문장 연습 시작"}
             </span>
           </Button>
@@ -97,10 +97,10 @@ const HomePage: React.FC = () => {
             variant="outline"
             size="lg"
             onClick={handleTrainingHistory}
-            className="w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-white rounded-xl outline outline-2 outline-slate-200 flex justify-center items-center gap-3 hover:bg-gray-100"
+            className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-white rounded-xl outline outline-2 outline-slate-200 flex justify-center items-center gap-3 hover:bg-gray-100"
           >
             <ClipboardList size={32} className="text-slate-800" strokeWidth={2.5} />
-            <span className="text-center text-slate-800 text-2xl lg:text-3xl font-semibold font-['Pretendard'] leading-9">
+            <span className="text-center text-slate-800 text-2xl lg:text-3xl font-semibold leading-9">
               훈련 기록
             </span>
           </Button>

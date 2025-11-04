@@ -542,7 +542,7 @@ const PracticePage: React.FC = () => {
   // 로딩 상태
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-lg text-gray-600">세션 데이터를 불러오는 중...</p>
@@ -554,7 +554,7 @@ const PracticePage: React.FC = () => {
   // 에러 상태
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-6">
           <Alert variant="destructive">
             <AlertTitle>오류 발생</AlertTitle>
@@ -576,7 +576,7 @@ const PracticePage: React.FC = () => {
   // 데이터가 없는 경우
   if (!currentItem || !sessionData) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-6">
           <Alert>
             <AlertTitle>데이터 없음</AlertTitle>

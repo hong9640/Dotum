@@ -126,7 +126,7 @@ export default function TrainingDayDetail({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen w-full bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen w-full flex items-center justify-center">
         <div className="text-lg text-gray-600">로딩 중...</div>
       </div>
     );
@@ -134,19 +134,21 @@ export default function TrainingDayDetail({
 
   if (error) {
     return (
-      <div className="min-h-screen w-full bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen w-full flex items-center justify-center">
         <div className="text-lg text-red-600">에러: {error}</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen w-full bg-slate-50">
-      <Header
-        date={date}
-        totalSets={displayTotalSets}
-        onBack={onBack}
-      />
+    <div className="min-h-screen w-full flex flex-col items-center" >
+      <div className="container flex justify-center mx-auto px-6 xl:px-8 pt-8 pb-0 sm-pb-5 ">
+        <Header
+          date={date}
+          totalSets={displayTotalSets}
+          onBack={onBack}
+        />
+      </div>
 
       <main className="container mx-auto px-6 xl:px-8 py-8">
         <div className="max-w-4xl mx-auto space-y-6">

@@ -45,9 +45,13 @@ const WordDisplay: React.FC<WordDisplayProps> = ({
         )}
         
         {/* 단어 표시 */}
-        <div className="px-2 sm:px-8">
-          <div className="h-24 grid place-items-center">
-            <p className="text-center text-slate-800 text-5xl sm:text-7xl md:text-8xl font-bold font-[Inter] leading-none">
+        <div className="px-2 sm:px-8 h-auto">
+          <div className="h-min-24 h-auto grid place-items-center">
+            <p className={`text-center text-slate-800 font-bold leading-normal ${
+              targetWord.includes(' ') || targetWord.length > 10
+                ? 'text-3xl sm:text-4xl md:text-5xl'
+                : 'text-5xl sm:text-7xl md:text-8xl'
+            }`}>
               {targetWord}
             </p>
           </div>
