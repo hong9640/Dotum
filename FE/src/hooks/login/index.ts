@@ -53,8 +53,6 @@ export const useLogin = ({ onLogin }:
                     // 서버에서 받은 만료 시간(초)를 일(day) 단위로 변환
                     const expiresInDays = result.data.token.expires_in / (24 * 60 * 60);
                     setCookie('access_token', result.data.token.access_token, expiresInDays);
-                    // UI 로그인 상태 플래그 갱신
-                    localStorage.setItem('auth', 'true');
                     
                     toast.success("로그인이 완료되었습니다!");
                     onLogin?.();
