@@ -7,6 +7,7 @@ import ActionButtons from './components/ActionButtons';
 import type { WordResult } from './types';
 import { getSessionDetail } from '@/api/result-list/sessionDetailSearch';
 import { useTrainingSession } from '@/hooks/training-session';
+import { retryTrainingSession } from '@/api/training-session/sessionRetry';
 
 // 날짜 포맷팅 함수
 const formatDate = (dateString: string): string => {
@@ -204,10 +205,37 @@ const WordSetResults: React.FC = () => {
     }
   };
 
-  const handleRetry = () => {
-    // TODO: 다시 연습하기 로직
-    console.log("다시 연습하기");
-    navigate('/practice');
+  const handleRetry = async () => {
+    if (!sessionIdParam) {
+      console.error('세션 ID가 없습니다.');
+      alert('세션 정보를 찾을 수 없습니다.');
+      return;
+    }
+
+    try {
+      const sessionId = Number(sessionIdParam);
+      if (isNaN(sessionId)) {
+        alert('유효하지 않은 세션 ID입니다.');
+        return;
+      }
+
+      console.log('재훈련 세션 생성 시작:', { sessionId });
+      
+      // 재훈련 API 호출
+      const retrySession = await retryTrainingSession(sessionId);
+      
+      console.log('재훈련 세션 생성 성공:', retrySession);
+      
+      // 성공 시 practice 페이지로 이동 (sessionId, type, itemIndex=0)
+      if (retrySession.session_id && retrySession.type) {
+        navigate(`/practice?sessionId=${retrySession.session_id}&type=${retrySession.type}&itemIndex=0`);
+      } else {
+        alert('재훈련 세션 정보가 올바르지 않습니다.');
+      }
+    } catch (error: any) {
+      console.error('재훈련 세션 생성 실패:', error);
+      alert(error.message || '재훈련 세션 생성에 실패했습니다.');
+    }
   };
 
   const handleNewTraining = async () => {
