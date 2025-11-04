@@ -27,9 +27,9 @@ class TrainSentenceUpdate(BaseModel):
 
 # Response Schemas
 class TrainSentenceResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=False)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
     
-    sentence_id: int = Field(description="문장 ID")
+    sentence_id: int = Field(alias="id", serialization_alias="sentence_id", description="문장 ID")
     sentence: str
     created_at: datetime
     updated_at: datetime
