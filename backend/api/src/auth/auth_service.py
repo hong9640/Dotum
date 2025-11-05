@@ -3,7 +3,7 @@ import os
 import hashlib
 import bcrypt
 from dotenv import load_dotenv
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Annotated
 from pydantic import BaseModel, EmailStr
 from fastapi import Depends, HTTPException, status
@@ -49,11 +49,22 @@ class InvalidCredentialsError(Exception):
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """비밀번호 검증 (bcrypt 직접 사용)"""
-    password_bytes = plain_password.encode('utf-8')
-    # bcrypt는 72바이트까지만 지원
-    if len(password_bytes) > 72:
-        password_bytes = password_bytes[:72]
-    return bcrypt.checkpw(password_bytes, hashed_password.encode('utf-8'))
+    try:
+        password_bytes = plain_password.encode('utf-8')
+        # bcrypt는 72바이트까지만 지원
+        if len(password_bytes) > 72:
+            password_bytes = password_bytes[:72]
+        
+        # DB에서 가져온 해시가 string이면 bytes로 변환
+        if isinstance(hashed_password, str):
+            hashed_bytes = hashed_password.encode('utf-8')
+        else:
+            hashed_bytes = hashed_password
+            
+        return bcrypt.checkpw(password_bytes, hashed_bytes)
+    except Exception as e:
+        print(f"비밀번호 검증 에러: {e}")
+        return False
 
 def hash_password(password: str) -> str:
     """비밀번호 해싱 (bcrypt 직접 사용)"""
