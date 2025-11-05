@@ -10,10 +10,6 @@ class Settings(BaseSettings):
     GCS_BUCKET: str
     GCS_CREDENTIAL_PATH: str | None
 
-    # ---------- 모델 SDK ----------
-    FREEVC_SDK_PATH: str | None = None
-    W2L_SDK_PATH: str | None = None
-
     # ---------- 로컬 모델 경로 ----------
     LOCAL_MODEL_BASE_PATH: str = "/app/models"
     LOCAL_FREEVC_PATH: str = "/app/models/FreeVC"

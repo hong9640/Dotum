@@ -1,7 +1,23 @@
 import logging
 import functools
+import warnings
 from typing import Callable, Any
 from datetime import datetime
+
+# 불필요한 외부 라이브러리 로그 억제
+logging.getLogger('numba').setLevel(logging.WARNING)
+logging.getLogger('numba.core').setLevel(logging.WARNING)
+logging.getLogger('numba.core.ssa').setLevel(logging.WARNING)
+logging.getLogger('urllib3').setLevel(logging.WARNING)
+logging.getLogger('google').setLevel(logging.WARNING)
+logging.getLogger('google.auth').setLevel(logging.WARNING)
+logging.getLogger('wavlm').setLevel(logging.WARNING)  # WavLM Config 로그 억제
+
+# Torch 경고 억제
+warnings.filterwarnings('ignore', category=UserWarning, module='torch')
+warnings.filterwarnings('ignore', message='.*stft with return_complex.*')
+warnings.filterwarnings('ignore', message='.*weight_norm.*')
+warnings.filterwarnings('ignore', category=FutureWarning, module='librosa')
 
 
 def setup_logger(name: str = "serving-server", level: int = logging.INFO) -> logging.Logger:

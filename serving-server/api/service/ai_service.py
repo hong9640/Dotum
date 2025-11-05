@@ -56,16 +56,22 @@ class AIService:
         start_time = time.time()
         temp_files = []
         
+        # 타이밍 측정용
+        step_times = {}
+        
         try:
             # 1. GCS에서 영상을 tmp/ 경로로 다운로드
+            step_start = time.time()
             log_step("Downloading video from GCS to tmp")
             video_local_path = await self.download_video_to_tmp(user_video_gs)
             if not video_local_path:
                 raise ValueError("Failed to download video from GCS")
             temp_files.append(video_local_path)
-            log_success("Video downloaded to tmp", path=video_local_path)
+            step_times["1_download_video"] = time.time() - step_start
+            log_success(f"Video downloaded to tmp ({step_times['1_download_video']:.2f}s)", path=video_local_path)
             
             # 2. 병렬처리: 영상 오디오화 + TTS 생성
+            step_start = time.time()
             log_step("Parallel processing: extracting audio + generating TTS")
             results = await asyncio.gather(
                 self.extract_audio_from_video(video_local_path),
@@ -79,15 +85,17 @@ class AIService:
             if isinstance(extracted_audio_path, Exception) or not extracted_audio_path:
                 raise ValueError("Failed to extract audio from video")
             temp_files.append(extracted_audio_path)
-            log_success("Audio extracted from video", path=extracted_audio_path)
             
             # TTS 생성 결과 확인
             if isinstance(tts_audio_path, Exception) or not tts_audio_path:
                 raise ValueError("Failed to generate TTS audio")
             temp_files.append(tts_audio_path)
-            log_success("TTS audio generated", path=tts_audio_path)
+            step_times["2_audio_tts"] = time.time() - step_start
+            log_success(f"Audio extraction + TTS completed ({step_times['2_audio_tts']:.2f}s)", 
+                       audio=extracted_audio_path, tts=tts_audio_path)
             
             # 3. FreeVC 음성 변환
+            step_start = time.time()
             log_step("Running FreeVC inference")
             freevc_output_path = await self.run_freevc_inference(
                 src_audio_path=extracted_audio_path,
@@ -97,9 +105,11 @@ class AIService:
             if not freevc_output_path:
                 raise ValueError("Failed to run FreeVC inference")
             temp_files.append(freevc_output_path)
-            log_success("FreeVC inference completed", path=freevc_output_path)
+            step_times["3_freevc"] = time.time() - step_start
+            log_success(f"FreeVC inference completed ({step_times['3_freevc']:.2f}s)", path=freevc_output_path)
             
             # 4. Wav2Lip 립싱크 및 GCS 업로드 (로컬 영상 파일 사용)
+            step_start = time.time()
             log_step("Running Wav2Lip inference and uploading to GCS")
             result_video_path = await self.run_wav2lip_inference(
                 face_video_path=video_local_path,
@@ -109,9 +119,20 @@ class AIService:
             )
             if not result_video_path:
                 raise ValueError("Failed to run Wav2Lip inference or upload to GCS")
-            log_success("Wav2Lip inference completed and uploaded", path=result_video_path)
+            step_times["4_wav2lip"] = time.time() - step_start
+            log_success(f"Wav2Lip inference completed and uploaded ({step_times['4_wav2lip']:.2f}s)", path=result_video_path)
             
             process_time_ms = (time.time() - start_time) * 1000
+            
+            # 성능 분석 로그
+            logger.info("=" * 60)
+            logger.info("Performance Analysis:")
+            logger.info(f"  1. Download Video:    {step_times['1_download_video']:>7.2f}s ({step_times['1_download_video']/process_time_ms*100000:.1f}%)")
+            logger.info(f"  2. Audio + TTS:       {step_times['2_audio_tts']:>7.2f}s ({step_times['2_audio_tts']/process_time_ms*100000:.1f}%)")
+            logger.info(f"  3. FreeVC:            {step_times['3_freevc']:>7.2f}s ({step_times['3_freevc']/process_time_ms*100000:.1f}%)")
+            logger.info(f"  4. Wav2Lip:           {step_times['4_wav2lip']:>7.2f}s ({step_times['4_wav2lip']/process_time_ms*100000:.1f}%)")
+            logger.info(f"  Total:                {process_time_ms/1000:>7.2f}s (100.0%)")
+            logger.info("=" * 60)
             
             return {
                 "success": True,
@@ -124,15 +145,17 @@ class AIService:
             raise
         
         finally:
-            # 6. 임시 파일 정리
-            log_step("Cleaning up temporary files")
+            # 임시 파일 정리 (로그 간소화)
+            cleaned_count = 0
             for temp_file in temp_files:
                 if temp_file and os.path.exists(temp_file):
                     try:
                         os.unlink(temp_file)
-                        logger.info(f"Cleaned up temp file: {temp_file}")
+                        cleaned_count += 1
                     except Exception as e:
-                        logger.warning(f"Failed to clean up temp file {temp_file}: {e}")
+                        logger.warning(f"Failed to clean up {temp_file}: {e}")
+            if cleaned_count > 0:
+                logger.info(f"Cleaned up {cleaned_count} temporary files")
     
     def _detect_optimal_batch_size(self) -> int:
         """GPU 메모리에 따라 최적 배치 크기 자동 감지"""
@@ -331,12 +354,12 @@ class AIService:
                     logger.error(f"FreeVC CPU convert script not found locally: {convert_path}")
                     return None
                 
-                # 필수 파일들 존재 확인
+                # 필수 파일들 존재 확인 (CPU 모드 우선)
                 essential_files = [
                     "commons.py", "data_utils.py", "downsample.py",
                     "losses.py", "mel_processing.py", "models.py", "modules.py",
-                    "utils.py", "preprocess_flist.py", "preprocess_spk.py",
-                    "preprocess_sr.py", "preprocess_ssl.py", "train.py"
+                    "utils_cpu.py", "preprocess_flist.py", "preprocess_spk.py",
+                    "preprocess_sr_cpu.py", "preprocess_ssl_cpu.py", "train.py"
                 ]
                 
                 for filename in essential_files:
@@ -505,7 +528,7 @@ class AIService:
                 wav2lip_dir = settings.LOCAL_WAV2LIP_PATH
                 
                 # 로컬 Wav2Lip 파일들 존재 확인
-                inference_path = os.path.join(wav2lip_dir, "inference_optimized.py")
+                inference_path = os.path.join(wav2lip_dir, "inference.py")
                 if not os.path.exists(inference_path):
                     logger.error(f"Wav2Lip inference script not found locally: {inference_path}")
                     return None
@@ -514,6 +537,7 @@ class AIService:
                 output_local = os.path.join(tmp_dir, "lipsynced.mp4")
                 
                 # Wav2Lip 추론 실행
+                # CPU 모드에서는 메모리 절약을 위해 batch size를 작게 설정
                 cmd = [
                     "python3", inference_path,
                     "--checkpoint_path", model_local,
@@ -521,30 +545,36 @@ class AIService:
                     "--audio", audio_local,
                     "--outfile", output_local,
                     "--pads", "0", "20", "0", "0",
-                    "--wav2lip_batch_size", "16",
-                    "--device", "cuda" if (use_gpu and torch.cuda.is_available()) else "cpu",
+                    "--wav2lip_batch_size", "16",  # 8 → 16로 증가 (빠른 처리)
+                    "--face_det_batch_size", "8",  # 4 → 8로 증가
+                    "--resize_factor", "3",  # 2 → 3으로 증가 (640x360, 속도 우선)
+                    "--nosmooth",  # Face detection smoothing 비활성화 (속도 향상)
                 ]
                 
                 logger.info(f"Running Wav2Lip inference: {' '.join(cmd)}")
                 result = subprocess.run(cmd, capture_output=True, text=True, cwd=wav2lip_dir)
                 
-                # 디버깅을 위한 로그 출력
+                # 디버깅을 위한 상세 로그 출력
                 logger.info(f"Wav2Lip return code: {result.returncode}")
                 if result.stdout:
-                    logger.info(f"Wav2Lip stdout: {result.stdout}")
+                    logger.info(f"Wav2Lip stdout:\n{result.stdout}")
                 if result.stderr:
-                    logger.warning(f"Wav2Lip stderr: {result.stderr}")
+                    logger.info(f"Wav2Lip stderr:\n{result.stderr}")
+                
+                # Return code 먼저 체크
+                if result.returncode != 0:
+                    logger.error(f"Wav2Lip inference failed with return code {result.returncode}")
+                    logger.error(f"stdout: {result.stdout}")
+                    logger.error(f"stderr: {result.stderr}")
+                    logger.error(f"Temporary directory contents: {os.listdir(tmp_dir)}")
+                    return None
                 
                 # 출력 파일 존재 확인
                 if not os.path.exists(output_local):
                     logger.error(f"Wav2Lip output file not found: {output_local}")
                     logger.error(f"Temporary directory contents: {os.listdir(tmp_dir)}")
-                    if result.stderr:
-                        logger.error(f"Wav2Lip error details: {result.stderr}")
-                    return None
-                
-                if result.returncode != 0:
-                    logger.error(f"Wav2Lip inference failed with return code {result.returncode}: {result.stderr}")
+                    logger.error(f"stdout: {result.stdout}")
+                    logger.error(f"stderr: {result.stderr}")
                     return None
                 
                 # 결과 파일을 사용자 지정 GCS 경로로 직접 업로드

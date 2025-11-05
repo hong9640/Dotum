@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   serving-server:
@@ -11,25 +11,36 @@ services:
     environment:
       - GCP_PROJECT_ID=${GCP_PROJECT_ID}
       - GCS_BUCKET=${GCS_BUCKET}
-      - GCS_CREDENTIAL_PATH=/etc/gcp/key.json
+      - GCS_CREDENTIAL_PATH=${GCS_CREDENTIAL_PATH}
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
+      # GPU 환경 변수 (개발 환경 - GPU 없어도 동작)
+      - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+      - NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
+      - NVIDIA_DRIVER_CAPABILITIES=${NVIDIA_DRIVER_CAPABILITIES:-compute,utility}
     volumes:
       # ✅ 코드 변경 시 즉시 반영 (개발 시에만 필요)
       - ./api:/app/api
+      - ./models:/app/models
       # ✅ GCP 서비스 계정 키 (읽기 전용)
-      - ./credentials:/etc/gcp:ro
+      - ./credentials:/app/credentials:ro
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
+    # GPU 지원 (선택사항 - GPU 있으면 사용, 없으면 CPU)
     deploy:
       resources:
         limits:
-          memory: 8G
+          memory: 16G
         reservations:
-          memory: 4G
+          memory: 8G
+          # GPU가 있는 경우에만 활성화
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s

@@ -16,6 +16,14 @@ app = FastAPI(
 
 register_middlewares(app)
 
+# 최적화 버전 라우터 추가 (테스트용)
+try:
+    from api.routes.optimized import router as optimized_router
+    app.include_router(optimized_router)
+    logger.info("Optimized router loaded successfully")
+except Exception as e:
+    logger.warning(f"Failed to load optimized router: {e}")
+
 @app.get("/")
 def endpoint_check():
   return ({"server_staus": "running"})

@@ -9,3 +9,7 @@ tests/
 
 # Credentials
 credentials/
+
+# Optimization test files
+test_optimization.py
+*_backup.py
