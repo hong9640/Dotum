@@ -13,6 +13,9 @@ from ..services.training_sessions import TrainingSessionService
 from ..services.gcs_service import GCSService
 from ..services.media import MediaService
 
+# Sentinel value: "조회하지 않음"을 나타내기 위한 특별한 객체
+_NOT_PROVIDED = object()
+
 
 async def get_composited_media_info(
     db: AsyncSession,
@@ -47,9 +50,17 @@ async def build_current_item_response(
     service: TrainingSessionService,
     gcs_service: GCSService,
     username: str,
-    session_id: int
+    session_id: int,
+    composited_media=_NOT_PROVIDED
 ) -> CurrentItemResponse:
-    """CurrentItemResponse 객체 생성 (중복 제거용 헬퍼)"""
+    """CurrentItemResponse 객체 생성 (중복 제거용 헬퍼)
+    
+    Args:
+        composited_media: 미리 조회한 composited media
+            - _NOT_PROVIDED (기본값): 함수 내에서 조회
+            - None: 조회했지만 DB에 없음
+            - MediaFile 객체: 조회한 결과
+    """
     # 단어 또는 문장 정보 추출
     word = item.word.word if item.word else None
     sentence = item.sentence.sentence if item.sentence else None
@@ -57,14 +68,27 @@ async def build_current_item_response(
     # Private 버킷이므로 signed URL 생성
     video_url = None
     if item.video_url and item.media_file_id:
-        media_file = await service.get_media_file_by_id(item.media_file_id)
+        # Eager loading으로 이미 로드된 media_file 사용 (DB 조회 방지)
+        media_file = item.media_file
         if media_file:
             video_url = await gcs_service.get_signed_url(media_file.object_key, expiration_hours=24)
     
-    # Composited media 조회
-    composited_video_url, composited_media_file_id = await get_composited_media_info(
-        service.db, gcs_service, username, session_id, item.id
-    )
+    # Composited media 처리
+    composited_video_url = None
+    composited_media_file_id = None
+    
+    if composited_media is _NOT_PROVIDED:
+        # 조회하지 않았음 -> 함수 내에서 조회 (하위 호환성)
+        composited_video_url, composited_media_file_id = await get_composited_media_info(
+            service.db, gcs_service, username, session_id, item.id
+        )
+    elif composited_media is None:
+        # 조회했지만 DB에 없음 -> 아무것도 안 함 (이미 None으로 초기화됨)
+        pass
+    else:
+        # 조회한 결과 있음 -> 사용
+        composited_media_file_id = composited_media.id
+        composited_video_url = await gcs_service.get_signed_url(composited_media.object_key, expiration_hours=24)
     
     return CurrentItemResponse(
         item_id=item.id,
@@ -121,11 +145,52 @@ async def convert_session_to_response(
     username: str
 ) -> TrainingSessionResponse:
     """TrainingSession 모델을 TrainingSessionResponse로 변환"""
+    # Composited media를 일괄 조회하기 위한 object_key 리스트 생성
+    composited_object_keys = [
+        f"results/{username}/{session.id}/result_item_{item.id}.mp4"
+        for item in session.training_items
+    ]
+    
+    # Composited media 일괄 조회
+    media_service = MediaService(db)
+    composited_media_map = {}
+    if composited_object_keys:
+        from sqlmodel import select
+        from ..models.media import MediaFile
+        stmt = select(MediaFile).where(MediaFile.object_key.in_(composited_object_keys))
+        result = await db.execute(stmt)
+        composited_medias = result.scalars().all()
+        composited_media_map = {media.object_key: media for media in composited_medias}
+    
     # training_items를 비동기로 변환
     training_items = []
     for item in session.training_items:
-        item_response = await convert_training_item_to_response(
-            item, db, gcs_service, username, session.id
+        # 미리 조회한 composited media 사용
+        composited_object_key = f"results/{username}/{session.id}/result_item_{item.id}.mp4"
+        composited_media = composited_media_map.get(composited_object_key)
+        
+        composited_video_url = None
+        composited_media_file_id = None
+        if composited_media:
+            composited_media_file_id = composited_media.id
+            composited_video_url = await gcs_service.get_signed_url(composited_media.object_key, expiration_hours=24)
+        
+        item_response = TrainingItemResponse(
+            item_id=item.id,
+            training_session_id=item.training_session_id,
+            item_index=item.item_index,
+            word_id=item.word_id,
+            sentence_id=item.sentence_id,
+            word=item.word.word if item.word else None,
+            sentence=item.sentence.sentence if item.sentence else None,
+            is_completed=item.is_completed,
+            video_url=item.video_url,
+            media_file_id=item.media_file_id,
+            completed_at=item.completed_at,
+            created_at=item.created_at,
+            updated_at=item.updated_at,
+            composited_video_url=composited_video_url,
+            composited_media_file_id=composited_media_file_id
         )
         training_items.append(item_response)
     

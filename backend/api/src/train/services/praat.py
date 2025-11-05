@@ -203,8 +203,8 @@ async def get_praat_analysis_from_db(
     item_repo = TrainingItemRepository(db)
     media_service = MediaService(db)
 
-    # 1. 훈련 아이템 조회 및 소유권 확인
-    item = await item_repo.get_item(session_id, item_id)
+    # 1. 훈련 아이템 조회 및 소유권 확인 (media_file도 함께 로드)
+    item = await item_repo.get_item(session_id, item_id, include_relations=True)
     if not item:
         raise LookupError("훈련 아이템을 찾을 수 없습니다.")
 
@@ -213,7 +213,8 @@ async def get_praat_analysis_from_db(
         # 비디오가 아직 업로드되지 않았으므로 분석 결과도 없음
         return None
 
-    video_media = await media_service.get_media_file_by_id(item.media_file_id)
+    # Eager loading으로 이미 로드된 media_file 사용 (DB 조회 방지)
+    video_media = item.media_file
     if not video_media:
         raise LookupError("연결된 비디오 미디어 파일을 찾을 수 없습니다.")
 

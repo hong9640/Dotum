@@ -19,7 +19,8 @@ class TrainingItemRepository(BaseRepository[TrainingItem]):
         if include_relations:
             stmt = stmt.options(
                 selectinload(TrainingItem.word),
-                selectinload(TrainingItem.sentence)
+                selectinload(TrainingItem.sentence),
+                selectinload(TrainingItem.media_file)
             )
         return stmt
 

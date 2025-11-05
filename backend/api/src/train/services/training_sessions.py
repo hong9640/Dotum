@@ -477,7 +477,8 @@ class TrainingSessionService:
         # 기존 미디어 파일 정보 가져오기 (덮어쓰기용)
         old_media_file = None
         if item.media_file_id:
-            old_media_file = await self.get_media_file_by_id(item.media_file_id)
+            # Eager loading으로 이미 로드된 media_file 사용 (DB 조회 방지)
+            old_media_file = item.media_file
 
         # 같은 경로에 새 동영상 업로드 (덮어쓰기)
         upload_result = await gcs_service.upload_video(
@@ -673,7 +674,8 @@ class TrainingSessionService:
         praat_feature = None
         try:
             if current_item.media_file_id:
-                video_media = await self.get_media_file_by_id(current_item.media_file_id)
+                # Eager loading으로 이미 로드된 media_file 사용 (DB 조회 방지)
+                video_media = current_item.media_file
                 if video_media and video_media.object_key and video_media.object_key.endswith('.mp4'):
                     audio_object_key = video_media.object_key.replace('.mp4', '.wav')
                     from ..services.media import MediaService
@@ -710,7 +712,8 @@ class TrainingSessionService:
         praat_feature = None
         try:
             if item.media_file_id:
-                video_media = await self.get_media_file_by_id(item.media_file_id)
+                # Eager loading으로 이미 로드된 media_file 사용 (DB 조회 방지)
+                video_media = item.media_file
                 if video_media and video_media.object_key and video_media.object_key.endswith('.mp4'):
                     audio_object_key = video_media.object_key.replace('.mp4', '.wav')
                     from ..services.media import MediaService
@@ -742,15 +745,14 @@ class TrainingSessionService:
         session = await self.get_training_session(session_id, user_id)
         if not session:
             return None
-        # 아이템 조회
-        item = await self.item_repo.get_item(session_id, item_id, include_relations=False)
+        # 아이템 조회 (media_file도 함께 로드)
+        item = await self.item_repo.get_item(session_id, item_id, include_relations=True)
         if not item:
             return None
         media = None
         if item.media_file_id:
-            from ..services.media import MediaService
-            media_service = MediaService(self.db)
-            media = await media_service.get_media_file_by_id(item.media_file_id)
+            # Eager loading으로 이미 로드된 media_file 사용 (DB 조회 방지)
+            media = item.media_file
         return {"item": item, "media": media}
 
     async def get_media_file_by_id(self, media_file_id: int) -> Optional[MediaFile]:

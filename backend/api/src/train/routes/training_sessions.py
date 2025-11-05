@@ -373,14 +373,22 @@ async def get_current_item(
             detail="진행 중인 아이템을 찾을 수 없습니다."
         )
     
+    # Composited media 미리 조회
+    item = result['item']
+    composited_object_key = f"results/{current_user.username}/{session_id}/result_item_{item.id}.mp4"
+    from ..services.media import MediaService
+    media_service = MediaService(service.db)
+    composited_media = await media_service.get_media_file_by_object_key(composited_object_key)
+    
     return await build_current_item_response(
-        item=result['item'],
+        item=item,
         has_next=result['has_next'],
         praat=result.get('praat'),
         service=service,
         gcs_service=gcs_service,
         username=current_user.username,
-        session_id=session_id
+        session_id=session_id,
+        composited_media=composited_media
     )
 
 
@@ -502,14 +510,22 @@ async def get_item_by_index(
             detail="해당 인덱스의 아이템을 찾을 수 없습니다."
         )
 
+    # Composited media 미리 조회
+    item = result['item']
+    composited_object_key = f"results/{current_user.username}/{session_id}/result_item_{item.id}.mp4"
+    from ..services.media import MediaService
+    media_service = MediaService(service.db)
+    composited_media = await media_service.get_media_file_by_object_key(composited_object_key)
+
     return await build_current_item_response(
-        item=result['item'],
+        item=item,
         has_next=result['has_next'],
         praat=result.get('praat'),
         service=service,
         gcs_service=gcs_service,
         username=current_user.username,
-        session_id=session_id
+        session_id=session_id,
+        composited_media=composited_media
     )
 
 
