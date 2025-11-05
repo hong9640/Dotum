@@ -207,8 +207,8 @@ stage('Deploy') {
                 echo "⏳ 대기 중..."
                 sleep 1
                 
-                echo "🚀 backend, frontend 시작..."
-                docker-compose -p dotum up -d --no-deps backend frontend
+                echo "🚀 backend, frontend 시작 (환경변수 갱신을 위해 강제 재생성)..."
+                docker-compose -p dotum up -d --no-deps --force-recreate backend frontend
                 
                 echo "⏳ 컨테이너 시작 대기..."
                 sleep 2
