@@ -42,6 +42,7 @@ class CurrentItemResponse(BaseModel):
     composited_media_file_id: Optional[int] = None
     has_next: bool
     praat: Optional[PraatFeaturesResponse] = None
+    integrate_voice_url: Optional[str] = None
     
     model_config = ConfigDict(from_attributes=True, populate_by_name=False)
 

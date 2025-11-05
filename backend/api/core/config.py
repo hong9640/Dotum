@@ -36,6 +36,9 @@ class Settings(BaseSettings):
 
     ML_SERVER_URL: str
 
+    # ElevenLabs API Key
+    ELEVENLABS_API_KEY: str = ""
+
     # CORS Settings
     CORS_ORIGINS: str | None = None
 

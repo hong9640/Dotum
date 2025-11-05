@@ -273,3 +273,44 @@ class VideoProcessor:
             return result.returncode == 0
         except FileNotFoundError:
             return False
+
+    async def convert_mp3_to_wav(self, mp3_bytes: bytes) -> bytes:
+        """
+        MP3 바이트 데이터를 입력받아 WAV 바이트 데이터로 변환합니다.
+        FFmpeg를 사용하여 인메모리 방식으로 처리합니다.
+        """
+        if not self.check_ffmpeg_availability():
+            raise Exception("FFmpeg가 설치되어 있지 않습니다.")
+
+        temp_mp3_path = None
+        temp_wav_path = None
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as temp_mp3, \
+                 tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_wav:
+
+                temp_mp3_path = temp_mp3.name
+                temp_wav_path = temp_wav.name
+
+                async with aiofiles.open(temp_mp3_path, 'wb') as f:
+                    await f.write(mp3_bytes)
+
+                cmd = [
+                    'ffmpeg', '-i', temp_mp3_path,
+                    '-acodec', 'pcm_s16le',   # 16-bit PCM WAV
+                    '-ar', '44100',           # 샘플링 레이트
+                    '-ac', '1',               # 모노 채널
+                    '-y',                     # 덮어쓰기
+                    temp_wav_path
+                ]
+
+                process = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+                _, stderr = await process.communicate()
+
+                if process.returncode != 0:
+                    raise Exception(f"MP3 to WAV 변환 실패: {stderr.decode()}")
+
+                async with aiofiles.open(temp_wav_path, 'rb') as f:
+                    return await f.read()
+        finally:
+            if temp_mp3_path and os.path.exists(temp_mp3_path): os.remove(temp_mp3_path)
+            if temp_wav_path and os.path.exists(temp_wav_path): os.remove(temp_wav_path)
