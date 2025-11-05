@@ -18,13 +18,17 @@ class TrainingSessionRepository(BaseRepository[TrainingSession]):
         """기본 세션 쿼리 생성"""
         stmt = select(TrainingSession)
         if include_items:
-            # training_items를 로드하고, 각 item에 연결된 word와 sentence까지 미리 로드합니다.
+            # training_items를 로드하고, 각 item에 연결된 word, sentence, media_file까지 미리 로드합니다.
             stmt = stmt.options(
                 selectinload(TrainingSession.training_items)
                 .selectinload(TrainingItem.word)
             ).options(
                 selectinload(TrainingSession.training_items)
-                .selectinload(TrainingItem.sentence))
+                .selectinload(TrainingItem.sentence)
+            ).options(
+                selectinload(TrainingSession.training_items)
+                .selectinload(TrainingItem.media_file)
+            )
         return stmt
 
     async def create_session(
