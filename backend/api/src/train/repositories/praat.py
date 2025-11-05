@@ -27,7 +27,11 @@ class PraatRepository(BaseRepository[PraatFeatures]):
         max_f0: Optional[float] = None,
         min_f0: Optional[float] = None,
         cpp: Optional[float] = None,
-        csid: Optional[float] = None
+        csid: Optional[float] = None,
+        lh_ratio_mean_db: Optional[float] = None,
+        lh_ratio_sd_db: Optional[float] = None,
+        f1: Optional[float] = None,
+        f2: Optional[float] = None
     ) -> PraatFeatures:
         """Praat 분석 결과 생성 (flush만 수행, commit은 호출자가 담당)"""
         praat_feature = PraatFeatures(
@@ -40,7 +44,11 @@ class PraatRepository(BaseRepository[PraatFeatures]):
             max_f0=max_f0,
             min_f0=min_f0,
             cpp=cpp,
-            csid=csid
+            csid=csid,
+            lh_ratio_mean_db=lh_ratio_mean_db,
+            lh_ratio_sd_db=lh_ratio_sd_db,
+            f1=f1,
+            f2=f2
         )
         
         self.db.add(praat_feature)

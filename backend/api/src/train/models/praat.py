@@ -20,6 +20,11 @@ class PraatFeatures(SQLModel, table=True):
     cpp: Optional[float] = None
     csid: Optional[float] = None
 
+    lh_ratio_mean_db: Optional[float] = None
+    lh_ratio_sd_db: Optional[float] = None
+    f1: Optional[float] = None
+    f2: Optional[float] = None
+
     # 관계 (논리 FK)
     user: Optional["MediaFile"] = Relationship(
         sa_relationship_kwargs={
