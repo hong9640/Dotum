@@ -2,6 +2,7 @@
 Response converters for training session endpoints.
 DB 모델을 API Response 스키마로 변환하는 헬퍼 함수들
 """
+import asyncio
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -65,42 +66,42 @@ async def build_current_item_response(
     word = item.word.word if item.word else None
     sentence = item.sentence.sentence if item.sentence else None
     
-    # Private 버킷이므로 signed URL 생성
-    video_url = None
+    # 서명된 URL 생성을 위한 task 리스트
+    url_tasks = []
+
+    # 1. 원본 비디오 URL 생성 task
     if item.video_url and item.media_file_id:
         # Eager loading으로 이미 로드된 media_file 사용 (DB 조회 방지)
         media_file = item.media_file
         if media_file:
-            video_url = await gcs_service.get_signed_url(media_file.object_key, expiration_hours=24)
-    
-    # Composited media 처리
-    composited_video_url = None
-    composited_media_file_id = None
-    
-    if composited_media is _NOT_PROVIDED:
-        # 조회하지 않았음 -> 함수 내에서 조회 (하위 호환성)
-        composited_video_url, composited_media_file_id = await get_composited_media_info(
-            service.db, gcs_service, username, session_id, item.id
-        )
-    elif composited_media is None:
-        # 조회했지만 DB에 없음 -> 아무것도 안 함 (이미 None으로 초기화됨)
-        pass
+            url_tasks.append(gcs_service.get_signed_url(media_file.object_key, expiration_hours=24))
+        else:
+            url_tasks.append(asyncio.sleep(0, result=None)) # 순서 유지를 위한 더미
     else:
-        # 조회한 결과 있음 -> 사용
-        composited_media_file_id = composited_media.id
-        composited_video_url = await gcs_service.get_signed_url(composited_media.object_key, expiration_hours=24)
+        url_tasks.append(asyncio.sleep(0, result=None))
     
-    # 가이드 음성(integrate_voice_url) 조회
-    integrate_voice_url = None
-    try:
-        # 1. 가이드 음성의 예상 object_key 생성
-        guide_audio_object_key = f"guides/{username}/{session_id}/guide_item_{item.id}.wav"
-        # 2. GCS에서 서명된 URL 가져오기
-        integrate_voice_url = await gcs_service.get_signed_url(guide_audio_object_key, expiration_hours=24)
-    except Exception:
-        # 파일을 찾지 못하거나 오류 발생 시 URL은 None으로 유지
-        integrate_voice_url = None
+    # 2. Composited media URL 생성 task
+    composited_media_file_id = None
+    if composited_media is _NOT_PROVIDED:
+        _, composited_media_file_id = await get_composited_media_info(service.db, gcs_service, username, session_id, item.id)
+        composited_object_key = f"results/{username}/{session_id}/result_item_{item.id}.mp4"
+        url_tasks.append(gcs_service.get_signed_url(composited_object_key, expiration_hours=24))
+    elif composited_media:
+        composited_media_file_id = composited_media.id
+        url_tasks.append(gcs_service.get_signed_url(composited_media.object_key, expiration_hours=24))
+    else:
+        url_tasks.append(asyncio.sleep(0, result=None))
+    
+    # 3. 가이드 음성 URL 생성 task
+    guide_audio_object_key = f"guides/{username}/{session_id}/guide_item_{item.id}.wav"
+    url_tasks.append(gcs_service.get_signed_url(guide_audio_object_key, expiration_hours=24))
 
+    # 모든 URL 요청을 병렬로 실행
+    video_url, composited_video_url, integrate_voice_url = await asyncio.gather(*url_tasks, return_exceptions=True)
+    # 예외 발생 시 None으로 처리
+    video_url = video_url if not isinstance(video_url, Exception) else None
+    composited_video_url = composited_video_url if not isinstance(composited_video_url, Exception) else None
+    integrate_voice_url = integrate_voice_url if not isinstance(integrate_voice_url, Exception) else None
 
     return CurrentItemResponse(
         item_id=item.id,
@@ -269,4 +270,3 @@ def convert_praat_to_response(praat) -> Optional[PraatFeaturesResponse]:
         f2=praat.f2,
         intensity_mean=praat.intensity_mean
     )
-
