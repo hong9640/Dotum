@@ -1,34 +1,50 @@
 import React from "react";
-import { Volume2, AudioWaveform, GaugeCircle, Leaf, ListChecks } from "lucide-react";
+import { AudioWaveform, Activity, Radio, Heart, ListChecks, ArrowRight } from "lucide-react";
 import DetailedEvaluationItemCard, { type DetailedEvaluationItem } from "./DetailedEvaluationItemCard";
+import { Button } from "@/components/ui/button";
 
 const evaluationData: DetailedEvaluationItem[] = [
-  { id: "clarity", title: "명확도", score: 50, icon: Volume2, colorVariant: "green" },
-  { id: "intonation", title: "억양", score: 90, icon: AudioWaveform, colorVariant: "blue" },
-  { id: "speed", title: "속도", score: 40, icon: GaugeCircle, colorVariant: "amber" },
-  { id: "naturalness", title: "자연스러움", score: 34, icon: Leaf, colorVariant: "amber" },
+  { id: "vowel_distortion", title: "모음 왜곡도", score: 50, icon: AudioWaveform, colorVariant: "green" },
+  { id: "cpp", title: "소리의 안정도", score: 90, icon: Activity, colorVariant: "blue" },
+  { id: "hnr", title: "음성 맑음도", score: 40, icon: Radio, colorVariant: "amber" },
+  { id: "csid", title: "음성 건강지수", score: 34, icon: Heart, colorVariant: "amber" },
 ];
 
 const DetailedEvaluationItems: React.FC = () => {
   return (
-    <section className="w-full self-stretch border-t-2 border-slate-100 py-8">
-      {/* <div className="mx-auto w-full max-w-6xl rounded-2xl border border-gray-200 bg-white p-4 shadow-lg sm:p-6"> */}
-        <div className="pb-6 flex items-center">
-          <ListChecks
-            className="w-7 h-7 mr-3 text-green-500"
-            strokeWidth={2.5}
-          />
-          <span className="text-slate-800 text-2xl md:text-3xl font-semibold leading-9">
+    <div className="self-stretch px-6 py-7 rounded-2xl shadow-[0px_1px_2px_-1px_rgba(0,0,0,0.10)] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.10)] border-t border-slate-200 flex flex-col gap-6">
+      {/* 제목 섹션 */}
+      <div className="self-stretch flex justify-start items-start">
+        <div className="flex-1 h-6 flex justify-start items-center">
+          <div className="pr-3 flex justify-start items-start">
+            <div className="self-stretch flex justify-start items-center">
+              <ListChecks
+                className="w-7 h-7 text-green-500"
+                strokeWidth={2.5}
+              />
+            </div>
+          </div>
+          <div className="text-slate-800 text-2xl md:text-3xl font-semibold leading-9">
             세부 평가 항목
-          </span>
+          </div>
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:gap-6">
-          {evaluationData.map((item) => (
-            <DetailedEvaluationItemCard key={item.id} item={item} />
-          ))}
-        {/* </div> */}
       </div>
-    </section>
+
+      {/* 카드 그리드 및 버튼 */}
+      <div className="self-stretch flex justify-center items-start gap-6 flex-wrap">
+        {evaluationData.map((item) => (
+          <DetailedEvaluationItemCard key={item.id} item={item} />
+        ))}
+        
+        {/* 자세히 보기 버튼 */}
+        <Button
+          className="h-auto min-h-10 px-6 py-4 bg-green-500 hover:bg-green-600 rounded-xl inline-flex justify-center items-center gap-3 text-white text-3xl font-semibold leading-9"
+        >
+          <span className="text-center justify-center">자세히 보기</span>
+          <ArrowRight className="w-8 h-8" />
+        </Button>
+      </div>
+    </div>
   );
 };
 
