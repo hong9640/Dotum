@@ -14,12 +14,14 @@ def get_current_datetime():
 
 if TYPE_CHECKING:
     from .training_item import TrainingItem
+    from .session_praat_result import SessionPraatResult
     from user.user_model import User
 
 
 class TrainingType(str, Enum):
     WORD = "word"
     SENTENCE = "sentence"
+    VOCAL = "vocal"
 
 class TrainingSessionStatus(str, Enum):
     IN_PROGRESS = "in_progress"
@@ -62,6 +64,14 @@ class TrainingSession(SQLModel, table=True):
         sa_relationship_kwargs={
             "primaryjoin": "TrainingSession.id==foreign(TrainingItem.training_session_id)",
             "foreign_keys": "[TrainingItem.training_session_id]",
+        }
+    )
+    
+    # 세션 평균 praat 결과 (1:1 관계, nullable, vocal 타입 전용)
+    session_praat_result: Optional["SessionPraatResult"] = Relationship(
+        sa_relationship_kwargs={
+            "primaryjoin": "TrainingSession.id==foreign(SessionPraatResult.training_session_id)",
+            "foreign_keys": "[SessionPraatResult.training_session_id]",
         }
     )
     

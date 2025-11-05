@@ -34,6 +34,7 @@ from api.src.train.models import (
     TrainingItem,
     PraatFeatures
 )
+from api.src.train.models.session_praat_result import SessionPraatResult
 from api.src.user.user_model import User
 from api.src.token.token_model import RefreshToken
 

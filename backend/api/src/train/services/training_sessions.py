@@ -23,6 +23,7 @@ from ..services.video_processor import VideoProcessor
 from ..services.media import MediaService
 from ..services.text_to_speech import TextToSpeechService
 from ..services.praat import get_praat_analysis_from_db
+from ..services.praat_service import save_session_praat_result
 from api.src.user.user_model import User
 from api.core.config import settings
 
@@ -164,6 +165,13 @@ class TrainingSessionService:
             user_id
         )
         await self.db.commit()
+        
+        # vocal 타입 세션의 경우 Praat 평균 결과 저장 (이미 조회한 세션 객체 전달하여 재조회 방지)
+        try:
+            await save_session_praat_result(self.db, session_id, session)
+        except Exception as e:
+            # Praat 평균 계산 실패해도 세션 완료는 정상 처리
+            print(f"⚠️ Session {session_id}: Praat 평균 결과 저장 실패: {e}")
         
         return await self.get_training_session(session_id, user_id)
     
