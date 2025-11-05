@@ -1,7 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Square, RotateCcw, Upload } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+// import { useNavigate } from "react-router-dom";
 
 interface RecordingControlsProps {
   recordingState: "idle" | "recording" | "processing" | "error";
@@ -20,7 +20,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   onStartRecording,
   onStopRecording,
   onRetake,
-  onViewResults,
+  // onViewResults,
   onUpload,
   isUploading = false,
 }) => {
