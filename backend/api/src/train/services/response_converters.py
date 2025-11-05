@@ -65,7 +65,18 @@ async def build_current_item_response(
     composited_video_url, composited_media_file_id = await get_composited_media_info(
         service.db, gcs_service, username, session_id, item.id
     )
-    
+
+    # 가이드 음성(integrate_voice_url) 조회
+    integrate_voice_url = None
+    try:
+        # 1. 가이드 음성의 예상 object_key 생성
+        guide_audio_object_key = f"guides/{username}/{session_id}/guide_item_{item.id}.wav"
+        # 2. GCS에서 서명된 URL 가져오기
+        integrate_voice_url = await gcs_service.get_signed_url(guide_audio_object_key, expiration_hours=24)
+    except Exception:
+        # 파일을 찾지 못하거나 오류 발생 시 URL은 None으로 유지
+        integrate_voice_url = None
+
     return CurrentItemResponse(
         item_id=item.id,
         item_index=item.item_index,
@@ -79,7 +90,8 @@ async def build_current_item_response(
         media_file_id=item.media_file_id,
         composited_media_file_id=composited_media_file_id,
         has_next=has_next,
-        praat=(convert_praat_to_response(praat) if praat else None)
+        praat=(convert_praat_to_response(praat) if praat else None),
+        integrate_voice_url=integrate_voice_url
     )
 
 

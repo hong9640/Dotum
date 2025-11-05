@@ -21,6 +21,7 @@ from ..models.media import MediaFile, MediaType
 from ..services.gcs_service import GCSService
 from ..services.video_processor import VideoProcessor
 from ..services.media import MediaService
+from ..services.text_to_speech import TextToSpeechService
 from ..services.praat import get_praat_analysis_from_db
 from api.src.user.user_model import User
 from api.core.config import settings
@@ -267,6 +268,64 @@ class TrainingSessionService:
         except Exception as e:
             print(f"wav2lip 결과 저장 중 DB 오류 발생: {e}")
     
+    async def trigger_guide_audio_generation(
+        self,
+        *,
+        user: User,
+        session_id: int,
+        item_id: int,
+        text: str,
+        original_audio_object_key: str,
+        gcs_service: GCSService
+    ):
+        """백그라운드 작업: 원본 음성을 복제하여 가이드 음성을 생성하고 GCS에 저장"""
+        try:
+            print(f"[GUIDE] 가이드 음성 생성 시작 - item_id: {item_id}")
+            
+            # 1. GCS에서 원본 음성 파일 다운로드
+            original_audio_bytes = await gcs_service.download_video(original_audio_object_key)
+            if not original_audio_bytes:
+                print(f"[GUIDE] 원본 음성 다운로드 실패: {original_audio_object_key}")
+                return
+
+            # 2. 텍스트와 음성 샘플로 MP3 음성 생성 (음성 복제)
+            tts_service = TextToSpeechService()
+            mp3_bytes = await tts_service.generate_guide_audio(
+                text=text, audio_sample_bytes=original_audio_bytes
+            )
+            if not mp3_bytes:
+                print(f"[GUIDE] 가이드 음성(MP3) 생성 실패 - item_id: {item_id}")
+                return
+
+            # 3. MP3를 WAV로 변환
+            video_processor = VideoProcessor()
+            wav_bytes = await video_processor.convert_mp3_to_wav(mp3_bytes)
+            if not wav_bytes:
+                print(f"[GUIDE] 가이드 음성(WAV) 변환 실패 - item_id: {item_id}")
+                return
+
+            # 4. GCS에 '가이드 음성'을 다른 이름으로 업로드
+            guide_audio_object_key = f"guides/{user.username}/{session_id}/guide_item_{item_id}.wav"
+            guide_audio_blob = gcs_service.bucket.blob(guide_audio_object_key)
+            guide_audio_blob.upload_from_string(wav_bytes, content_type="audio/wav")
+            print(f"[GUIDE] 가이드 음성 GCS 업로드 성공: {guide_audio_object_key}")
+
+            # 5. MediaFile DB에 '가이드 음성' 정보 저장
+            await self.media_repo.create_and_flush(
+                user_id=user.id,
+                object_key=guide_audio_object_key,
+                media_type=MediaType.AUDIO,
+                file_name=guide_audio_object_key.split('/')[-1],
+                file_size_bytes=len(wav_bytes),
+                format="wav"
+            )
+            await self.db.commit()
+            print(f"[GUIDE] 가이드 음성 DB 저장 성공")
+
+        except Exception as e:
+            await self.db.rollback()
+            print(f"[GUIDE] 가이드 음성 생성/저장 중 오류 발생: {e}")
+
     async def _submit_item_with_video(
         self,
         *,
@@ -383,6 +442,19 @@ class TrainingSessionService:
             import traceback
             traceback.print_exc()
         
+        # 가이드 음성 생성을 위한 백그라운드 작업 추가
+        if (item.word or item.sentence) and audio_media_file:
+            text_for_guide = item.word.word if item.word else item.sentence.sentence
+            background_tasks.add_task(
+                self.trigger_guide_audio_generation,
+                user=user,
+                session_id=session_id,
+                item_id=item.id,
+                text=text_for_guide,
+                original_audio_object_key=audio_media_file.object_key,
+                gcs_service=gcs_service
+            )
+
         await self.item_repo.complete_item(
             item_id=item.id,
             video_url=video_url,
@@ -708,19 +780,29 @@ class TrainingSessionService:
 
         # Praat 분석 결과 조회 시도: 비디오 media의 object_key를 .wav로 치환해 오디오 media 탐색
         praat_feature = None
+        print(f"[PRAAT_DEBUG] Praat 분석 시작 - item_id: {item.id}, item_index: {item_index}")
+        print(f"[PRAAT_DEBUG] 1. item.media_file_id: {item.media_file_id}")
         try:
             if item.media_file_id:
                 video_media = await self.get_media_file_by_id(item.media_file_id)
+                print(f"[PRAAT_DEBUG] 2. video_media 조회 결과: {'성공' if video_media else '실패'}")
                 if video_media and video_media.object_key and video_media.object_key.endswith('.mp4'):
+                    print(f"[PRAAT_DEBUG] 3. video_media.object_key: {video_media.object_key}")
                     audio_object_key = video_media.object_key.replace('.mp4', '.wav')
+                    print(f"[PRAAT_DEBUG] 4. 추론된 audio_object_key: {audio_object_key}")
                     from ..services.media import MediaService
                     media_service = MediaService(self.db)
                     audio_media = await media_service.get_media_file_by_object_key(audio_object_key)
+                    print(f"[PRAAT_DEBUG] 5. audio_media 조회 결과: {'성공' if audio_media else '실패'}")
                     if audio_media:
-                        praat_feature = await get_praat_analysis_from_db(self.db, media_id=audio_media.id, user_id=user_id)
-        except Exception:
+                        print(f"[PRAAT_DEBUG] 6. audio_media.id({audio_media.id})로 Praat DB 조회 시도")
+                        praat_feature = await self.praat_repo.get_by_media_id(audio_media.id)
+                        print(f"[PRAAT_DEBUG] 7. 최종 Praat 조회 결과: {'성공' if praat_feature else '실패 (DB에 레코드 없음)'}")
+                else:
+                    print(f"[PRAAT_DEBUG] 3. video_media가 없거나 object_key가 올바르지 않음")
+        except Exception as e:
             # praat 조회 실패는 무시하고 None 반환
-            pass
+            print(f"[PRAAT_DEBUG] ERROR: Praat 조회 중 예외 발생 - {e}")
 
         return {
             'item': item,
