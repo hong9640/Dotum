@@ -137,6 +137,9 @@ async def extract_all_features(voice_data: bytes) -> dict:
         point_process = parselmouth.praat.call(snd, "To PointProcess (periodic, cc)", PITCH_FLOOR, PITCH_CEILING)
         pitch = snd.to_pitch(pitch_floor=PITCH_FLOOR, pitch_ceiling=PITCH_CEILING)
         harmonicity = snd.to_harmonicity(minimum_pitch=PITCH_FLOOR)
+        
+        # Intensity 객체 생성
+        intensity = snd.to_intensity(minimum_pitch=PITCH_FLOOR, time_step=INTENSITY_TIME_STEP)
 
         # CPPS, L/H ratio, CSID 계산
         cpp = compute_cpp_numpy(snd)
@@ -182,6 +185,9 @@ async def extract_all_features(voice_data: bytes) -> dict:
         max_f0 = parselmouth.praat.call(pitch, "Get maximum", 0, 0, "Hertz", "Parabolic")
         min_f0 = parselmouth.praat.call(pitch, "Get minimum", 0, 0, "Hertz", "Parabolic")
 
+        # Intensity 값 추출
+        intensity_mean = parselmouth.praat.call(intensity, "Get mean", 0, 0, "dB")
+
         other_features = {
             "hnr": hnr,
             "nhr": nhr,
@@ -190,6 +196,7 @@ async def extract_all_features(voice_data: bytes) -> dict:
             "min_f0": min_f0,
             "f1": f1,
             "f2": f2,
+            "intensity_mean": float(intensity_mean) if not np.isnan(intensity_mean) else float("nan"),
         }
 
         final_features = {
