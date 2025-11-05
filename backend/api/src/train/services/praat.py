@@ -137,15 +137,31 @@ async def extract_all_features(voice_data: bytes) -> dict:
         point_process = parselmouth.praat.call(snd, "To PointProcess (periodic, cc)", PITCH_FLOOR, PITCH_CEILING)
         pitch = snd.to_pitch(pitch_floor=PITCH_FLOOR, pitch_ceiling=PITCH_CEILING)
         harmonicity = snd.to_harmonicity(minimum_pitch=PITCH_FLOOR)
+        
+        # Intensity 객체 생성
+        intensity = snd.to_intensity(minimum_pitch=PITCH_FLOOR, time_step=INTENSITY_TIME_STEP)
 
         # CPPS, L/H ratio, CSID 계산
         cpp = compute_cpp_numpy(snd)
         lh_series = compute_lh_ratio_series(snd)
         csid = estimate_csid_awan2016(cpp, lh_series)
+        
+        # L/H ratio 평균 및 표준편차 계산
+        lh_ratio_mean_db = float(np.mean(lh_series)) if lh_series.size > 0 else float("nan")
+        lh_ratio_sd_db = float(np.std(lh_series, ddof=1)) if lh_series.size > 1 else float("nan")
+
+        # 포먼트(Formant) 추출
+        formant = snd.to_formant_burg(time_step=0.01, max_number_of_formants=5, 
+                                       maximum_formant=5500, window_length=0.025, 
+                                       pre_emphasis_from=50)
+        f1 = parselmouth.praat.call(formant, "Get mean", 1, 0, 0, "Hertz")
+        f2 = parselmouth.praat.call(formant, "Get mean", 2, 0, 0, "Hertz")
 
         cpp_csid_features = {
             "cpp": cpp,
-            "csid": csid
+            "csid": csid,
+            "lh_ratio_mean_db": lh_ratio_mean_db,
+            "lh_ratio_sd_db": lh_ratio_sd_db
         }
 
         jitter_types = ["local"]
@@ -169,19 +185,25 @@ async def extract_all_features(voice_data: bytes) -> dict:
         max_f0 = parselmouth.praat.call(pitch, "Get maximum", 0, 0, "Hertz", "Parabolic")
         min_f0 = parselmouth.praat.call(pitch, "Get minimum", 0, 0, "Hertz", "Parabolic")
 
+        # Intensity 값 추출
+        intensity_mean = parselmouth.praat.call(intensity, "Get mean", 0, 0, "dB")
+
         other_features = {
             "hnr": hnr,
             "nhr": nhr,
             "f0": f0,
             "max_f0": max_f0,
             "min_f0": min_f0,
+            "f1": f1,
+            "f2": f2,
+            "intensity_mean": float(intensity_mean) if not np.isnan(intensity_mean) else float("nan"),
         }
 
         final_features = {
-            **cpp_csid_features,  # cpp, csid
+            **cpp_csid_features,  # cpp, csid, lh_ratio_mean_db, lh_ratio_sd_db
             **jitter_features,    # jitter_local
             **shimmer_features,   # shimmer_local
-            **other_features      # hnr, nhr, f0, max_f0, min_f0
+            **other_features      # hnr, nhr, f0, max_f0, min_f0, f1, f2
         }
         
         return final_features
