@@ -4,7 +4,7 @@ from sqlmodel import SQLModel
 
 from api.core.config import settings
 
-engine = create_async_engine(settings.DB_URL, echo=False, future=True)
+engine = create_async_engine(settings.DB_URL, echo=True, future=True)
 
 async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
