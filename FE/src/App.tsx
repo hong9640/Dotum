@@ -42,9 +42,9 @@ const AppContent: React.FC<{
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="flex flex-col min-h-screen bg-slate-50">
       <NavigationBar isLoggedIn={isLoggedIn} onLogout={onLogoutClick} />
-      <main>
+      <main className="flex-1">
         <Routes>
           {/* 공개 페이지 */}
           <Route path="/" element={<HomePage />} />

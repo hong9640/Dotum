@@ -13,13 +13,6 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ isLoggedIn, onLogout }) =
   const navigate = useNavigate();
   const { createWordSession, createSentenceSession, isLoading } = useTrainingSession();
 
-  // 인증 상태 확인 (localStorage auth 플래그 기준)
-  const checkAuthStatus = () => {
-    const isAuthenticated = localStorage.getItem('auth') === 'true';
-    console.log('🔍 인증 상태 확인(auth 플래그):', isAuthenticated ? '인증됨' : '인증 안됨');
-    return isAuthenticated;
-  };
-
   // 로그인이 필요한 경우 알림
   const handleAuthRequired = () => {
     toast.error("로그인이 필요합니다. 먼저 로그인해주세요.");
@@ -31,10 +24,17 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ isLoggedIn, onLogout }) =
     e.preventDefault();
     console.log('🚀 단어 훈련 시작 버튼 클릭');
     
-    // 인증 상태 확인
-    if (!checkAuthStatus()) {
-      console.error('❌ 토큰이 없습니다. 로그인이 필요합니다.');
+    // 인증 상태 확인 (prop으로 전달받은 실제 인증 상태 사용)
+    if (!isLoggedIn) {
+      console.error('❌ 로그인이 필요합니다.');
       handleAuthRequired();
+      return;
+    }
+    
+    // 확인 다이얼로그 표시
+    const confirmed = window.confirm('단어 연습을 시작할까요?');
+    if (!confirmed) {
+      console.log('❌ 사용자가 취소했습니다.');
       return;
     }
     
@@ -50,10 +50,17 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ isLoggedIn, onLogout }) =
     e.preventDefault();
     console.log('🚀 문장 훈련 시작 버튼 클릭');
     
-    // 인증 상태 확인
-    if (!checkAuthStatus()) {
-      console.error('❌ 토큰이 없습니다. 로그인이 필요합니다.');
+    // 인증 상태 확인 (prop으로 전달받은 실제 인증 상태 사용)
+    if (!isLoggedIn) {
+      console.error('❌ 로그인이 필요합니다.');
       handleAuthRequired();
+      return;
+    }
+    
+    // 확인 다이얼로그 표시
+    const confirmed = window.confirm('문장 연습을 시작할까요?');
+    if (!confirmed) {
+      console.log('❌ 사용자가 취소했습니다.');
       return;
     }
     
@@ -68,14 +75,17 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ isLoggedIn, onLogout }) =
   return (
     <nav className="w-full bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border-b border-gray-200">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-24 items-center justify-between">
+        <div className="flex h-16 sm:h-24 items-center justify-between">
           {/* 로고 섹션 */}
           <div className="flex-shrink-0">
             <a href="/" className="flex items-center">
-              <span className="mr-1.5 text-3xl font-semibold text-slate-700 leading-10">
+              {/* <span className="mr-1 text-3xl font-semibold text-slate-700 leading-10">
+                🌿
+              </span> */}
+              <span className="mr-1.5 text-2xl sm:text-3xl font-semibold text-slate-700 leading-10">
                 🌱
               </span>
-              <span className="text-4xl font-semibold text-slate-700 leading-10">
+              <span className="text-3xl sm:text-4xl font-semibold text-slate-700 leading-10">
                 돋음
               </span>
             </a>
@@ -86,20 +96,20 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ isLoggedIn, onLogout }) =
             <a
               href="/practice"
               onClick={handleWordTraining}
-              className={`px-3 py-2 text-2xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 [@media(min-width:850px)]:text-3xl ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              className={`hidden sm:block px-3 py-2 text-2xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 [@media(min-width:850px)]:text-3xl ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             >
               단어 연습
             </a>
             <a
               href="/practice"
               onClick={handleSentenceTraining}
-              className={`px-3 py-2 text-2xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 [@media(min-width:850px)]:text-3xl ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              className={`hidden sm:block px-3 py-2 text-2xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 [@media(min-width:850px)]:text-3xl ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             >
               문장 연습
             </a>
             <Link
               to="/training-history"
-              className="px-3 py-2 text-2xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 [@media(min-width:850px)]:text-3xl"
+              className="hidden sm:block px-3 py-2 text-2xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 [@media(min-width:850px)]:text-3xl"
             >
               훈련기록
             </Link>
