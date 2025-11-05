@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, ClipboardList, Languages } from 'lucide-react';
+import { BookOpen, ClipboardList, Languages, Smile } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import 도드미안경 from '@/assets/도드미_안경.png';
@@ -27,6 +27,12 @@ const HomePage: React.FC = () => {
 
   const handleTrainingHistory = () => {
     navigate('/training-history');
+  };
+
+  const handleMaxVoiceTraining = () => {
+    // TODO: 최대 발성 훈련 페이지로 이동하거나 기능 구현
+    console.log('최대 발성 훈련 클릭');
+    // navigate('/max-voice-training'); // 필요시 라우트 추가
   };
 
   return (
@@ -66,6 +72,19 @@ const HomePage: React.FC = () => {
 
         {/* 오른쪽 섹션 - 버튼들 */}
         <div className="w-full lg:w-auto flex flex-col justify-start items-center gap-3.5">
+          {/* 최대 발성 훈련 버튼 */}
+          <Button
+            size="lg"
+            onClick={handleMaxVoiceTraining}
+            disabled={isLoading}
+            className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-lime-300 rounded-xl flex justify-center items-center gap-3 hover:bg-lime-400 disabled:opacity-50"
+          >
+            <Smile size={32} className="size-7 lg:size-9 text-white" strokeWidth={2.5} />
+            <span className="text-center text-white text-2xl lg:text-3xl font-semibold leading-9">
+              {isLoading ? "세션 생성 중..." : "최대 발성 훈련"}
+            </span>
+          </Button>
+
           {/* 단어 연습 시작 버튼 */}
           <Button
             size="lg"
