@@ -266,6 +266,7 @@ def convert_praat_to_response(praat) -> Optional[PraatFeaturesResponse]:
         lh_ratio_mean_db=praat.lh_ratio_mean_db,
         lh_ratio_sd_db=praat.lh_ratio_sd_db,
         f1=praat.f1,
-        f2=praat.f2
+        f2=praat.f2,
+        intensity_mean=praat.intensity_mean
     )
 

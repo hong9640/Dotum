@@ -18,5 +18,6 @@ class PraatFeaturesResponse(BaseModel):
     lh_ratio_sd_db: Optional[float]
     f1: Optional[float]
     f2: Optional[float]
+    intensity_mean: Optional[float]
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
