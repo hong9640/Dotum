@@ -27,6 +27,13 @@ pipeline {
                     
                     // 호스트의 .env 파일을 workspace로 복사
                     sh '''
+                        # 기존 .env 파일이 있다면 삭제
+                        if [ -f .env ]; then
+                            rm .env
+                            echo "🗑️ 기존 .env 파일 삭제"
+                        fi
+                        
+                        # 호스트의 최신 .env 파일 복사
                         if [ -f /home/ubuntu/.env ]; then
                             cp /home/ubuntu/.env .env
                             echo "✅ .env 파일 복사 완료"
@@ -73,7 +80,7 @@ pipeline {
                         env.FRONTEND_CHANGED = 'true'
                     }
                     
-                    if (changedFiles.contains('docker-compose.yml') || changedFiles.contains('Jenkinsfile')) {
+                    if (changedFiles.contains('docker-compose.yml') || changedFiles.contains('Jenkinsfile') || changedFiles.contains('.env')) {
                         env.FULL_DEPLOY = 'true'
                     }
                     
