@@ -27,15 +27,12 @@ export const Logout = async (): Promise<LogoutResponse> => {
     try {
         const response = await apiClient.post<LogoutResponse>("/auth/logout");
         
-        // 로그아웃 성공 시 로컬 스토리지와 쿠키 정리
+        // 로그아웃 성공 시 쿠키 정리
         if (response.data.status === "SUCCESS") {
-            // 로컬 스토리지의 auth를 false로 설정
-            localStorage.setItem("auth", "false");
-            
             // 쿠키에서 access_token과 refresh_token 삭제
             clearAuthCookies();
             
-            console.log("✅ 로그아웃 성공: 로컬 스토리지와 쿠키가 정리되었습니다.");
+            console.log("✅ 로그아웃 성공: 쿠키가 정리되었습니다.");
         }
         
         return response.data;
@@ -43,7 +40,6 @@ export const Logout = async (): Promise<LogoutResponse> => {
         console.error("❌ 로그아웃 API 에러:", error);
         
         // API 에러가 발생해도 클라이언트 측 정리는 수행
-        localStorage.setItem("auth", "false");
         clearAuthCookies();
         
         // 에러 응답 반환
