@@ -249,6 +249,10 @@ def convert_praat_to_response(praat) -> Optional[PraatFeaturesResponse]:
         max_f0=praat.max_f0,
         min_f0=praat.min_f0,
         cpp=praat.cpp,
-        csid=praat.csid
+        csid=praat.csid,
+        lh_ratio_mean_db=praat.lh_ratio_mean_db,
+        lh_ratio_sd_db=praat.lh_ratio_sd_db,
+        f1=praat.f1,
+        f2=praat.f2
     )
 
