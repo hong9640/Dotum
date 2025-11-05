@@ -1,14 +1,14 @@
 from jose.exceptions import ExpiredSignatureError
 import os
 import hashlib
+import bcrypt
 from dotenv import load_dotenv
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Annotated
 from pydantic import BaseModel, EmailStr
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select,delete
@@ -30,7 +30,6 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 # ---커스텀 예외 클래스---
@@ -49,10 +48,33 @@ class InvalidCredentialsError(Exception):
 # ---비밀번호, 토큰 관련 함수---
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    """비밀번호 검증 (bcrypt 직접 사용)"""
+    try:
+        password_bytes = plain_password.encode('utf-8')
+        # bcrypt는 72바이트까지만 지원
+        if len(password_bytes) > 72:
+            password_bytes = password_bytes[:72]
+        
+        # DB에서 가져온 해시가 string이면 bytes로 변환
+        if isinstance(hashed_password, str):
+            hashed_bytes = hashed_password.encode('utf-8')
+        else:
+            hashed_bytes = hashed_password
+            
+        return bcrypt.checkpw(password_bytes, hashed_bytes)
+    except Exception as e:
+        print(f"비밀번호 검증 에러: {e}")
+        return False
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    """비밀번호 해싱 (bcrypt 직접 사용)"""
+    password_bytes = password.encode('utf-8')
+    # bcrypt는 72바이트까지만 지원
+    if len(password_bytes) > 72:
+        password_bytes = password_bytes[:72]
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password_bytes, salt)
+    return hashed.decode('utf-8')
 
 def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
