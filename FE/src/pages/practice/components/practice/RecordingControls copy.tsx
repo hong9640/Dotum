@@ -24,14 +24,14 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   onUpload,
   isUploading = false,
 }) => {
-  // const navigate = useNavigate();
+  const navigate = useNavigate();
 
-  // const handleViewResults = () => {
-  //   if (onViewResults) {
-  //     onViewResults();
-  //   }
-  //   navigate('/result');
-  // };
+  const handleViewResults = () => {
+    if (onViewResults) {
+      onViewResults();
+    }
+    navigate('/result');
+  };
   return (
     <div className="flex justify-center gap-3 sm:gap-4">
       {recordingState === "idle" && !blobUrl && (
@@ -69,16 +69,16 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
               {isUploading ? "업로드 중..." : "영상 업로드"}
             </Button>
           )}
-          {/* {onViewResults && (
+          {onViewResults && (
             <Button 
               size="lg" 
               variant="outline" 
               className="px-8 py-6 text-xl flex items-center gap-3" 
-              // onClick={handleViewResults}
+              onClick={handleViewResults}
             >
               결과 보기
             </Button>
-          )} */}
+          )}
         </div>
       )}
     </div>
