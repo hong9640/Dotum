@@ -72,7 +72,7 @@ const HomePage: React.FC = () => {
 
         {/* 오른쪽 섹션 - 버튼들 */}
         <div className="w-full lg:w-auto flex flex-col justify-start items-center gap-3.5">
-          {/* 최대 발성 훈련 버튼 */}
+          {/* 발성 연습 시작 버튼 */}
           <Button
             size="lg"
             onClick={handleMaxVoiceTraining}
@@ -81,7 +81,7 @@ const HomePage: React.FC = () => {
           >
             <Smile size={32} className="size-7 lg:size-9 text-white" strokeWidth={2.5} />
             <span className="text-center text-white text-2xl lg:text-3xl font-semibold leading-9">
-              {isLoading ? "세션 생성 중..." : "최대 발성 훈련"}
+              {isLoading ? "세션 생성 중..." : "발성 연습 시작"}
             </span>
           </Button>
 
