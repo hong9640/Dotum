@@ -14,5 +14,9 @@ class PraatFeaturesResponse(BaseModel):
     min_f0: Optional[float]
     cpp: Optional[float]
     csid: Optional[float]
+    lh_ratio_mean_db: Optional[float]
+    lh_ratio_sd_db: Optional[float]
+    f1: Optional[float]
+    f2: Optional[float]
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)

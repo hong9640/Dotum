@@ -142,10 +142,23 @@ async def extract_all_features(voice_data: bytes) -> dict:
         cpp = compute_cpp_numpy(snd)
         lh_series = compute_lh_ratio_series(snd)
         csid = estimate_csid_awan2016(cpp, lh_series)
+        
+        # L/H ratio 평균 및 표준편차 계산
+        lh_ratio_mean_db = float(np.mean(lh_series)) if lh_series.size > 0 else float("nan")
+        lh_ratio_sd_db = float(np.std(lh_series, ddof=1)) if lh_series.size > 1 else float("nan")
+
+        # 포먼트(Formant) 추출
+        formant = snd.to_formant_burg(time_step=0.01, max_number_of_formants=5, 
+                                       maximum_formant=5500, window_length=0.025, 
+                                       pre_emphasis_from=50)
+        f1 = parselmouth.praat.call(formant, "Get mean", 1, 0, 0, "Hertz")
+        f2 = parselmouth.praat.call(formant, "Get mean", 2, 0, 0, "Hertz")
 
         cpp_csid_features = {
             "cpp": cpp,
-            "csid": csid
+            "csid": csid,
+            "lh_ratio_mean_db": lh_ratio_mean_db,
+            "lh_ratio_sd_db": lh_ratio_sd_db
         }
 
         jitter_types = ["local"]
@@ -175,13 +188,15 @@ async def extract_all_features(voice_data: bytes) -> dict:
             "f0": f0,
             "max_f0": max_f0,
             "min_f0": min_f0,
+            "f1": f1,
+            "f2": f2,
         }
 
         final_features = {
-            **cpp_csid_features,  # cpp, csid
+            **cpp_csid_features,  # cpp, csid, lh_ratio_mean_db, lh_ratio_sd_db
             **jitter_features,    # jitter_local
             **shimmer_features,   # shimmer_local
-            **other_features      # hnr, nhr, f0, max_f0, min_f0
+            **other_features      # hnr, nhr, f0, max_f0, min_f0, f1, f2
         }
         
         return final_features
