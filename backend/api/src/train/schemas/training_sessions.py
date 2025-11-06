@@ -73,7 +73,7 @@ class TrainingSessionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, by_alias=False)
 
     @field_serializer("type", mode="plain")
-    def _serialize_type(cls, value: TrainingType) -> str:
+    def _serialize_type(self, value: TrainingType) -> str:
         return value.value.lower()
 
 
