@@ -516,14 +516,14 @@ const WordSetResults: React.FC = () => {
                 )}
               </div>
 
-              {/* 피드백 메시지 */}
-              <div className="self-stretch p-6 bg-green-50 rounded-2xl flex flex-col justify-start items-start">
+              {/* 피드백 메시지 - 숨김 처리 */}
+              {/* <div className="self-stretch p-6 bg-green-50 rounded-2xl flex flex-col justify-start items-start">
                 <div className="self-stretch inline-flex justify-start items-center gap-2.5">
                   <div className="justify-start text-slate-700 text-2xl font-semibold leading-8">
                     {overallFeedback}
                   </div>
                 </div>
-              </div>
+              </div> */}
             </div>
           </div>
         </div>
