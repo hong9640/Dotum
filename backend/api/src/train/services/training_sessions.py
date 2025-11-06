@@ -43,7 +43,30 @@ class TrainingSessionService:
         session_data: TrainingSessionCreate
     ) -> TrainingSession:
         """훈련 세션 생성"""
-        # 랜덤 아이템 ID들 가져오기
+        # VOCAL 타입: 랜덤 추출 없이 빈 아이템을 item_count만큼 생성
+        if session_data.type == TrainingType.VOCAL:
+            training_session = await self.repo.create_session(
+                user_id=user_id,
+                session_name=session_data.session_name,
+                type=session_data.type,
+                total_items=session_data.item_count,
+                training_date=session_data.training_date,
+                session_metadata=session_data.session_metadata
+            )
+            
+            # word_id/sentence_id 모두 None으로 아이템 생성
+            for i in range(session_data.item_count):
+                await self.repo.create_item(
+                    session_id=training_session.id,
+                    item_index=i,
+                    word_id=None,
+                    sentence_id=None
+                )
+            
+            await self.db.commit()
+            return training_session
+        
+        # WORD/SENTENCE 타입: 랜덤 아이템 Id 가져오기
         item_ids = await self._get_random_item_ids(session_data.type, session_data.item_count)
         
         if not item_ids:
