@@ -17,7 +17,6 @@ class Settings(BaseSettings):
     # ---------- 로컬 모델 경로 ----------
     # 상대 경로로 설정하되 환경 변수로 덮어쓰기 가능
     LOCAL_MODEL_BASE_PATH: str = str(BASE_DIR / "models")
-    LOCAL_FREEVC_PATH: str = str(BASE_DIR / "models" / "FreeVC")
     LOCAL_WAV2LIP_PATH: str = str(BASE_DIR / "models" / "Wav2Lip")
 
     model_config = SettingsConfigDict(
