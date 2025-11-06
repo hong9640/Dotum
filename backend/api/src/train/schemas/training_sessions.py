@@ -74,7 +74,7 @@ class TrainingSessionResponse(BaseModel):
 
     @field_serializer("type", mode="plain")
     def _serialize_type(self, value: TrainingType) -> str:
-        return value.value.lower()
+        return value.value.upper()
 
 
 class ItemSubmissionResponse(BaseModel):
