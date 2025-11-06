@@ -549,7 +549,7 @@ class TrainingSessionService:
         # 기존 미디어 파일 정보 가져오기 (덮어쓰기용)
         old_media_file = None
         if item.media_file_id:
-            old_media_file = await self.get_media_file_by_id(item.media_file_id)
+            old_media_file = item.media_file # Eager Loading으로 이미 로드된 객체 사용
 
         # 같은 경로에 새 동영상 업로드 (덮어쓰기)
         upload_result = await gcs_service.upload_video(
