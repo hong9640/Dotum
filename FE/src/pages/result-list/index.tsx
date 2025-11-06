@@ -48,7 +48,7 @@ const WordSetResults: React.FC = () => {
   const [lhRatioMeanDb, setLhRatioMeanDb] = useState<number | null>(null);
   const [lhRatioSdDb, setLhRatioSdDb] = useState<number | null>(null);
   const [isVoiceTraining, setIsVoiceTraining] = useState<boolean>(false);
-  const [overallFeedback, setOverallFeedback] = useState<string>('피드백 정보가 없습니다.');
+  const [_overallFeedback, setOverallFeedback] = useState<string>('피드백 정보가 없습니다.');
   
   // 훈련 세션 훅 사용 (새로운 훈련 시작 시 사용)
   const { createWordSession, createSentenceSession } = useTrainingSession();
@@ -520,7 +520,7 @@ const WordSetResults: React.FC = () => {
               {/* <div className="self-stretch p-6 bg-green-50 rounded-2xl flex flex-col justify-start items-start">
                 <div className="self-stretch inline-flex justify-start items-center gap-2.5">
                   <div className="justify-start text-slate-700 text-2xl font-semibold leading-8">
-                    {overallFeedback}
+                    {_overallFeedback}
                   </div>
                 </div>
               </div> */}

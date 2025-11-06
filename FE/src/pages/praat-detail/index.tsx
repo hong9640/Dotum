@@ -5,6 +5,7 @@ import { ChevronLeft } from "lucide-react";
 import PatientInfoSection, { type PatientInfo } from "./components/PatientInfoSection";
 import PraatMetricsSections from "./components/PraatMetricsSections";
 import RecordingTabs from "./components/RecordingTabs";
+import PraatSectionCard from "./components/PraatSectionCard";
 import { getSessionItemByIndex, getSessionItemErrorMessage } from "@/api/training-session/sessionItemSearch";
 import { getTrainingSession } from "@/api/training-session";
 import { usePraat } from "@/hooks/usePraat";
