@@ -483,7 +483,7 @@ const WordSetResults: React.FC = () => {
                         </div>
                         <div className="self-stretch pt-1 inline-flex justify-start items-start">
                           <div className="w-full h-6 flex justify-start items-center">
-                            <div className="justify-center text-gray-500 text-sm font-normal leading-6">정상 범위: &lt; 0.02</div>
+                            <div className="justify-center text-gray-500 text-sm font-normal leading-6">정상 범위: 0</div>
                           </div>
                         </div>
                       </div>
@@ -507,7 +507,7 @@ const WordSetResults: React.FC = () => {
                         </div>
                         <div className="self-stretch pt-1 inline-flex justify-start items-start">
                           <div className="w-full h-6 flex justify-start items-center">
-                            <div className="justify-center text-gray-500 text-sm font-normal leading-6">정상 범위: &lt; 0.02</div>
+                            <div className="justify-center text-gray-500 text-sm font-normal leading-6">정상 범위: 0</div>
                           </div>
                         </div>
                       </div>
