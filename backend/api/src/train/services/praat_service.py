@@ -150,7 +150,7 @@ async def save_session_praat_result(
     avg_f1 = calc_avg([pf.f1 for pf in all_group])
     avg_f2 = calc_avg([pf.f2 for pf in all_group])
     
-    # 6️⃣ 기존 세션 평균 기록이 있는지 확인
+    # 6. 기존 세션 평균 기록이 있는지 확인
     existing_stmt = select(SessionPraatResult).where(
         SessionPraatResult.training_session_id == session_id
     )
