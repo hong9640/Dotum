@@ -7,7 +7,7 @@ import { useTrainingSession } from '@/hooks/training-session';
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
-  const { createWordSession, createSentenceSession, isLoading, apiError } = useTrainingSession();
+  const { createWordSession, createSentenceSession, createVocalSession, isLoading, apiError } = useTrainingSession();
 
   const handleWordTraining = async () => {
     try {
@@ -29,10 +29,12 @@ const HomePage: React.FC = () => {
     navigate('/training-history');
   };
 
-  const handleMaxVoiceTraining = () => {
-    // TODO: 최대 발성 훈련 페이지로 이동하거나 기능 구현
-    console.log('최대 발성 훈련 클릭');
-    // navigate('/max-voice-training'); // 필요시 라우트 추가
+  const handleMaxVoiceTraining = async () => {
+    try {
+      await createVocalSession(15); // 15개 아이템
+    } catch (error) {
+      console.error('발성 훈련 세션 생성 실패:', error);
+    }
   };
 
   return (

@@ -1,7 +1,7 @@
 import { apiClient } from "../axios";
 
 // 훈련 세션 타입 정의
-export type TrainingType = 'word' | 'sentence';
+export type TrainingType = 'word' | 'sentence' | 'vocal';
 
 // 훈련 세션 생성 요청 타입
 export interface CreateTrainingSessionRequest {
@@ -165,6 +165,30 @@ export const createSentenceTrainingSession = async (
     session_metadata: {
       level: 'basic',
       note: 'sentence training session'
+    }
+  });
+};
+
+/**
+ * 발성 훈련 세션 생성 (편의 함수)
+ * @param itemCount 아이템 개수
+ * @param sessionName 세션 이름 (선택사항)
+ * @returns 훈련 세션 생성 결과
+ */
+export const createVocalTrainingSession = async (
+  itemCount: number = 15,
+  sessionName?: string
+): Promise<CreateTrainingSessionResponse> => {
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
+  
+  return createTrainingSession({
+    session_name: sessionName || `${today} 발성훈련`,
+    type: 'vocal',
+    item_count: itemCount,
+    training_date: today,
+    session_metadata: {
+      level: 'basic',
+      note: 'vocal training session'
     }
   });
 };

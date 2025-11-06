@@ -285,7 +285,7 @@ const WordSetResults: React.FC = () => {
   };
 
   return (
-    <div className="self-stretch pt-7 pb-10 flex flex-col justify-start items-center bg-slate-50 min-h-screen">
+    <div className="self-stretch pt-7 pb-10 flex flex-col justify-start items-center bg-white min-h-screen">
       
       {/* 헤더 */}
       <ResultHeader

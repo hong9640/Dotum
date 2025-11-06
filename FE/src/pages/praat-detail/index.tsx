@@ -224,7 +224,7 @@ const PraatDetailPage: React.FC = () => {
   }
 
   return (
-    <div className="self-stretch pt-7 pb-10 flex flex-col justify-start items-center bg-slate-50 min-h-screen">
+    <div className="self-stretch pt-7 pb-10 flex flex-col justify-start items-center bg-white min-h-screen">
       {/* 메인 콘텐츠 영역 */}
       <div className="p-4 md:p-8 flex flex-col justify-start items-center gap-8 w-full max-w-[1152px] mx-auto">
         {/* 환자 정보 */}
