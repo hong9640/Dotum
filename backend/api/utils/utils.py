@@ -34,11 +34,13 @@ def generate_file_path(
     train_id: Optional[int] = None,
     result_id: Optional[int] = None,
     word_id: Optional[int] = None,
-    sentence_id: Optional[int] = None
+    sentence_id: Optional[int] = None,
+    item_index: Optional[int] = None
 ) -> str:
     """
     파일 경로 생성
     형식: videos/{username}/{session_id}/(type:train/result)_(train_id/result_id)_(type:word/sentence)_(word_id/sentence_id).mp4
+    VOCAL 타입: videos/{username}/{session_id}/train_item_{item_index}_vocal.mp4
     
     Args:
         base_path: 기본 경로 (예: "videos")
@@ -48,6 +50,7 @@ def generate_file_path(
         result_id: 결과 ID (문장 훈련용)
         word_id: 단어 ID
         sentence_id: 문장 ID
+        item_index: 아이템 인덱스 (VOCAL 타입용)
         
     Returns:
         str: 생성된 파일 경로
@@ -65,8 +68,14 @@ def generate_file_path(
         filename = f"train_{train_id}_sentence_{sentence_id}.mp4"
     elif result_id is not None and sentence_id is not None:
         filename = f"result_{result_id}_sentence_{sentence_id}.mp4"
+    elif item_index is not None:
+        # VOCAL 타입의 경우: item_index 사용
+        filename = f"train_item_{item_index}_vocal.mp4"
+    elif train_id is not None:
+        # VOCAL 타입의 경우 (하위 호환성): train_id만 있으면 됨
+        filename = f"train_{train_id}_vocal.mp4"
     else:
-        raise ValueError("train_id+word_id 또는 train_id+sentence_id 또는 result_id+sentence_id가 필요합니다")
+        raise ValueError("train_id+word_id 또는 train_id+sentence_id 또는 result_id+sentence_id 또는 item_index(vocal)가 필요합니다")
     
     # 경로 구성: videos/{username}/{session_id}/{filename}
     return f"{base_path}/{safe_username}/{session_id}/{filename}"

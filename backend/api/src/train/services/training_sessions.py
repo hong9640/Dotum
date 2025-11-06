@@ -22,7 +22,7 @@ from ..services.gcs_service import GCSService
 from ..services.video_processor import VideoProcessor
 from ..services.media import MediaService
 from ..services.text_to_speech import TextToSpeechService
-from ..services.praat import get_praat_analysis_from_db
+from ..services.praat import get_praat_analysis_from_db, extract_all_features
 from ..services.praat_service import save_session_praat_result
 from api.src.user.user_model import User
 from api.core.config import settings
@@ -967,3 +967,149 @@ class TrainingSessionService:
         
         await self.db.commit()
         return new_session
+    
+    async def submit_vocal_item(
+        self,
+        *,
+        session_id: int,
+        item_index: int,
+        user: User,
+        audio_file_bytes: bytes,
+        graph_video_bytes: bytes,
+        audio_filename: str,
+        video_filename: str,
+        audio_content_type: str,
+        video_content_type: str,
+        gcs_service: GCSService
+    ) -> Dict[str, Any]:
+        """발성 훈련 아이템 제출 (오디오 + 그래프 영상 업로드)"""
+        # 1. 세션 확인 및 타입 검증
+        session = await self.get_training_session(session_id, user.id)
+        if not session:
+            raise LookupError("훈련 세션을 찾을 수 없습니다.")
+        
+        if session.type != TrainingType.VOCAL:
+            raise ValueError("해당 세션은 VOCAL 타입이 아닙니다.")
+        
+        # 2. 아이템 조회
+        item = await self.item_repo.get_item_by_index(session_id, item_index, include_relations=True)
+        if not item:
+            raise LookupError(f"해당 인덱스({item_index})의 아이템을 찾을 수 없습니다.")
+        
+        if item.is_completed:
+            raise ValueError("이미 완료된 아이템입니다.")
+        
+        # 3. 오디오 파일 GCS 업로드
+        audio_object_key = f"audios/{user.username}/{session_id}/audio_item_{item.id}.wav"
+        audio_blob = gcs_service.bucket.blob(audio_object_key)
+        audio_blob.upload_from_string(
+            audio_file_bytes,
+            content_type=audio_content_type
+        )
+        audio_blob.metadata = {
+            "username": user.username,
+            "session_id": str(session_id),
+            "item_id": str(item.id),
+            "upload_date": datetime.now().isoformat(),
+            "file_type": "audio"
+        }
+        audio_blob.patch()
+        
+        # 오디오 파일에 대한 서명 URL 생성
+        audio_url = await gcs_service.get_signed_url(audio_object_key, expiration_hours=24)
+        if not audio_url:
+            raise RuntimeError("오디오 파일 URL 생성에 실패했습니다.")
+        
+        # 4. 그래프 영상 GCS 업로드 (VOCAL 타입은 item_index 사용)
+        video_upload_result = await gcs_service.upload_video(
+            file_content=graph_video_bytes,
+            username=user.username,
+            session_id=str(session_id),
+            item_index=item_index,
+            original_filename=video_filename,
+            content_type=video_content_type
+        )
+        
+        if not video_upload_result.get("success"):
+            raise RuntimeError(f"그래프 영상 업로드에 실패했습니다: {video_upload_result.get('error')}")
+        
+        video_object_key = video_upload_result.get("object_path")
+        if not video_object_key:
+            raise RuntimeError("업로드 결과에 object_path가 없습니다.")
+        
+        # 그래프 영상에 대한 서명 URL 생성
+        video_url = await gcs_service.get_signed_url(video_object_key, expiration_hours=24)
+        if not video_url:
+            raise RuntimeError("그래프 영상 URL 생성에 실패했습니다.")
+        
+        # 5. 오디오 및 비디오 미디어 파일 정보 DB 저장
+        audio_media_file = await self.media_repo.create_and_flush(
+            user_id=user.id,
+            object_key=audio_object_key,
+            media_type=MediaType.AUDIO,
+            file_name=audio_object_key.split('/')[-1],
+            file_size_bytes=len(audio_file_bytes),
+            format="wav"
+        )
+        
+        video_media_file = await self.media_repo.create_and_flush(
+            user_id=user.id,
+            object_key=video_object_key,
+            media_type=MediaType.VIDEO,
+            file_name=video_upload_result.get("filename") or video_filename,
+            file_size_bytes=len(graph_video_bytes),
+            format=(video_content_type.split('/')[-1] if '/' in video_content_type else video_content_type)
+        )
+        
+        # 6. Praat 분석 수행
+        praat_feature = None
+        try:
+            print(f"[VOCAL] Praat 분석 시작 - item_id: {item.id}")
+            praat_data = await extract_all_features(audio_file_bytes)
+            print(f"[VOCAL] Praat 분석 완료")
+            
+            praat_feature = await self.praat_repo.create_and_flush(
+                media_id=audio_media_file.id,
+                **praat_data
+            )
+            print(f"[VOCAL] Praat DB 저장 완료 - praat_id: {praat_feature.id}")
+        except Exception as e:
+            print(f"[VOCAL] Praat 분석 실패: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            # Praat 분석 실패해도 아이템 완료는 계속 진행
+        
+        # 7. 아이템 완료 처리
+        await self.item_repo.complete_item(
+            item_id=item.id,
+            video_url=video_url,
+            media_file_id=video_media_file.id,
+            is_completed=True,
+            audio_url=audio_url
+        )
+        
+        # 8. 세션 진행률 업데이트
+        completed_count = await self.repo.get_completed_items_count(session_id)
+        await self.repo.update_progress(session_id, completed_count)
+        await self.repo.move_to_next_item(session_id)
+        
+        await self.db.commit()
+        await self.db.refresh(audio_media_file)
+        await self.db.refresh(video_media_file)
+        if praat_feature:
+            await self.db.refresh(praat_feature)
+        
+        # 9. 업데이트된 세션 및 다음 아이템 조회
+        updated_session = await self.get_training_session(session_id, user.id)
+        next_item = await self.item_repo.get_item_by_index(session_id, item_index + 1, include_relations=True)
+        has_next = next_item is not None
+        
+        return {
+            "session": updated_session,
+            "next_item": next_item,
+            "media_file": audio_media_file,  # 응답에는 오디오 파일 정보 반환
+            "praat_feature": praat_feature,
+            "video_url": video_url,
+            "audio_url": audio_url,
+            "has_next": has_next
+        }
