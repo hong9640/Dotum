@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, Field, field_validator, field_serializer, ConfigDict
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date
 from enum import Enum
@@ -71,6 +71,10 @@ class TrainingSessionResponse(BaseModel):
     training_items: List[TrainingItemResponse] = Field(default_factory=list, description="훈련 아이템 목록")
     
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, by_alias=False)
+
+    @field_serializer("type", mode="plain")
+    def _serialize_type(cls, value: TrainingType) -> str:
+        return value.value.lower()
 
 
 class ItemSubmissionResponse(BaseModel):
