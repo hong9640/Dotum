@@ -557,8 +557,7 @@ class TrainingSessionService:
         # 기존 미디어 파일 정보 가져오기 (덮어쓰기용)
         old_media_file = None
         if item.media_file_id:
-            # Eager loading으로 이미 로드된 media_file 사용 (DB 조회 방지)
-            old_media_file = item.media_file
+            old_media_file = item.media_file # Eager Loading으로 이미 로드된 객체 사용
 
         # 같은 경로에 새 동영상 업로드 (덮어쓰기)
         upload_result = await gcs_service.upload_video(
@@ -754,8 +753,7 @@ class TrainingSessionService:
         praat_feature = None
         try:
             if current_item.media_file_id:
-                # Eager loading으로 이미 로드된 media_file 사용 (DB 조회 방지)
-                video_media = current_item.media_file
+                video_media = await self.get_media_file_by_id(current_item.media_file_id)
                 if video_media and video_media.object_key and video_media.object_key.endswith('.mp4'):
                     audio_object_key = video_media.object_key.replace('.mp4', '.wav')
                     from ..services.media import MediaService
@@ -778,42 +776,34 @@ class TrainingSessionService:
         user_id: int,
         item_index: int
     ):
-        """특정 인덱스의 아이템 조회 (세션 상태 무관)"""
+        """특정 인덱스의 아이템 조회 (세션 상태 무관). Eager Loading된 데이터를 활용합니다."""
         session = await self.get_training_session(session_id, user_id)
         if not session:
             return None
-        item = await self.item_repo.get_item_by_index(session_id, item_index, include_relations=True)
+
+        # Eager Loading으로 이미 로드된 training_items 리스트에서 해당 인덱스의 아이템을 찾습니다.
+        # 이렇게 하면 추가 DB 조회를 방지할 수 있습니다.
+        item = next((i for i in session.training_items if i.item_index == item_index), None)
         if not item:
             return None
+
         # 총 아이템 수 기준으로 다음 아이템 존재 여부 판단 (완료 여부 무관)
         has_next = item_index < (session.total_items - 1)
 
         # Praat 분석 결과 조회 시도: 비디오 media의 object_key를 .wav로 치환해 오디오 media 탐색
         praat_feature = None
-        print(f"[PRAAT_DEBUG] Praat 분석 시작 - item_id: {item.id}, item_index: {item_index}")
-        print(f"[PRAAT_DEBUG] 1. item.media_file_id: {item.media_file_id}")
         try:
-            if item.media_file_id:
-                # Eager loading으로 이미 로드된 media_file 사용 (DB 조회 방지)
-                video_media = item.media_file
-                print(f"[PRAAT_DEBUG] 2. video_media 조회 결과: {'성공' if video_media else '실패'}")
-                if video_media and video_media.object_key and video_media.object_key.endswith('.mp4'):
-                    print(f"[PRAAT_DEBUG] 3. video_media.object_key: {video_media.object_key}")
-                    audio_object_key = video_media.object_key.replace('.mp4', '.wav')
-                    print(f"[PRAAT_DEBUG] 4. 추론된 audio_object_key: {audio_object_key}")
-                    from ..services.media import MediaService
-                    media_service = MediaService(self.db)
-                    audio_media = await media_service.get_media_file_by_object_key(audio_object_key)
-                    print(f"[PRAAT_DEBUG] 5. audio_media 조회 결과: {'성공' if audio_media else '실패'}")
-                    if audio_media:
-                        print(f"[PRAAT_DEBUG] 6. audio_media.id({audio_media.id})로 Praat DB 조회 시도")
-                        praat_feature = await self.praat_repo.get_by_media_id(audio_media.id)
-                        print(f"[PRAAT_DEBUG] 7. 최종 Praat 조회 결과: {'성공' if praat_feature else '실패 (DB에 레코드 없음)'}")
-                else:
-                    print(f"[PRAAT_DEBUG] 3. video_media가 없거나 object_key가 올바르지 않음")
+            # item.media_file은 Eager Loading으로 이미 로드되어 있습니다.
+            video_media = item.media_file
+            if video_media and video_media.object_key and video_media.object_key.endswith('.mp4'):
+                audio_object_key = video_media.object_key.replace('.mp4', '.wav')
+                media_service = MediaService(self.db)
+                audio_media = await media_service.get_media_file_by_object_key(audio_object_key)
+                if audio_media:
+                    praat_feature = await self.praat_repo.get_by_media_id(audio_media.id)
         except Exception as e:
             # praat 조회 실패는 무시하고 None 반환
-            print(f"[PRAAT_DEBUG] ERROR: Praat 조회 중 예외 발생 - {e}")
+            print(f"Praat 조회 중 예외 발생: {e}")
 
         return {
             'item': item,
@@ -835,14 +825,15 @@ class TrainingSessionService:
         session = await self.get_training_session(session_id, user_id)
         if not session:
             return None
-        # 아이템 조회 (media_file도 함께 로드)
-        item = await self.item_repo.get_item(session_id, item_id, include_relations=True)
+        # 아이템 조회
+        item = await self.item_repo.get_item(session_id, item_id, include_relations=False)
         if not item:
             return None
         media = None
         if item.media_file_id:
-            # Eager loading으로 이미 로드된 media_file 사용 (DB 조회 방지)
-            media = item.media_file
+            from ..services.media import MediaService
+            media_service = MediaService(self.db)
+            media = await media_service.get_media_file_by_id(item.media_file_id)
         return {"item": item, "media": media}
 
     async def get_media_file_by_id(self, media_file_id: int) -> Optional[MediaFile]:
