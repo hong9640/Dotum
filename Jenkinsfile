@@ -102,6 +102,13 @@ pipeline {
                     withCredentials([file(credentialsId: 'gcp-service-account-key', variable: 'GOOGLE_CREDENTIALS')]) {
                         sh """
                             cd ${WORKSPACE}
+                            
+                            echo "📄 .env 파일 확인..."
+                            if [ ! -f .env ]; then
+                                echo "⚠️ .env 파일 없음 - 다시 복사"
+                                cp /home/ubuntu/.env .env
+                            fi
+                            echo "✅ .env 파일 존재 확인"
 
                             echo "🔐 GCP 서비스 계정 키 복사"
                             mkdir -p backend/credentials
@@ -175,6 +182,18 @@ stage('Deploy') {
             sh """
                 cd ${WORKSPACE}
                 
+                echo "📄 .env 파일 확인..."
+                if [ -f .env ]; then
+                    echo "✅ .env 파일 존재"
+                    echo "📝 ML_SERVER_URL 값:"
+                    grep "ML_SERVER_URL" .env || echo "ML_SERVER_URL 없음"
+                    echo "📝 ELEVENLABS_API_KEY 값:"
+                    grep "ELEVENLABS_API_KEY" .env || echo "ELEVENLABS_API_KEY 없음"
+                else
+                    echo "❌ .env 파일 없음 - 다시 복사"
+                    cp /home/ubuntu/.env .env
+                fi
+                
                 echo "🔍 기존 컨테이너 상태 확인..."
                 docker-compose -p dotum ps || true
                 
@@ -212,6 +231,9 @@ stage('Deploy') {
                 
                 echo "⏳ 컨테이너 시작 대기..."
                 sleep 2
+                
+                echo "🔍 Backend 컨테이너 환경변수 확인:"
+                docker exec dotum-backend printenv | grep -E "ML_SERVER_URL|ELEVENLABS_API_KEY" || echo "환경변수 확인 실패"
                 
                 echo "✅ 배포된 컨테이너 상태:"
                 docker-compose -p dotum ps
