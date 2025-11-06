@@ -8,19 +8,19 @@ interface WordResultItemProps {
   onDetailClick: (result: WordResult) => void;
 }
 
-// 점수에 따른 스타일 반환 헬퍼 함수
-const getScoreStyles = (score: number): string => {
-  if (score >= 90) {
-    // 90점 이상: high (green)
-    return "bg-green-100/50 outline-green-300 text-green-500";
-  }
-  if (score >= 80) {
-    // 80점 이상: medium (blue)
-    return "bg-blue-100/50 outline-blue-300 text-blue-600";
-  }
-  // 80점 미만: low (amber/yellow)
-  return "bg-amber-100/50 outline-amber-300 text-amber-500";
-};
+// 점수에 따른 스타일 반환 헬퍼 함수 - 점수 표시 숨김으로 인해 사용 안 함
+// const getScoreStyles = (score: number): string => {
+//   if (score >= 90) {
+//     // 90점 이상: high (green)
+//     return "bg-green-100/50 outline-green-300 text-green-500";
+//   }
+//   if (score >= 80) {
+//     // 80점 이상: medium (blue)
+//     return "bg-blue-100/50 outline-blue-300 text-blue-600";
+//   }
+//   // 80점 미만: low (amber/yellow)
+//   return "bg-amber-100/50 outline-amber-300 text-amber-500";
+// };
 
 const WordResultItem: React.FC<WordResultItemProps> = ({ result, onDetailClick }) => {
   return (
@@ -38,19 +38,21 @@ const WordResultItem: React.FC<WordResultItemProps> = ({ result, onDetailClick }
                 {result.word}
               </h3>
             </div>
-            <div className="self-stretch pr-5 inline-flex justify-start items-center gap-2.5">
+            {/* 피드백 정보 - 숨김 처리 */}
+            {/* <div className="self-stretch pr-5 inline-flex justify-start items-center gap-2.5">
               <p className="flex-1 justify-start text-slate-500 text-base md:text-xl font-semibold leading-snug md:leading-7">
                 {result.feedback}
               </p>
-            </div>
+            </div> */}
           </div>
         </div>
         <div className="h-14 flex justify-end sm:justify-start items-center gap-3 w-full sm:w-auto pl-14 sm:pl-0">
-          <div className={`px-4 md:px-6 py-2 md:py-3 rounded-xl outline outline-[1.50px] outline-offset-[-1.50px] flex justify-center items-center gap-1 overflow-hidden ${getScoreStyles(result.score)}`}>
+          {/* 점수 표시 - 숨김 처리 */}
+          {/* <div className={`px-4 md:px-6 py-2 md:py-3 rounded-xl outline outline-[1.50px] outline-offset-[-1.50px] flex justify-center items-center gap-1 overflow-hidden ${getScoreStyles(result.score)}`}>
             <div className="text-xl md:text-2xl font-semibold leading-snug md:leading-8">
               {result.score}점
             </div>
-          </div>
+          </div> */}
           <Button
             variant="ghost"
             className="px-2.5 py-[3px] rounded-lg flex justify-start items-center gap-1.5 group transition-opacity hover:opacity-80"

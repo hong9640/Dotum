@@ -483,7 +483,7 @@ const WordSetResults: React.FC = () => {
                         </div>
                         <div className="self-stretch pt-1 inline-flex justify-start items-start">
                           <div className="w-full h-6 flex justify-start items-center">
-                            <div className="justify-center text-gray-500 text-sm font-normal leading-6">정상 범위: &lt; 0.02</div>
+                            <div className="justify-center text-gray-500 text-sm font-normal leading-6">정상 범위: 0</div>
                           </div>
                         </div>
                       </div>
@@ -507,7 +507,7 @@ const WordSetResults: React.FC = () => {
                         </div>
                         <div className="self-stretch pt-1 inline-flex justify-start items-start">
                           <div className="w-full h-6 flex justify-start items-center">
-                            <div className="justify-center text-gray-500 text-sm font-normal leading-6">정상 범위: &lt; 0.02</div>
+                            <div className="justify-center text-gray-500 text-sm font-normal leading-6">정상 범위: 0</div>
                           </div>
                         </div>
                       </div>
@@ -516,14 +516,14 @@ const WordSetResults: React.FC = () => {
                 )}
               </div>
 
-              {/* 피드백 메시지 */}
-              <div className="self-stretch p-6 bg-green-50 rounded-2xl flex flex-col justify-start items-start">
+              {/* 피드백 메시지 - 숨김 처리 */}
+              {/* <div className="self-stretch p-6 bg-green-50 rounded-2xl flex flex-col justify-start items-start">
                 <div className="self-stretch inline-flex justify-start items-center gap-2.5">
                   <div className="justify-start text-slate-700 text-2xl font-semibold leading-8">
                     {overallFeedback}
                   </div>
                 </div>
-              </div>
+              </div> */}
             </div>
           </div>
         </div>

@@ -4,6 +4,8 @@ import ResultHeader from '@/pages/result-list/components/ResultHeader';
 import ResultComponent from '@/pages/practice/components/result/ResultComponent';
 import { getSessionItemByIndex, getSessionItemErrorMessage, type SessionItemResponse } from '@/api/training-session/sessionItemSearch';
 import { useCompositedVideoPolling } from '@/hooks/useCompositedVideoPolling';
+import { usePraat } from '@/hooks/usePraat';
+import type { PraatMetrics } from '@/api/training-session/praat';
 
 const ResultDetailPage: React.FC = () => {
   const navigate = useNavigate();
@@ -14,6 +16,7 @@ const ResultDetailPage: React.FC = () => {
   const [compositedVideoUrl, setCompositedVideoUrl] = useState<string | undefined>(undefined);
   const [compositedVideoError, setCompositedVideoError] = useState<string | null>(null);
   const [isLoadingCompositedVideo, setIsLoadingCompositedVideo] = useState(false);
+  const [praatData, setPraatData] = useState<PraatMetrics | null>(null);
 
 
   // URL 파라미터에서 sessionId, type, itemIndex, date 가져오기
@@ -132,6 +135,25 @@ const ResultDetailPage: React.FC = () => {
     }
   }, [polledError]);
 
+  // Praat 분석 결과 조회 (폴링 포함)
+  // result-detail 페이지에서도 세부 평가 항목 점수를 표시하기 위해 필요
+  const { data: praatDataFromHook, loading: praatLoading, processing: praatProcessing } = usePraat(
+    sessionIdNum,
+    itemData?.item_id,
+    {
+      pollIntervalMs: 2500,
+      maxPollMs: 60000,
+      enabled: !!sessionIdNum && !!itemData?.item_id && !isLoading,
+    }
+  );
+
+  // Praat 데이터 상태 업데이트
+  useEffect(() => {
+    if (praatDataFromHook) {
+      setPraatData(praatDataFromHook);
+    }
+  }, [praatDataFromHook]);
+
   // 이전 페이지(result-list)로 돌아가기
   const handleBack = () => {
     if (sessionIdParam && typeParam) {
@@ -220,6 +242,8 @@ const ResultDetailPage: React.FC = () => {
           isLoadingCompositedVideo={isLoadingCompositedVideo}
           compositedVideoError={compositedVideoError}
           onBack={handleBack}
+          praatData={praatData}
+          praatLoading={praatLoading || praatProcessing}
         />
       </div>
     </div>
