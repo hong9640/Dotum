@@ -2,7 +2,6 @@ from sqlmodel import SQLModel, Field, Relationship
 from typing import Optional, TYPE_CHECKING
 from datetime import datetime
 from enum import Enum
-from sqlalchemy.orm import foreign
 
 if TYPE_CHECKING:
     from api.src.user.user_model import User

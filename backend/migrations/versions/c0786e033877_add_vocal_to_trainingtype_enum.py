@@ -29,10 +29,10 @@ def upgrade() -> None:
         BEGIN
             IF NOT EXISTS (
                 SELECT 1 FROM pg_enum 
-                WHERE enumlabel = 'vocal' 
+                WHERE enumlabel = 'VOCAL' 
                 AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'trainingtype')
             ) THEN
-                ALTER TYPE trainingtype ADD VALUE 'vocal';
+                ALTER TYPE trainingtype ADD VALUE 'VOCAL';
             END IF;
         END $$;
     """)
