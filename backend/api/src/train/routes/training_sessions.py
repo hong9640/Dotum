@@ -484,6 +484,125 @@ async def submit_current_item(
     )
 
 
+@router.post(
+    "/{session_id}/vocal/{item_index}/submit",
+    response_model=ItemSubmissionResponse,
+    summary="발성 훈련 아이템 제출",
+    description="발성 훈련 아이템에 오디오 파일과 그래프 영상을 업로드하고 완료 처리합니다. Praat 분석을 수행하고 다음 아이템 정보도 함께 반환됩니다.",
+    responses={
+        200: {"description": "처리 성공"},
+        400: {"model": BadRequestErrorResponse, "description": "잘못된 요청"},
+        401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"},
+        404: {"model": NotFoundErrorResponse, "description": "세션 또는 아이템을 찾을 수 없음"}
+    }
+)
+async def submit_vocal_item(
+    session_id: int,
+    item_index: int,
+    audio_file: UploadFile = File(..., description="제출할 오디오 파일 (wav)"),
+    graph_video: UploadFile = File(..., description="제출할 그래프 영상 파일 (mp4)"),
+    current_user: User = Depends(get_current_user),
+    service: TrainingSessionService = Depends(get_training_service),
+    gcs_service: GCSService = Depends(provide_gcs_service)
+):
+    """발성 훈련 아이템 제출 (오디오 + 그래프 영상 업로드)"""
+    # 파일 타입 검증
+    if not audio_file.content_type or not audio_file.content_type.startswith("audio/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="오디오 파일만 업로드 가능합니다."
+        )
+    
+    if not graph_video.content_type or not graph_video.content_type.startswith("video/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="동영상 파일만 업로드 가능합니다."
+        )
+    
+    # 파일 읽기
+    audio_bytes = await audio_file.read()
+    video_bytes = await graph_video.read()
+    
+    # 파일 크기 검증
+    max_size = 100 * 1024 * 1024  # 100MB
+    if len(audio_bytes) > max_size:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="오디오 파일 크기는 100MB를 초과할 수 없습니다."
+        )
+    
+    if len(video_bytes) > max_size:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="동영상 파일 크기는 100MB를 초과할 수 없습니다."
+        )
+    
+    try:
+        result = await service.submit_vocal_item(
+            session_id=session_id,
+            item_index=item_index,
+            user=current_user,
+            audio_file_bytes=audio_bytes,
+            graph_video_bytes=video_bytes,
+            audio_filename=audio_file.filename or "audio.wav",
+            video_filename=graph_video.filename or "graph.mp4",
+            audio_content_type=audio_file.content_type or "audio/wav",
+            video_content_type=graph_video.content_type or "video/mp4",
+            gcs_service=gcs_service
+        )
+    except LookupError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+    
+    session = result["session"]
+    next_item = result["next_item"]
+    media_file = result["media_file"]
+    praat_feature = result["praat_feature"]
+    video_url = result["video_url"]
+    
+    # 다음 아이템 응답 구성
+    next_item_response: Optional[CurrentItemResponse] = None
+    if next_item:
+        # Composited media 미리 조회
+        composited_object_key = f"results/{current_user.username}/{session_id}/result_item_{next_item.id}.mp4"
+        from ..services.media import MediaService
+        media_service = MediaService(service.db)
+        composited_media = await media_service.get_media_file_by_object_key(composited_object_key)
+        
+        # 다음 아이템의 Praat 분석 결과는 아직 없을 가능성이 높으므로 None으로 설정
+        # (VOCAL 타입의 경우 다음 아이템은 아직 완료되지 않았을 가능성이 높음)
+        next_item_response = await build_current_item_response(
+            item=next_item,
+            has_next=result.get("has_next", False),
+            praat=None,
+            service=service,
+            gcs_service=gcs_service,
+            username=current_user.username,
+            session_id=session_id,
+            composited_media=composited_media
+        )
+    
+    return ItemSubmissionResponse(
+        session=await convert_session_to_response(session, service.db, gcs_service, current_user.username),
+        next_item=next_item_response,
+        media=convert_media_to_response(media_file),
+        praat=convert_praat_to_response(praat_feature),
+        video_url=video_url
+    )
+
+
 @router.get(
     "/{session_id}/items/index/{item_index}",
     response_model=CurrentItemResponse,
@@ -578,6 +697,7 @@ async def get_item_video_url(
 async def resubmit_item_video(
     session_id: int,
     item_id: int,
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="재업로드할 동영상 파일"),
     current_user: User = Depends(get_current_user),
     service: TrainingSessionService = Depends(get_training_service),
@@ -606,7 +726,8 @@ async def resubmit_item_video(
             file_bytes=file_bytes,
             filename=file.filename or "video.mp4",
             content_type=file.content_type or "video/mp4",
-            gcs_service=gcs_service
+            gcs_service=gcs_service,
+            background_tasks=background_tasks
         )
     except LookupError as e:
         raise HTTPException(

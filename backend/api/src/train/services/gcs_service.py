@@ -30,11 +30,13 @@ class GCSService:
         train_id: Optional[int] = None,
         result_id: Optional[int] = None,
         word_id: Optional[int] = None,
-        sentence_id: Optional[int] = None
+        sentence_id: Optional[int] = None,
+        item_index: Optional[int] = None
     ) -> str:
         """
         동영상 파일 경로 생성
         형식: videos/{username}/{session_id}/(type:train/result)_(train_id/result_id)_(type:word/sentence)_(word_id/sentence_id).mp4
+        VOCAL 타입: videos/{username}/{session_id}/train_item_{item_index}_vocal.mp4
         """
         return generate_file_path(
             base_path="videos",
@@ -43,7 +45,8 @@ class GCSService:
             train_id=train_id,
             result_id=result_id,
             word_id=word_id,
-            sentence_id=sentence_id
+            sentence_id=sentence_id,
+            item_index=item_index
         )
     
     
@@ -56,6 +59,7 @@ class GCSService:
         result_id: Optional[int] = None,
         word_id: Optional[int] = None,
         sentence_id: Optional[int] = None,
+        item_index: Optional[int] = None,
         original_filename: str = "",
         content_type: str = "video/mp4"
     ) -> dict:
@@ -70,6 +74,7 @@ class GCSService:
             result_id: 결과 ID (문장 훈련용)
             word_id: 단어 ID
             sentence_id: 문장 ID
+            item_index: 아이템 인덱스 (VOCAL 타입용)
             original_filename: 원본 파일명 (선택사항)
             content_type: MIME 타입
             
@@ -84,7 +89,8 @@ class GCSService:
                 train_id=train_id,
                 result_id=result_id,
                 word_id=word_id,
-                sentence_id=sentence_id
+                sentence_id=sentence_id,
+                item_index=item_index
             )
             
             # GCS 객체 생성
