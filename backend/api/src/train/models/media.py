@@ -49,5 +49,6 @@ class MediaFile(SQLModel, table=True):
         sa_relationship_kwargs={
             "primaryjoin": "MediaFile.user_id==foreign(User.id)",
             "foreign_keys": "[MediaFile.user_id]",
+            "overlaps": "user"
         }
     )

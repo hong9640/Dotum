@@ -4,6 +4,7 @@ from .training_session import TrainingSession, TrainingType, TrainingSessionStat
 from .training_item import TrainingItem
 from .media import MediaFile, MediaType, MediaStatus
 from .praat import PraatFeatures
+from .session_praat_result import SessionPraatResult
 
 __all__ = [
     "TrainWords",
@@ -15,5 +16,6 @@ __all__ = [
     "MediaFile",
     "MediaType",
     "MediaStatus",
-    "PraatFeatures"
+    "PraatFeatures",
+    "SessionPraatResult"
 ]

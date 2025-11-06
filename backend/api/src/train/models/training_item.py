@@ -52,5 +52,6 @@ class TrainingItem(SQLModel, table=True):
         sa_relationship_kwargs={
             "primaryjoin": "TrainingItem.media_file_id==foreign(MediaFile.id)",
             "foreign_keys": "[TrainingItem.media_file_id]",
+            "overlaps": "media_file"
         }
     )

@@ -27,11 +27,10 @@ class PraatFeatures(SQLModel, table=True):
     intensity_mean: Optional[float] = None
 
     # 관계 (논리 FK)
-    user: Optional["MediaFile"] = Relationship(
+    media_file: Optional["MediaFile"] = Relationship(
         sa_relationship_kwargs={
             "primaryjoin": "PraatFeatures.media_id==foreign(MediaFile.id)",
             "foreign_keys": "[PraatFeatures.media_id]",
+            "overlaps": "media_file"
         }
     )
-
-

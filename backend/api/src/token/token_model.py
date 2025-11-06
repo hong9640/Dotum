@@ -17,5 +17,6 @@ class RefreshToken(SQLModel, table=True):
         sa_relationship_kwargs={
             "primaryjoin": "RefreshToken.user_id==foreign(User.id)", 
             "foreign_keys": "[RefreshToken.user_id]",
+            "overlaps": "user"
         }
     )
