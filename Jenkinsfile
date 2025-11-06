@@ -209,9 +209,6 @@ stage('Deploy') {
                 echo "✅ 배포된 컨테이너 상태:"
                 docker-compose -p dotum ps
                 
-                echo "🔍 Backend 컨테이너 로그 확인:"
-                docker-compose -p dotum logs --tail=20 backend 2>/dev/null || true
-                
                 # 컨테이너 상태 저장
                 echo "💾 컨테이너 상태 저장 중..."
                 docker-compose -p dotum ps > /tmp/dotum_containers.txt 2>/dev/null || true
