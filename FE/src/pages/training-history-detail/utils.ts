@@ -54,16 +54,15 @@ export const convertSessionsToTrainingSets = (
       title = `문장 세트 ${sentenceCounter}`;
     }
     
-    // 단어 ID 배열 생성 (최대 3개)
-    // word_id가 있으면 word_id를, sentence_id가 있으면 sentence_id를 사용
-    const wordIds: string[] = [];
+    // 실제 단어/문장 텍스트 배열 생성 (최대 3개)
+    const words: string[] = [];
     const items = session.training_items.slice(0, 3); // 최대 3개만
     
     items.forEach((item) => {
-      if (item.word_id !== null) {
-        wordIds.push(`word_${item.word_id}`);
-      } else if (item.sentence_id !== null) {
-        wordIds.push(`sentence_${item.sentence_id}`);
+      if (item.word) {
+        words.push(item.word);
+      } else if (item.sentence) {
+        words.push(item.sentence);
       }
     });
     
@@ -77,11 +76,26 @@ export const convertSessionsToTrainingSets = (
       ? (session.average_score ?? 50) // average_score가 있으면 사용, 없으면 임시로 50점
       : null;
     
+    // title 생성: 단어인 경우 첫 번째 단어, 문장인 경우 첫 번째 단어 + "..."
+    let displayTitle: string;
+    if (words.length > 0) {
+      if (session.type === 'word') {
+        displayTitle = words[0];
+      } else {
+        // 문장인 경우: 첫 번째 단어와 "..."
+        const firstWord = words[0].split(' ')[0]; // 첫 번째 단어 추출
+        displayTitle = `${firstWord}...`;
+      }
+    } else {
+      // words가 없으면 기존 title 사용
+      displayTitle = title;
+    }
+    
     return {
       id: String(session.session_id),
-      title,
+      title: displayTitle,
       score,
-      words: wordIds,
+      words: words,
       completedAt: session.completed_at,
       sessionId: session.session_id,
       type: session.type,

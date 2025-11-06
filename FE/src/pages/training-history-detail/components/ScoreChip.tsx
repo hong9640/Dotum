@@ -23,9 +23,8 @@ export function ScoreChip({ score, className = '' }: ScoreChipProps) {
     );
   }
 
-  // 완료된 상태인 경우
-  const level = getScoreLevel(score);
-  const colors = scoreColorClasses[level];
+  // 완료된 상태인 경우 - "완료"로 표시
+  const colors = scoreColorClasses.high; // 완료 상태는 파란색 계열 사용
 
   return (
     <div
@@ -36,7 +35,7 @@ export function ScoreChip({ score, className = '' }: ScoreChipProps) {
         ${className}
       `}
     >
-      {score}점
+      완료
     </div>
   );
 }
