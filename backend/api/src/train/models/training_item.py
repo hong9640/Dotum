@@ -29,6 +29,7 @@ class TrainingItem(SQLModel, table=True):
     score: Optional[float] = Field(default=None, description="점수")
     feedback: Optional[str] = Field(default=None, description="피드백")
     video_url: Optional[str] = Field(default=None, description="업로드된 동영상 URL")
+    audio_url: Optional[str] = Field(default=None, description="업로드된 오디오 URL")
     media_file_id: Optional[int] = Field(default=None, description="미디어 파일 ID")
     completed_at: Optional[datetime] = Field(default=None, description="완료 시간")
     created_at: datetime = Field(default_factory=get_current_datetime)
