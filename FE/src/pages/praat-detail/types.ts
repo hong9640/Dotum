@@ -13,7 +13,7 @@ export type PraatValues = {
   nhr?: MaybeNum; // 정상 < 0.05
   lh_ratio_mean_db?: MaybeNum; // dB, 정상 -15 ~ -8
   lh_ratio_sd_db?: MaybeNum; // dB, 정상 < 3.0
-  intensity?: MaybeNum; // dB, 정상 60~80
+  intensity?: MaybeNum; // dB, 정상 60~80 (API의 intensity_mean을 매핑)
 
   // 퍼터베이션
   jitter_local?: MaybeNum; // %, 정상 < 0.02

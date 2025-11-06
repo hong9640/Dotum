@@ -5,8 +5,9 @@ import { ChevronLeft } from "lucide-react";
 import PatientInfoSection, { type PatientInfo } from "./components/PatientInfoSection";
 import PraatMetricsSections from "./components/PraatMetricsSections";
 import { getSessionItemByIndex, getSessionItemErrorMessage } from "@/api/training-session/sessionItemSearch";
+import { usePraat } from "@/hooks/usePraat";
+import { getPraatErrorMessage } from "@/api/training-session/praat";
 import type { PraatValues } from "./types";
-import type { PraatResult } from "@/api/training-session/sessionItemSearch";
 
 /**
  * Praat 상세 페이지
@@ -17,6 +18,7 @@ const PraatDetailPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [patientInfo, setPatientInfo] = useState<PatientInfo | null>(null);
+  const [itemId, setItemId] = useState<number | undefined>(undefined);
   const [praatValues, setPraatValues] = useState<PraatValues>({});
 
   // URL 파라미터에서 세션 정보 가져오기
@@ -53,6 +55,15 @@ const PraatDetailPage: React.FC = () => {
         const itemDetailData = await getSessionItemByIndex(sessionId, itemIndex);
 
         console.log("Praat 상세 데이터 로드 성공:", itemDetailData);
+        console.log("item_id:", itemDetailData.item_id);
+
+        // item_id 저장 (Praat API 호출에 필요)
+        if (itemDetailData.item_id) {
+          setItemId(itemDetailData.item_id);
+          console.log("✅ item_id 설정 완료:", itemDetailData.item_id);
+        } else {
+          console.error("❌ item_id가 없습니다!");
+        }
 
         // 환자 정보 설정
         const word = itemDetailData.word || itemDetailData.sentence || "";
@@ -69,32 +80,6 @@ const PraatDetailPage: React.FC = () => {
           word,
         });
 
-        // Praat 데이터 변환
-        const praat: PraatResult | null | undefined = itemDetailData.praat;
-        if (praat) {
-          setPraatValues({
-            cpp: praat.cpp,
-            csid: praat.csid,
-            hnr: praat.hnr,
-            nhr: praat.nhr,
-            jitter_local: praat.jitter_local,
-            shimmer_local: praat.shimmer_local,
-            f0: praat.f0,
-            max_f0: praat.max_f0,
-            min_f0: praat.min_f0,
-            // API에서 제공되지 않는 필드들은 undefined로 유지
-            // 추후 API에 추가되면 여기서 매핑
-            lh_ratio_mean_db: undefined,
-            lh_ratio_sd_db: undefined,
-            intensity: undefined,
-            f1: undefined,
-            f2: undefined,
-          });
-        } else {
-          // Praat 데이터가 없으면 빈 객체로 설정 (모든 값이 0으로 표시됨)
-          setPraatValues({});
-        }
-
         setIsLoading(false);
       } catch (err: any) {
         console.error("Praat 상세 데이터 로드 실패:", err);
@@ -106,6 +91,57 @@ const PraatDetailPage: React.FC = () => {
 
     loadItemData();
   }, [sessionIdParam, itemIndexParam]);
+
+  // Praat 분석 결과 조회 (폴링 포함)
+  const sessionId = sessionIdParam ? Number(sessionIdParam) : undefined;
+  const { data: praatData, loading: praatLoading, processing: praatProcessing, error: praatError } = usePraat(
+    sessionId,
+    itemId,
+    {
+      pollIntervalMs: 2500,
+      maxPollMs: 60000,
+      enabled: !!sessionId && !!itemId && !isLoading,
+    }
+  );
+
+  // Praat 데이터를 PraatValues로 변환
+  useEffect(() => {
+    console.log("🔄 Praat 데이터 변환 체크:", { praatData, praatError });
+    if (praatData) {
+      console.log("✅ Praat 데이터 변환 시작:", praatData);
+      setPraatValues({
+        cpp: praatData.cpp,
+        csid: praatData.csid,
+        hnr: praatData.hnr,
+        nhr: praatData.nhr,
+        jitter_local: praatData.jitter_local,
+        shimmer_local: praatData.shimmer_local,
+        f0: praatData.f0,
+        max_f0: praatData.max_f0,
+        min_f0: praatData.min_f0,
+        lh_ratio_mean_db: praatData.lh_ratio_mean_db,
+        lh_ratio_sd_db: praatData.lh_ratio_sd_db,
+        intensity: praatData.intensity_mean,
+        f1: praatData.f1,
+        f2: praatData.f2,
+      });
+    } else if (praatError) {
+      // 에러 발생 시 빈 객체로 설정
+      setPraatValues({});
+    }
+  }, [praatData, praatError]);
+
+  // Praat 에러 처리
+  useEffect(() => {
+    if (praatError) {
+      const errorMessage = getPraatErrorMessage(praatError);
+      // 기존 에러가 없고, Praat 에러만 있는 경우에만 설정
+      // (세션 아이템 로드 에러보다 Praat 에러는 덜 중요하므로)
+      if (!error) {
+        setError(errorMessage);
+      }
+    }
+  }, [praatError, error]);
 
   // 이전 페이지로 돌아가기
   const handleBack = () => {
@@ -122,12 +158,14 @@ const PraatDetailPage: React.FC = () => {
   };
 
   // 로딩 상태
-  if (isLoading) {
+  if (isLoading || praatLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-lg text-gray-600">Praat 데이터를 불러오는 중...</p>
+          <p className="text-lg text-gray-600">
+            {isLoading ? "세션 정보를 불러오는 중..." : praatProcessing ? "Praat 분석 중..." : "Praat 데이터를 불러오는 중..."}
+          </p>
         </div>
       </div>
     );

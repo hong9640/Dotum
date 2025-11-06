@@ -5,15 +5,18 @@ import PronunciationScore from "./PronunciationScore";
 import FeedbackSummary from "./FeedbackSummary";
 import DetailedEvaluationItems from "./DetailedEvaluationItems";
 import ImprovementPoints from "./ImprovementPoints";
+import type { PraatMetrics } from "@/api/training-session/praat";
 
 interface FeedbackCardProps {
   hideSections?: boolean; // result-detail 페이지에서 일부 섹션 숨김
+  praatData?: PraatMetrics | null;
+  praatLoading?: boolean;
 }
 
 /**
  * 발음 평가 피드백 카드 컴포넌트
  */
-const FeedbackCard: React.FC<FeedbackCardProps> = ({ hideSections = false }) => {
+const FeedbackCard: React.FC<FeedbackCardProps> = ({ hideSections = false, praatData, praatLoading = false }) => {
   const similarity = 87; // 피드백 점수 (예시)
 
   return (
@@ -38,7 +41,7 @@ const FeedbackCard: React.FC<FeedbackCardProps> = ({ hideSections = false }) => 
           {!hideSections && <FeedbackSummary />}
 
           {/* 3. 세부 평가 항목 섹션 */}
-          <DetailedEvaluationItems />
+          <DetailedEvaluationItems praatData={praatData} praatLoading={praatLoading} />
 
           {/* 4. 개선 포인트 섹션 - result-detail 페이지에서 주석처리 */}
           {/* <ImprovementPoints /> */}
