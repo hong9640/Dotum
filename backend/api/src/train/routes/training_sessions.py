@@ -578,6 +578,7 @@ async def get_item_video_url(
 async def resubmit_item_video(
     session_id: int,
     item_id: int,
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="재업로드할 동영상 파일"),
     current_user: User = Depends(get_current_user),
     service: TrainingSessionService = Depends(get_training_service),
@@ -606,7 +607,8 @@ async def resubmit_item_video(
             file_bytes=file_bytes,
             filename=file.filename or "video.mp4",
             content_type=file.content_type or "video/mp4",
-            gcs_service=gcs_service
+            gcs_service=gcs_service,
+            background_tasks=background_tasks
         )
     except LookupError as e:
         raise HTTPException(
