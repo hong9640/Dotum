@@ -136,7 +136,8 @@ class TrainingItemRepository(BaseRepository[TrainingItem]):
         item_id: int, 
         video_url: str,
         media_file_id: Optional[int] = None,
-        is_completed: bool = True
+        is_completed: bool = True,
+        audio_url: Optional[str] = None
     ) -> Optional[TrainingItem]:
         """아이템 완료 처리"""
         item = await self.get_by_id(item_id)
@@ -147,6 +148,8 @@ class TrainingItemRepository(BaseRepository[TrainingItem]):
         item.is_completed = is_completed
         item.video_url = video_url
         item.media_file_id = media_file_id
+        if audio_url is not None:
+            item.audio_url = audio_url
         # 완료 상태 전환일 때만 completed_at 갱신
         if not original_completed and is_completed:
             item.completed_at = datetime.now()
