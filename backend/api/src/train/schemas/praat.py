@@ -20,6 +20,7 @@ class PraatFeaturesResponse(BaseModel):
     f1: Optional[float]
     f2: Optional[float]
     intensity_mean: Optional[float]
+    image_url: Optional[str] = Field(default=None, description="VOCAL 세션의 그래프 이미지 URL")
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 

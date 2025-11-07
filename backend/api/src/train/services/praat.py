@@ -245,16 +245,19 @@ async def get_praat_analysis_from_db(
     session_id: int,
     item_id: int,
     user_id: int,
-) -> Optional[PraatFeatures]:
+):
     """
     특정 훈련 아이템(item_id)의 Praat 분석 결과를 조회합니다.
     소유권을 먼저 확인하고, 연결된 오디오 파일의 분석 결과를 찾습니다.
     
     VOCAL 타입: item.media_file_id는 이미지 파일이므로, 오디오 파일을 별도로 찾습니다.
     WORD/SENTENCE 타입: item.media_file_id는 비디오 파일이므로, .mp4 -> .wav 치환 로직을 사용합니다.
+    
+    VOCAL 세션일 경우 image_url도 함께 반환합니다.
     """
     from ..models.training_session import TrainingSession, TrainingType
     from ..models.media import MediaFile, MediaType
+    from ..schemas.praat import PraatFeaturesResponse
     
     item_repo = TrainingItemRepository(db)
     media_service = MediaService(db)
@@ -329,4 +332,12 @@ async def get_praat_analysis_from_db(
     result_praat = await db.execute(statement_praat)
     analysis = result_praat.scalars().first()
 
-    return analysis
+    if not analysis:
+        return None
+
+    # PraatFeatures 모델을 딕셔너리로 변환 (model_dump 사용)
+    analysis_dict = analysis.model_dump()
+    if session.type == TrainingType.VOCAL:
+        analysis_dict["image_url"] = item.image_url
+
+    return PraatFeaturesResponse(**analysis_dict)
