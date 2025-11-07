@@ -845,23 +845,14 @@ class TrainingSessionService:
         praat_feature = None
         try:
             if current_item.media_file_id:
-                media_file = await self.get_media_file_by_id(current_item.media_file_id)
-                if media_file:
-                    # VOCAL 타입: media_file_id가 이미 오디오를 가리킴
-                    # WORD/SENTENCE 타입: media_file_id는 비디오를 가리키므로 .mp4 -> .wav 치환 필요
-                    if session.type == TrainingType.VOCAL:
-                        # VOCAL: media_file_id가 이미 오디오 media_id
-                        if media_file.user_id == user_id:
-                            praat_feature = await self.praat_repo.get_by_media_id(media_file.id)
-                    else:
-                        # WORD/SENTENCE: video media에서 audio media 찾기
-                        if media_file.object_key and media_file.object_key.endswith('.mp4'):
-                            audio_object_key = media_file.object_key.replace('.mp4', '.wav')
-                            from ..services.media import MediaService
-                            media_service = MediaService(self.db)
-                            audio_media = await media_service.get_media_file_by_object_key(audio_object_key)
-                            if audio_media and audio_media.user_id == user_id:
-                                praat_feature = await self.praat_repo.get_by_media_id(audio_media.id)
+                video_media = await self.get_media_file_by_id(current_item.media_file_id)
+                if video_media and video_media.object_key and video_media.object_key.endswith('.mp4'):
+                    audio_object_key = video_media.object_key.replace('.mp4', '.wav')
+                    from ..services.media import MediaService
+                    media_service = MediaService(self.db)
+                    audio_media = await media_service.get_media_file_by_object_key(audio_object_key)
+                    if audio_media:
+                        praat_feature = await get_praat_analysis_from_db(self.db, media_id=audio_media.id, user_id=user_id)
         except Exception:
             pass
         
@@ -891,25 +882,17 @@ class TrainingSessionService:
         # 총 아이템 수 기준으로 다음 아이템 존재 여부 판단 (완료 여부 무관)
         has_next = item_index < (session.total_items - 1)
 
-        # Praat 분석 결과 조회 시도
+        # Praat 분석 결과 조회 시도: 비디오 media의 object_key를 .wav로 치환해 오디오 media 탐색
         praat_feature = None
         try:
             # item.media_file은 Eager Loading으로 이미 로드되어 있습니다.
-            media_file = item.media_file
-            if media_file:
-                # VOCAL 타입: media_file_id가 이미 오디오를 가리킴
-                # WORD/SENTENCE 타입: media_file_id는 비디오를 가리키므로 .mp4 -> .wav 치환 필요
-                if session.type == TrainingType.VOCAL:
-                    # VOCAL: media_file_id가 이미 오디오 media_id
-                    praat_feature = await self.praat_repo.get_by_media_id(media_file.id)
-                else:
-                    # WORD/SENTENCE: video media에서 audio media 찾기
-                    if media_file.object_key and media_file.object_key.endswith('.mp4'):
-                        audio_object_key = media_file.object_key.replace('.mp4', '.wav')
-                        media_service = MediaService(self.db)
-                        audio_media = await media_service.get_media_file_by_object_key(audio_object_key)
-                        if audio_media:
-                            praat_feature = await self.praat_repo.get_by_media_id(audio_media.id)
+            video_media = item.media_file
+            if video_media and video_media.object_key and video_media.object_key.endswith('.mp4'):
+                audio_object_key = video_media.object_key.replace('.mp4', '.wav')
+                media_service = MediaService(self.db)
+                audio_media = await media_service.get_media_file_by_object_key(audio_object_key)
+                if audio_media:
+                    praat_feature = await self.praat_repo.get_by_media_id(audio_media.id)
         except Exception as e:
             # praat 조회 실패는 무시하고 None 반환
             print(f"Praat 조회 중 예외 발생: {e}")
@@ -1180,10 +1163,10 @@ class TrainingSessionService:
         await self.item_repo.complete_item(
             item_id=item.id,
             video_url=video_url,  # graph_video가 제공된 경우에만 값이 있음
-            media_file_id=audio_media_file.id,  # 오디오 파일을 media_file_id로 저장
+            media_file_id=image_media_file.id,  # 이미지 파일을 media_file_id로 저장
             is_completed=True,
             audio_url=audio_url,
-            image_url=image_url  # 이미지는 image_url로만 저장
+            image_url=image_url
         )
         
         # 8. 세션 진행률 업데이트

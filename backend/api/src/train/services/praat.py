@@ -123,34 +123,9 @@ def estimate_csid_awan2016(cpp: float, lh_series_db: np.ndarray) -> float:
 async def extract_all_features(voice_data: bytes) -> dict:
     """
     음성 데이터에서 CPPS, CSID 및 시계열 데이터를 추출하여 딕셔너리로 반환합니다.
-    
-    지원 형식: WAV, FLAC, OGG (soundfile이 직접 지원)
-    MP3 등 다른 형식은 자동으로 WAV로 변환 시도합니다.
     """
-    # 먼저 soundfile로 직접 읽기 시도
     try:
         samples, sampling_frequency = sf.read(io.BytesIO(voice_data))
-    except (sf.LibsndfileError, Exception) as e:
-        # soundfile이 인식하지 못하는 형식인 경우 (예: MP3)
-        # FFmpeg를 사용하여 WAV로 변환 시도
-        try:
-            from ..services.video_processor import VideoProcessor
-            video_processor = VideoProcessor()
-            
-            # MP3 등 다른 형식을 WAV로 변환
-            wav_data = await video_processor.convert_mp3_to_wav(voice_data)
-            
-            # 변환된 WAV 파일로 다시 읽기
-            samples, sampling_frequency = sf.read(io.BytesIO(wav_data))
-        except Exception as convert_error:
-            # 변환도 실패한 경우
-            raise ValueError(
-                f"오디오 파일 형식을 인식할 수 없습니다. "
-                f"WAV, FLAC, OGG 형식의 파일을 업로드해주세요. "
-                f"(원본 에러: {type(e).__name__}: {e}, 변환 시도 에러: {type(convert_error).__name__}: {convert_error})"
-            )
-    
-    try:
         
         # 스테레오(2D 배열)인 경우, 채널을 평균내어 모노(1D 배열)로 변환
         if samples.ndim == 2:
@@ -233,12 +208,9 @@ async def extract_all_features(voice_data: bytes) -> dict:
         
         return final_features
 
-    except ValueError:
-        # 이미 변환된 에러는 그대로 재발생
-        raise
     except Exception as e:
         # 포괄적인 예외 처리
-        raise ValueError(f"전체 특징 추출 중 오디오 데이터 처리 오류: {type(e).__name__}: {e}")
+        raise ValueError(f"전체 특징 추출 중 오디오 데이터 처리 오류: {e}")
 
 async def get_praat_analysis_from_db(
     db: AsyncSession,
@@ -249,13 +221,7 @@ async def get_praat_analysis_from_db(
     """
     특정 훈련 아이템(item_id)의 Praat 분석 결과를 조회합니다.
     소유권을 먼저 확인하고, 연결된 오디오 파일의 분석 결과를 찾습니다.
-    
-    VOCAL 타입: item.media_file_id는 이미지 파일이므로, 오디오 파일을 별도로 찾습니다.
-    WORD/SENTENCE 타입: item.media_file_id는 비디오 파일이므로, .mp4 -> .wav 치환 로직을 사용합니다.
     """
-    from ..models.training_session import TrainingSession, TrainingType
-    from ..models.media import MediaFile, MediaType
-    
     item_repo = TrainingItemRepository(db)
     media_service = MediaService(db)
 
@@ -264,68 +230,28 @@ async def get_praat_analysis_from_db(
     if not item:
         raise LookupError("훈련 아이템을 찾을 수 없습니다.")
 
-    # 2. 세션 타입 확인
-    session_stmt = select(TrainingSession).where(TrainingSession.id == session_id)
-    session_result = await db.execute(session_stmt)
-    session = session_result.scalar_one_or_none()
-    if not session:
-        raise LookupError("훈련 세션을 찾을 수 없습니다.")
-    
-    # 세션 소유권 확인
-    if session.user_id != user_id:
+    # 2. 비디오 미디어 파일 조회
+    if not item.media_file_id:
+        # 비디오가 아직 업로드되지 않았으므로 분석 결과도 없음
+        return None
+
+    # Eager loading으로 이미 로드된 media_file 사용 (DB 조회 방지)
+    video_media = item.media_file
+    if not video_media:
+        raise LookupError("연결된 비디오 미디어 파일을 찾을 수 없습니다.")
+
+    # 3. 소유권 확인
+    if video_media.user_id != user_id:
         raise PermissionError("접근 권한이 없습니다.")
 
-    # 3. VOCAL 타입과 WORD/SENTENCE 타입 분기 처리
-    audio_media_id = None
-    
-    if session.type == TrainingType.VOCAL:
-        # VOCAL 타입: item.media_file_id가 이미 오디오 MediaFile ID를 가리킴
-        # (submit_vocal_item에서 audio_media_file.id로 저장됨)
-        if not item.media_file_id:
-            # 오디오가 아직 업로드되지 않았으므로 분석 결과도 없음
-            return None
-        
-        # Eager loading으로 이미 로드된 media_file 사용
-        audio_media = item.media_file
-        if not audio_media:
-            raise LookupError("연결된 오디오 미디어 파일을 찾을 수 없습니다.")
-        
-        # 소유권 확인
-        if audio_media.user_id != user_id:
-            raise PermissionError("접근 권한이 없습니다.")
-        
-        audio_media_id = audio_media.id
-    else:
-        # WORD/SENTENCE 타입: video media에서 audio media 찾기
-        if not item.media_file_id:
-            # 비디오가 아직 업로드되지 않았으므로 분석 결과도 없음
-            return None
-
-        # Eager loading으로 이미 로드된 media_file 사용 (DB 조회 방지)
-        video_media = item.media_file
-        if not video_media:
-            raise LookupError("연결된 비디오 미디어 파일을 찾을 수 없습니다.")
-
-        # 소유권 확인
-        if video_media.user_id != user_id:
-            raise PermissionError("접근 권한이 없습니다.")
-
-        # 비디오 object_key를 기반으로 오디오 object_key 추론
-        if not video_media.object_key or not video_media.object_key.endswith('.mp4'):
-            return None
-        
-        audio_object_key = video_media.object_key.replace('.mp4', '.wav')
-        audio_media = await media_service.get_media_file_by_object_key(audio_object_key)
-        if not audio_media:
-            return None
-        
-        audio_media_id = audio_media.id
-
-    # 4. Praat 분석 결과 조회
-    if not audio_media_id:
+    # 4. 비디오 object_key를 기반으로 오디오 object_key 추론
+    audio_object_key = video_media.object_key.replace('.mp4', '.wav')
+    audio_media = await media_service.get_media_file_by_object_key(audio_object_key)
+    if not audio_media:
         return None
-    
-    statement_praat = select(PraatFeatures).where(PraatFeatures.media_id == audio_media_id)
+
+    # 5. Praat 분석 결과 조회
+    statement_praat = select(PraatFeatures).where(PraatFeatures.media_id == audio_media.id)
     result_praat = await db.execute(statement_praat)
     analysis = result_praat.scalars().first()
 
