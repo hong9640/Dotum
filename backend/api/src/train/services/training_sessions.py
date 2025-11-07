@@ -613,7 +613,7 @@ class TrainingSessionService:
         session_id: int,
         item_id: int,
         user: User,
-        file_bytes: bytes,
+        video_file: UploadFile,
         filename: str,
         content_type: str,
         gcs_service: GCSService,
@@ -624,6 +624,11 @@ class TrainingSessionService:
         같은 경로에 새 파일을 업로드하여 기존 파일을 덮어쓴다.
         """
         start_time = time.time()
+        temp_video_path = None
+        processing_result = None
+        audio_path = None
+        logger.info(f"[resubmit_item_video] 시작 - session_id: {session_id}, item_id: {item_id}")
+
         session = await self.get_training_session(session_id, user.id)
         if not session:
             raise LookupError("훈련 세션을 찾을 수 없습니다.")
@@ -637,165 +642,144 @@ class TrainingSessionService:
         if item.media_file_id:
             old_media_file = item.media_file # Eager Loading으로 이미 로드된 객체 사용
 
-        # 같은 경로에 새 동영상 업로드 (덮어쓰기)
-        upload_result = await gcs_service.upload_video(
-            file_content=file_bytes,
-            username=user.username,
-            session_id=str(session_id),
-            train_id=item.id,
-            word_id=item.word_id,
-            sentence_id=item.sentence_id,
-            original_filename=filename,
-            content_type=content_type
-        )
-
-        if not upload_result.get("success"):
-            raise RuntimeError(f"동영상 업로드에 실패했습니다: {upload_result.get('error')}")
-
-        object_key = upload_result.get("object_path")
-        if not object_key:
-            raise RuntimeError("업로드 결과에 object_path가 없습니다.")
-
-        video_url = await gcs_service.get_signed_url(object_key, expiration_hours=24)
-        if not video_url:
-            raise RuntimeError("동영상 URL 생성에 실패했습니다.")
-
-        # 기존 미디어 파일이 있으면 업데이트, 없으면 새로 생성
-        if old_media_file:
-            # 기존 미디어 파일 정보 업데이트
-            media_file = await self.media_repo.update_media_file(
-                media_file=old_media_file,
-                file_name=upload_result.get("filename") or filename,
-                file_size_bytes=len(file_bytes),
-                format=content_type.split('/')[-1] if '/' in content_type else content_type
-            )
-        else:
-            # 새 미디어 파일 생성
-            media_file = await self.media_repo.create_and_flush(
-                user_id=user.id,
-                object_key=object_key,
-                media_type=MediaType.VIDEO,
-                file_name=upload_result.get("filename") or filename,
-                file_size_bytes=len(file_bytes),
-                format=(content_type.split('/')[-1] if '/' in content_type else content_type)
-            )
-
-        audio_media_file = None
-        new_praat_record = None
         try:
-            print(f"[WAV] 재업로드 - 음성 처리 시작 - video: {object_key}")
-            logger.info(f"[resubmit_item_video] 음성 처리 시작 - video: {object_key}")
-            video_processor = VideoProcessor()
-            processing_result = await video_processor.process_uploaded_video_with_audio(
-                gcs_bucket=gcs_service.bucket_name,
-                gcs_blob_name=object_key
+            # 1. UploadFile을 임시 파일로 저장
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_video:
+                temp_video_path = temp_video.name
+                async with aiofiles.open(temp_video_path, 'wb') as out_file:
+                    while content := await video_file.read(1024 * 1024):
+                        await out_file.write(content)
+
+            # 2. GCS에 동영상 업로드 (덮어쓰기)
+            upload_result = await gcs_service.upload_video(
+                file_path=temp_video_path,
+                username=user.username,
+                session_id=str(session_id),
+                train_id=item.id,
+                word_id=item.word_id,
+                sentence_id=item.sentence_id,
+                original_filename=filename,
+                content_type=content_type
             )
-            print(f"[WAV] 재업로드 - 음성 처리 완료 - audio_blob_name: {processing_result.get('audio_blob_name')}")
-            logger.info(f"[resubmit_item_video] 음성 처리 완료 - audio_blob_name: {processing_result.get('audio_blob_name')}")
-            
-            if processing_result.get('audio_blob_name'):
-                from ..services.media import MediaService
+            if not upload_result.get("success"):
+                raise RuntimeError(f"동영상 재업로드에 실패했습니다: {upload_result.get('error')}")
+
+            object_key = upload_result.get("object_path")
+            video_url = await gcs_service.get_signed_url(object_key, expiration_hours=24)
+            if not video_url:
+                raise RuntimeError("동영상 URL 생성에 실패했습니다.")
+
+            # 3. 기존 미디어 파일이 있으면 업데이트, 없으면 새로 생성
+            if old_media_file:
+                media_file = await self.media_repo.update_media_file(
+                    media_file=old_media_file,
+                    file_name=upload_result.get("filename") or filename,
+                    file_size_bytes=upload_result.get("file_size", 0),
+                    format=content_type.split('/')[-1] if '/' in content_type else content_type
+                )
+            else:
+                media_file = await self.media_repo.create_and_flush(
+                    user_id=user.id, object_key=object_key, media_type=MediaType.VIDEO,
+                    file_name=upload_result.get("filename") or filename,
+                    file_size_bytes=upload_result.get("file_size", 0),
+                    format=(content_type.split('/')[-1] if '/' in content_type else content_type)
+                )
+
+            # 4. 로컬 임시 파일을 사용하여 미디어 처리
+            video_processor = VideoProcessor()
+            logger.info(f"[resubmit_item_video] 로컬 파일로 음성 처리 시작 - path: {temp_video_path}")
+            processing_result = await video_processor.process_uploaded_video_with_audio(temp_video_path)
+            logger.info(f"[resubmit_item_video] 로컬 파일 음성 처리 완료")
+
+            # 5. 추출된 음성 파일 처리
+            audio_media_file = None
+            new_praat_record = None
+            audio_path = processing_result.get('audio_path')
+
+            if audio_path and os.path.exists(audio_path):
+                # 5-1. 음성 파일을 GCS에 업로드
+                audio_object_key = object_key.replace('.mp4', '.wav')
+                audio_blob = gcs_service.bucket.blob(audio_object_key)
+                audio_blob.upload_from_filename(audio_path, content_type="audio/wav")
+                logger.info(f"[resubmit_item_video] 추출된 음성 파일 GCS 업로드 완료: {audio_object_key}")
+
+                # 5-2. 음성 파일 정보 DB 업데이트 또는 생성
                 media_service = MediaService(self.db)
-                existing_audio = await media_service.get_media_file_by_object_key(processing_result['audio_blob_name'])
+                existing_audio = await media_service.get_media_file_by_object_key(audio_object_key)
                 if existing_audio:
-                    print(f"[WAV] 재업로드 - 기존 DB 레코드 업데이트 - media_id: {existing_audio.id}")
                     logger.info(f"[resubmit_item_video] 기존 오디오 DB 레코드 업데이트 - media_id: {existing_audio.id}")
-                    # 메타데이터 갱신만 수행
                     audio_media_file = await self.media_repo.update_media_file(
                         media_file=existing_audio,
-                        file_name=processing_result['audio_blob_name'].split('/')[-1],
+                        file_name=audio_object_key.split('/')[-1],
+                        file_size_bytes=os.path.getsize(audio_path),
                         format="wav"
                     )
                 else:
-                    print(f"[WAV] 재업로드 - 새 DB 레코드 생성")
                     logger.info(f"[resubmit_item_video] 새 오디오 DB 레코드 생성")
                     audio_media_file = await self.media_repo.create_and_flush(
-                        user_id=user.id,
-                        object_key=processing_result['audio_blob_name'],
-                        media_type=MediaType.AUDIO,
-                        file_name=processing_result['audio_blob_name'].split('/')[-1],
-                        file_size_bytes=0,
-                        format="wav"
+                        user_id=user.id, object_key=audio_object_key, media_type=MediaType.AUDIO,
+                        file_name=audio_object_key.split('/')[-1],
+                        file_size_bytes=os.path.getsize(audio_path), format="wav"
                     )
-                print(f"[WAV] 재업로드 - DB 저장 완료 - media_id: {audio_media_file.id}")
 
-                # Praat 분석 결과 생성 또는 업데이트
+                # 5-3. Praat 분석 결과 DB 업데이트 또는 생성
                 praat_data = processing_result.get('praat_features')
                 if praat_data and audio_media_file:
-                    # 기존 분석 결과가 있는지 확인
                     existing_praat = await self.praat_repo.get_by_media_id(audio_media_file.id)
                     if existing_praat:
-                        print(f"[WAV] 재업로드 - Praat DB 업데이트 - praat_id: {existing_praat.id}")
                         logger.info(f"[resubmit_item_video] Praat DB 업데이트 - praat_id: {existing_praat.id}")
-                        # 1. 업데이트할 객체의 속성을 직접 변경
                         for key, value in praat_data.items():
                             setattr(existing_praat, key, value)
-                        # 2. 변경된 객체를 전달하여 업데이트
                         new_praat_record = await self.praat_repo.update(existing_praat)
                     else:
-                        print(f"[WAV] 재업로드 - Praat DB 생성 - media_id: {audio_media_file.id}")
                         logger.info(f"[resubmit_item_video] Praat DB 생성 - media_id: {audio_media_file.id}")
                         new_praat_record = await self.praat_repo.create_and_flush(
-                            media_id=audio_media_file.id,
-                            **praat_data
+                            media_id=audio_media_file.id, **praat_data
                         )
-                    print(f"[WAV] 재업로드 - Praat DB 처리 완료 - praat_id: {new_praat_record.id}")
-
             else:
-                print(f"[WAV] 재업로드 - 경고: audio_blob_name이 없습니다")
-                logger.warning(f"[resubmit_item_video] 경고: audio_blob_name이 없습니다")
-        except Exception as e:
-            print(f"[WAV] 재업로드 - Audio extraction failed: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            logger.error(f"[resubmit_item_video] 음성 추출/처리 중 오류 발생: {e}", exc_info=True)
+                logger.warning(f"[resubmit_item_video] 경고: 음성 파일이 생성되지 않았습니다.")
 
-        # [수정] ElevenLabs 가이드 음성 생성 및 Wav2Lip 처리를 위한 백그라운드 작업 추가
-        if (item.word or item.sentence) and audio_media_file:
-            logger.info(f"[resubmit_item_video] 가이드 음성 생성 백그라운드 작업 추가 - item_id: {item.id}")
-            text_for_guide = item.word.word if item.word else item.sentence.sentence
-            print(f"[RESUBMIT] ElevenLabs 가이드 음성 생성 백그라운드 작업 추가 - item_id: {item.id}")
-            background_tasks.add_task(
-                self.trigger_guide_audio_generation,
-                user=user,
-                session_id=session_id,
-                item_id=item.id,
-                text=text_for_guide,
-                original_audio_object_key=audio_media_file.object_key,
-                gcs_service=gcs_service,
-                original_video_object_key=object_key # 재업로드 시에도 Wav2Lip 처리를 위해 원본 비디오 경로 전달
+            # 6. 가이드 음성 생성 백그라운드 작업 추가
+            if (item.word or item.sentence) and audio_media_file:
+                logger.info(f"[resubmit_item_video] 가이드 음성 생성 백그라운드 작업 추가 - item_id: {item.id}")
+                text_for_guide = item.word.word if item.word else item.sentence.sentence
+                background_tasks.add_task(
+                    self.trigger_guide_audio_generation,
+                    user=user, session_id=session_id, item_id=item.id, text=text_for_guide,
+                    original_audio_object_key=audio_media_file.object_key,
+                    gcs_service=gcs_service, original_video_object_key=object_key
+                )
+
+            # 7. 아이템의 동영상 정보 업데이트 (완료 상태 유지)
+            await self.item_repo.complete_item(
+                item_id=item.id, video_url=video_url, media_file_id=media_file.id, is_completed=True
             )
 
+            await self.db.commit()
+            await self.db.refresh(media_file)
+            if audio_media_file:
+                await self.db.refresh(audio_media_file)
+            if new_praat_record:
+                await self.db.refresh(new_praat_record)
 
-        # 아이템의 동영상 정보 업데이트 (완료 상태 유지)
-        await self.item_repo.complete_item(
-            item_id=item.id,
-            video_url=video_url,
-            media_file_id=media_file.id,
-            is_completed=True
-        )
+            updated_session = await self.get_training_session(session_id, user.id)
 
-        await self.db.commit()
-        await self.db.refresh(media_file)
-        if audio_media_file:
-            await self.db.refresh(audio_media_file)
-        if new_praat_record:
-            await self.db.refresh(new_praat_record)
-
-        updated_session = await self.get_training_session(session_id, user.id)
-
-        elapsed_time = time.time() - start_time
-        logger.info(f"[resubmit_item_video] 완료 - session_id: {session_id}, item_id: {item_id}. (총 소요 시간: {elapsed_time:.2f}초)")
-
-        return {
-            "session": updated_session,
-            "next_item": None,
-            "media_file": media_file,
-            "praat_feature": new_praat_record,
-            "audio_media_file": audio_media_file,
-            "video_url": video_url,
-            "has_next": False
-        }
+            return {
+                "session": updated_session, "next_item": None, "media_file": media_file,
+                "praat_feature": new_praat_record, "audio_media_file": audio_media_file,
+                "video_url": video_url, "has_next": False
+            }
+        finally:
+            # 8. 임시 파일 정리
+            if temp_video_path and os.path.exists(temp_video_path):
+                os.remove(temp_video_path)
+                logger.info(f"임시 동영상 파일 삭제: {temp_video_path}")
+            if audio_path and os.path.exists(audio_path):
+                os.remove(audio_path)
+                logger.info(f"임시 음성 파일 삭제: {audio_path}")
+            
+            elapsed_time = time.time() - start_time
+            logger.info(f"[resubmit_item_video] 완료 - session_id: {session_id}, item_id: {item_id}. (총 소요 시간: {elapsed_time:.2f}초)")
     
     async def get_wav2lip_result(
         self,
