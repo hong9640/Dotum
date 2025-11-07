@@ -116,7 +116,7 @@ async def build_current_item_response(
         media_file_id=item.media_file_id,
         composited_media_file_id=composited_media_file_id,
         has_next=has_next,
-        praat=(convert_praat_to_response(praat) if praat else None),
+        praat=(await convert_praat_to_response(praat) if praat else None),
         integrate_voice_url=integrate_voice_url
     )
 
@@ -332,7 +332,7 @@ def convert_media_to_response(media) -> MediaResponse:
     )
 
 
-def convert_praat_to_response(praat) -> Optional[PraatFeaturesResponse]:
+async def convert_praat_to_response(praat) -> Optional[PraatFeaturesResponse]:
     """PraatFeatures 모델을 PraatFeaturesResponse로 변환"""
     if praat is None:
         return None
