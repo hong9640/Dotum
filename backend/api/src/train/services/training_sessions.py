@@ -250,27 +250,36 @@ class TrainingSessionService:
     
     async def trigger_wav2lip_processing(
         self,
-        guide_audio_gs_path: str,
+        guide_audio_gs_path: str,  # ElevenLabs로 생성된 가이드 음성 경로
         user_video_gs_path: str,
         output_video_gs_path: str,
         user_id: int,
         output_object_key: str
     ):
-        """외부 wav2lip 서버에 처리를 요청하는 백그라운드 작업"""
+        """외부 wav2lip 서버에 처리를 요청하는 백그라운드 작업
+        
+        Args:
+            guide_audio_gs_path: ElevenLabs TTS로 생성된 가이드 음성의 GCS 경로
+            user_video_gs_path: 사용자가 업로드한 원본 영상의 GCS 경로
+            output_video_gs_path: Wav2Lip 결과 영상을 저장할 GCS 경로
+        """
         WAV2LIP_API_URL = f"{settings.ML_SERVER_URL}/api/v1/lip-video"
         
         payload = {
-            "guide_audio_gs": f"gs://{guide_audio_gs_path}",
+            "gen_audio_gs": f"gs://{guide_audio_gs_path}",  # ElevenLabs 생성 오디오
             "user_video_gs": f"gs://{user_video_gs_path}",
             "output_video_gs": f"gs://{output_video_gs_path}"
         }
 
         try:
             # 외부 API 호출 (httpx 라이브러리 필요)
+            print(f"[WAV2LIP] ML 서버로 Wav2Lip 요청 전송 중... URL: {WAV2LIP_API_URL}")
+            print(f"[WAV2LIP] Payload: {payload}")
+            
             async with httpx.AsyncClient(timeout=120.0) as client:
                 response = await client.post(WAV2LIP_API_URL, json=payload)
                 response.raise_for_status()
-                print(f"wav2lip 작업 요청 성공: {response.json()}")
+                print(f"[WAV2LIP] Wav2Lip 작업 요청 성공: {response.json()}")
 
                 gcs_service = GCSService(settings)
 
@@ -279,8 +288,9 @@ class TrainingSessionService:
                 file_size = 0
                 if blob:
                     file_size = blob.size # 파일 크기(bytes)
+                    print(f"[WAV2LIP] GCS 결과 파일 크기: {file_size} bytes")
                 else:
-                    print(f"경고: GCS에서 {output_object_key} 파일을 찾을 수 없어 파일 크기를 0으로 저장합니다.")
+                    print(f"[WAV2LIP] 경고: GCS에서 {output_object_key} 파일을 찾을 수 없어 파일 크기를 0으로 저장합니다.")
 
                 # 3. MediaFile 객체 생성 시 file_size_bytes에 값 할당
                 result_media_file = await self.media_repo.create_and_flush(
@@ -292,12 +302,16 @@ class TrainingSessionService:
                     file_size_bytes=file_size,
                 )
                 await self.db.commit()
-                print(f"wav2lip 결과 미디어 파일 정보 저장 성공: {result_media_file.id}")
+                print(f"[WAV2LIP] Wav2Lip 결과 미디어 파일 정보 저장 성공: {result_media_file.id}")
 
         except httpx.RequestError as e:
-            print(f"wav2lip 작업 요청 실패: {e}")
+            print(f"[WAV2LIP] Wav2Lip 작업 요청 실패: {e}")
+            import traceback
+            traceback.print_exc()
         except Exception as e:
-            print(f"wav2lip 결과 저장 중 DB 오류 발생: {e}")
+            print(f"[WAV2LIP] Wav2Lip 결과 저장 중 DB 오류 발생: {e}")
+            import traceback
+            traceback.print_exc()
     
     async def trigger_guide_audio_generation(
         self,
@@ -310,9 +324,16 @@ class TrainingSessionService:
         gcs_service: GCSService,
         original_video_object_key: str # Wav2Lip 처리를 위해 원본 비디오 경로 추가
     ):
-        """백그라운드 작업: 원본 음성을 복제하여 가이드 음성을 생성하고 GCS에 저장"""
+        """백그라운드 작업: ElevenLabs TTS로 가이드 음성을 생성하고 Wav2Lip 처리를 트리거
+        
+        1. 사용자의 원본 음성을 다운로드
+        2. ElevenLabs API로 음성 복제하여 가이드 음성(MP3) 생성
+        3. MP3를 WAV로 변환
+        4. GCS에 가이드 음성 업로드 및 DB 저장
+        5. Wav2Lip 처리 요청 (ElevenLabs 가이드 음성 + 사용자 원본 비디오)
+        """
         try:
-            print(f"[GUIDE] 가이드 음성 생성 시작 - item_id: {item_id}")
+            print(f"[ELEVENLABS] 가이드 음성 생성 시작 - item_id: {item_id}, text: {text[:50]}...")
             
             # 1. GCS에서 원본 음성 파일 다운로드
             guide_audio_object_key = f"guides/{user.username}/{session_id}/guide_item_{item_id}.wav"
@@ -321,35 +342,38 @@ class TrainingSessionService:
             media_service = MediaService(self.db)
             existing_guide_media = await media_service.get_media_file_by_object_key(guide_audio_object_key)
             if existing_guide_media:
-                print(f"[GUIDE] 기존 가이드 음성 DB 레코드 삭제: {existing_guide_media.id}")
+                print(f"[ELEVENLABS] 기존 가이드 음성 DB 레코드 삭제: {existing_guide_media.id}")
                 await self.db.delete(existing_guide_media)
                 await self.db.flush() # 삭제를 즉시 반영
 
             original_audio_bytes = await gcs_service.download_video(original_audio_object_key)
             if not original_audio_bytes:
-                print(f"[GUIDE] 원본 음성 다운로드 실패: {original_audio_object_key}")
+                print(f"[ELEVENLABS] 원본 음성 다운로드 실패: {original_audio_object_key}")
                 return
 
-            # 2. 텍스트와 음성 샘플로 MP3 음성 생성 (음성 복제)
+            # 2. ElevenLabs TTS로 MP3 음성 생성 (음성 복제)
+            print(f"[ELEVENLABS] ElevenLabs API 호출 중...")
             tts_service = TextToSpeechService()
             mp3_bytes = await tts_service.generate_guide_audio(
                 text=text, audio_sample_bytes=original_audio_bytes
             )
             if not mp3_bytes:
-                print(f"[GUIDE] 가이드 음성(MP3) 생성 실패 - item_id: {item_id}")
+                print(f"[ELEVENLABS] ElevenLabs 가이드 음성(MP3) 생성 실패 - item_id: {item_id}")
                 return
+            print(f"[ELEVENLABS] ElevenLabs 가이드 음성(MP3) 생성 성공 - 크기: {len(mp3_bytes)} bytes")
 
             # 3. MP3를 WAV로 변환
             video_processor = VideoProcessor()
             wav_bytes = await video_processor.convert_mp3_to_wav(mp3_bytes)
             if not wav_bytes:
-                print(f"[GUIDE] 가이드 음성(WAV) 변환 실패 - item_id: {item_id}")
+                print(f"[ELEVENLABS] 가이드 음성(WAV) 변환 실패 - item_id: {item_id}")
                 return
+            print(f"[ELEVENLABS] WAV 변환 완료 - 크기: {len(wav_bytes)} bytes")
 
             # 4. GCS에 '가이드 음성'을 다른 이름으로 업로드
             guide_audio_blob = gcs_service.bucket.blob(guide_audio_object_key)
             guide_audio_blob.upload_from_string(wav_bytes, content_type="audio/wav")
-            print(f"[GUIDE] 가이드 음성 GCS 업로드 성공: {guide_audio_object_key}")
+            print(f"[ELEVENLABS] 가이드 음성 GCS 업로드 성공: {guide_audio_object_key}")
 
             # 5. MediaFile DB에 '가이드 음성' 정보 저장
             await self.media_repo.create_and_flush(
@@ -361,19 +385,20 @@ class TrainingSessionService:
                 format="wav"
             )
             await self.db.commit()
-            print(f"[GUIDE] 가이드 음성 DB 저장 성공")
+            print(f"[ELEVENLABS] 가이드 음성 DB 저장 성공")
 
             # [이동된 로직] Wav2Lip 처리 요청
-            # 가이드 음성이 성공적으로 생성 및 업로드된 후 Wav2Lip 처리를 트리거합니다.
+            # ElevenLabs로 생성된 가이드 음성을 사용하여 Wav2Lip 처리를 트리거합니다.
             output_object_key = f"results/{user.username}/{session_id}/result_item_{item_id}.mp4"
             user_video_full_path = f"{gcs_service.bucket_name}/{original_video_object_key}"
             output_video_full_path = f"{gcs_service.bucket_name}/{output_object_key}"
             guide_audio_full_path = f"{gcs_service.bucket_name}/{guide_audio_object_key}"
 
-            # Wav2Lip은 백그라운드에서 비동기적으로 실행되어야 하므로 await 없이 호출합니다.
-            # 이 함수 자체가 이미 백그라운드 작업이므로, 여기서 추가적인 비동기 호출은 이벤트 루프에 의해 관리됩니다.
+            print(f"[WAV2LIP] ElevenLabs 가이드 음성으로 Wav2Lip 처리 요청 - item_id: {item_id}")
+            print(f"[WAV2LIP] 가이드 음성: {guide_audio_full_path}")
+            print(f"[WAV2LIP] 사용자 비디오: {user_video_full_path}")
             await self.trigger_wav2lip_processing(
-                guide_audio_gs_path=guide_audio_full_path,
+                guide_audio_gs_path=guide_audio_full_path,  # ElevenLabs 생성 가이드 음성
                 user_video_gs_path=user_video_full_path,
                 output_video_gs_path=output_video_full_path,
                 user_id=user.id,
@@ -382,7 +407,9 @@ class TrainingSessionService:
 
         except Exception as e:
             await self.db.rollback()
-            print(f"[GUIDE] 가이드 음성 생성/저장 중 오류 발생: {e}")
+            print(f"[ELEVENLABS] ElevenLabs 가이드 음성 생성/저장 중 오류 발생: {e}")
+            import traceback
+            traceback.print_exc()
 
     async def _submit_item_with_video(
         self,
@@ -487,9 +514,10 @@ class TrainingSessionService:
             import traceback
             traceback.print_exc()
         
-        # 가이드 음성 생성을 위한 백그라운드 작업 추가
+        # ElevenLabs 가이드 음성 생성 및 Wav2Lip 처리를 위한 백그라운드 작업 추가
         if (item.word or item.sentence) and audio_media_file:
             text_for_guide = item.word.word if item.word else item.sentence.sentence
+            print(f"[SUBMIT] ElevenLabs 가이드 음성 생성 백그라운드 작업 추가 - item_id: {item.id}")
             background_tasks.add_task(
                 self.trigger_guide_audio_generation,
                 user=user,
@@ -703,9 +731,10 @@ class TrainingSessionService:
             import traceback
             traceback.print_exc()
 
-        # [수정] 가이드 음성 생성을 위한 백그라운드 작업 추가
+        # [수정] ElevenLabs 가이드 음성 생성 및 Wav2Lip 처리를 위한 백그라운드 작업 추가
         if (item.word or item.sentence) and audio_media_file:
             text_for_guide = item.word.word if item.word else item.sentence.sentence
+            print(f"[RESUBMIT] ElevenLabs 가이드 음성 생성 백그라운드 작업 추가 - item_id: {item.id}")
             background_tasks.add_task(
                 self.trigger_guide_audio_generation,
                 user=user,
