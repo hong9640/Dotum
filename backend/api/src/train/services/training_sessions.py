@@ -205,6 +205,9 @@ class TrainingSessionService:
             print(f"⚠️ Session {session_id}: Praat 평균 결과 저장 실패: {e}")
             logger.error(f"Session {session_id}: Praat 평균 결과 저장 실패: {e}", exc_info=True)
         
+        # 세션 상태 변경 및 session_praat_result 저장을 위해 commit 필요
+        await self.db.commit()
+        
         return await self.get_training_session(session_id, user_id)
     
     
