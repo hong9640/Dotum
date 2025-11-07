@@ -519,19 +519,19 @@ class TrainingSessionService:
                 logger.warning(f"[_submit_item_with_video] 경고: 음성 파일이 생성되지 않았습니다.")
 
             # 6. 가이드 음성 생성 백그라운드 작업 추가
-            if (item.word or item.sentence) and audio_media_file:
-                logger.info(f"[_submit_item_with_video] 가이드 음성 생성 백그라운드 작업 추가 - item_id: {item.id}")
-                text_for_guide = item.word.word if item.word else item.sentence.sentence
-                background_tasks.add_task(
-                    self.trigger_guide_audio_generation,
-                    user=user,
-                    session_id=session.id,
-                    item_id=item.id,
-                    text=text_for_guide,
-                    original_audio_object_key=audio_media_file.object_key,
-                    gcs_service=gcs_service,
-                    original_video_object_key=object_key
-                )
+            # if (item.word or item.sentence) and audio_media_file:
+            #     logger.info(f"[_submit_item_with_video] 가이드 음성 생성 백그라운드 작업 추가 - item_id: {item.id}")
+            #     text_for_guide = item.word.word if item.word else item.sentence.sentence
+            #     background_tasks.add_task(
+            #         self.trigger_guide_audio_generation,
+            #         user=user,
+            #         session_id=session.id,
+            #         item_id=item.id,
+            #         text=text_for_guide,
+            #         original_audio_object_key=audio_media_file.object_key,
+            #         gcs_service=gcs_service,
+            #         original_video_object_key=object_key
+            #     )
 
             # 7. 아이템 완료 처리
             await self.item_repo.complete_item(
@@ -742,15 +742,15 @@ class TrainingSessionService:
                 logger.warning(f"[resubmit_item_video] 경고: 음성 파일이 생성되지 않았습니다.")
 
             # 6. 가이드 음성 생성 백그라운드 작업 추가
-            if (item.word or item.sentence) and audio_media_file:
-                logger.info(f"[resubmit_item_video] 가이드 음성 생성 백그라운드 작업 추가 - item_id: {item.id}")
-                text_for_guide = item.word.word if item.word else item.sentence.sentence
-                background_tasks.add_task(
-                    self.trigger_guide_audio_generation,
-                    user=user, session_id=session_id, item_id=item.id, text=text_for_guide,
-                    original_audio_object_key=audio_media_file.object_key,
-                    gcs_service=gcs_service, original_video_object_key=object_key
-                )
+            # if (item.word or item.sentence) and audio_media_file:
+            #     logger.info(f"[resubmit_item_video] 가이드 음성 생성 백그라운드 작업 추가 - item_id: {item.id}")
+            #     text_for_guide = item.word.word if item.word else item.sentence.sentence
+            #     background_tasks.add_task(
+            #         self.trigger_guide_audio_generation,
+            #         user=user, session_id=session_id, item_id=item.id, text=text_for_guide,
+            #         original_audio_object_key=audio_media_file.object_key,
+            #         gcs_service=gcs_service, original_video_object_key=object_key
+            #     )
 
             # 7. 아이템의 동영상 정보 업데이트 (완료 상태 유지)
             await self.item_repo.complete_item(

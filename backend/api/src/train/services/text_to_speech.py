@@ -43,9 +43,10 @@ class TextToSpeechService:
             print("[GUIDE] 3. TTS 음성 스트림 생성 시도...")
 
             custom_voice_settings = VoiceSettings(
-                speed=0.7,  # 속도 설정
-                stability=0.7, # 안정성
-                similarity_boost=0.75
+                speed=0.5,
+                stability=0.75,         # 안정성을 높여 뒷말 울림 현상 완화
+                similarity_boost=0.75,  # 원본 음성과의 유사도
+                style=0.1,              # 발음을 더 또박또박하게 하기 위한 스타일 과장
             )
 
             # [최종 수정] 'await'를 제거합니다.
