@@ -32,6 +32,7 @@ const WordSetResults: React.FC = () => {
   const [resultsData, setResultsData] = useState<WordResult[]>([]);
   const [sessionType, setSessionType] = useState<'word' | 'sentence' | 'vocal'>('word');
   const [formattedDate, setFormattedDate] = useState<string>('');
+  const [totalItems, setTotalItems] = useState<number>(0);
   const [cpp, setCpp] = useState<number | null>(null);
   const [csid, setCsid] = useState<number | null>(null);
   // 발성 연습 메트릭
@@ -84,6 +85,9 @@ const WordSetResults: React.FC = () => {
         // 세션 타입 설정 (대문자로 올 수 있으므로 소문자로 변환)
         const sessionTypeLower = (sessionDetailData.type || '').toLowerCase();
         setSessionType(sessionTypeLower as 'word' | 'sentence' | 'vocal');
+        
+        // total_items 저장 (발성 연습일 때 itemIndex 계산에 필요)
+        setTotalItems(sessionDetailData.total_items || 0);
         
         // 날짜 포맷팅
         const formatted = formatDate(sessionDetailData.training_date);
@@ -250,8 +254,30 @@ const WordSetResults: React.FC = () => {
   };
 
   const handleDetailClick = (result: WordResult) => {
-    // result-detail 페이지로 이동 (URL 파라미터로 sessionId, type, itemIndex 전달)
-    if (sessionIdParam && typeParam) {
+    if (!sessionIdParam || !typeParam) {
+      console.error('세션 정보가 없습니다.');
+      alert('세션 정보를 찾을 수 없습니다.');
+      return;
+    }
+
+    // 발성 연습일 때는 praat-detail로 이동
+    if (sessionType === 'vocal' || (typeParam && typeParam.toLowerCase() === 'vocal')) {
+      // 발성 연습: 각 훈련의 첫 번째 시도로 이동
+      // n = total_items / 5 (각 훈련 반복 횟수)
+      // 훈련 인덱스 = result.id - 1 (0, 1, 2, 3, 4)
+      // 첫 번째 시도의 itemIndex = 훈련 인덱스 * n
+      const n = totalItems > 0 ? Math.floor(totalItems / 5) : 0;
+      const trainingIndex = result.id - 1; // 0, 1, 2, 3, 4
+      const itemIndex = trainingIndex * n;
+      
+      let praatUrl = `/praat-detail?sessionId=${sessionIdParam}&itemIndex=${itemIndex}`;
+      // date 파라미터가 있으면 함께 전달
+      if (dateParam) {
+        praatUrl += `&date=${dateParam}`;
+      }
+      navigate(praatUrl);
+    } else {
+      // 단어/문장 연습: result-detail 페이지로 이동
       // result.id는 1부터 시작, itemIndex는 0부터 시작하므로 -1 필요
       let detailUrl = `/result-detail?sessionId=${sessionIdParam}&type=${typeParam}&itemIndex=${result.id - 1}`;
       // date 파라미터가 있으면 함께 전달
@@ -259,9 +285,6 @@ const WordSetResults: React.FC = () => {
         detailUrl += `&date=${dateParam}`;
       }
       navigate(detailUrl);
-    } else {
-      console.error('세션 정보가 없습니다.');
-      alert('세션 정보를 찾을 수 없습니다.');
     }
   };
 
