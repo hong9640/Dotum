@@ -1,15 +1,9 @@
 import { apiClient } from '@/api/axios';
 
-export interface CreateVocalSessionRequest {
-  session_name: string;
-  type: 'vocal';
-  item_count: number;
-  training_date: string; // YYYY-MM-DD 형식
-  session_metadata?: {
-    training_types?: string[];
-    [key: string]: any;
-  };
-}
+// ============================================
+// Vocal 전용 아이템 제출 API
+// 세션 생성/조회/완료는 @/api/training-session 사용
+// ============================================
 
 export interface SubmitVocalItemRequest {
   sessionId: number;
@@ -20,26 +14,8 @@ export interface SubmitVocalItemRequest {
   onUploadProgress?: (progressEvent: any) => void;
 }
 
-export interface VocalSessionResponse {
-  id: number;
-  session_name: string;
-  type: 'vocal';
-  status: 'in_progress' | 'completed' | 'paused';
-  total_items: number;
-  completed_items: number;
-  current_item_index: number;
-  progress_percentage: number;
-  training_items: Array<{
-    id: number;
-    item_index: number;
-    is_completed: boolean;
-    word_id: null;
-    sentence_id: null;
-  }>;
-}
-
 export interface VocalItemSubmissionResponse {
-  session: VocalSessionResponse;
+  session: any;
   next_item: {
     item_id: number;
     item_index: number;
@@ -65,17 +41,14 @@ export interface VocalItemSubmissionResponse {
 }
 
 /**
- * 발성 훈련 세션 생성
- */
-export const createVocalSession = async (
-  data: CreateVocalSessionRequest
-): Promise<VocalSessionResponse> => {
-  const response = await apiClient.post('/training-sessions', data);
-  return response.data;
-};
-
-/**
- * 발성 훈련 아이템 제출
+ * 발성 훈련 아이템 제출 (오디오 + 그래프 이미지 업로드)
+ * @param sessionId 세션 ID
+ * @param itemIndex 아이템 인덱스
+ * @param audioFile 오디오 파일 (WAV)
+ * @param graphImage 그래프 이미지 파일
+ * @param graphVideo 그래프 영상 파일 (선택사항)
+ * @param onUploadProgress 업로드 진행률 콜백
+ * @returns 제출 결과 및 다음 아이템 정보
  */
 export const submitVocalItem = async ({
   sessionId,
@@ -85,6 +58,8 @@ export const submitVocalItem = async ({
   graphVideo,
   onUploadProgress,
 }: SubmitVocalItemRequest): Promise<VocalItemSubmissionResponse> => {
+  console.log('📤 발성 훈련 아이템 제출:', { sessionId, itemIndex });
+
   const formData = new FormData();
   formData.append('audio_file', audioFile);
   formData.append('graph_image', graphImage);
@@ -94,7 +69,7 @@ export const submitVocalItem = async ({
   }
 
   const response = await apiClient.post(
-    `/training-sessions/${sessionId}/vocal/${itemIndex}/submit`,
+    `/train/training-sessions/${sessionId}/vocal/${itemIndex}/submit`,
     formData,
     {
       headers: {
@@ -104,44 +79,6 @@ export const submitVocalItem = async ({
     }
   );
   
+  console.log('📥 발성 훈련 아이템 제출 응답:', response.data);
   return response.data;
 };
-
-/**
- * 세션 완료 처리
- */
-export const completeVocalSession = async (
-  sessionId: number
-): Promise<VocalSessionResponse> => {
-  const response = await apiClient.post(`/training-sessions/${sessionId}/complete`);
-  return response.data;
-};
-
-/**
- * 세션 조회
- */
-export const getVocalSession = async (
-  sessionId: number
-): Promise<VocalSessionResponse> => {
-  const response = await apiClient.get(`/training-sessions/${sessionId}`);
-  return response.data;
-};
-
-/**
- * 현재 아이템 조회
- */
-export const getCurrentVocalItem = async (sessionId: number) => {
-  const response = await apiClient.get(`/training-sessions/${sessionId}/current-item`);
-  return response.data;
-};
-
-/**
- * 특정 인덱스 아이템 조회
- */
-export const getVocalItemByIndex = async (sessionId: number, itemIndex: number) => {
-  const response = await apiClient.get(
-    `/training-sessions/${sessionId}/items/index/${itemIndex}`
-  );
-  return response.data;
-};
-

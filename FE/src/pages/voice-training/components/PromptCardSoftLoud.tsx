@@ -4,23 +4,28 @@ import { Activity } from 'lucide-react';
 interface PromptCardSoftLoudProps {
   main: string;
   subtitle: string;
+  onPlayGuide?: () => void;
 }
 
-const PromptCardSoftLoud: React.FC<PromptCardSoftLoudProps> = ({ main, subtitle }) => {
+const PromptCardSoftLoud: React.FC<PromptCardSoftLoudProps> = ({ main, subtitle, onPlayGuide }) => {
   const sizes = [32, 56, 80, 88, 80];
   
   return (
-    <div className="p-8 sm:p-10 bg-gradient-to-br from-green-50 to-green-100 rounded-2xl border-3 border-green-300 shadow-sm mb-8 text-center">
+    <div className="p-8 sm:p-10 bg-gradient-to-br from-pink-50 to-pink-100 rounded-2xl border-3 border-pink-300 shadow-sm mb-8 text-center">
       <div className="flex justify-center mb-4">
-        <div className="p-3 bg-green-200 rounded-full">
-          <Activity className="w-8 h-8 text-green-700" strokeWidth={2.5} />
-        </div>
+        <button
+          onClick={onPlayGuide}
+          className="p-3 bg-pink-200 rounded-full hover:bg-pink-300 transition-colors cursor-pointer"
+          aria-label="안내 듣기"
+        >
+          <Activity className="w-8 h-8 text-pink-700" strokeWidth={2.5} />
+        </button>
       </div>
       <div className="flex justify-center items-end gap-1 mb-4">
         {[...main].map((char, i) => (
           <span
             key={i}
-            className="font-extrabold text-green-900 transition-all"
+            className="font-extrabold text-pink-900 transition-all"
             style={{
               fontSize: `${sizes[i]}px`,
               lineHeight: 1,
@@ -29,15 +34,15 @@ const PromptCardSoftLoud: React.FC<PromptCardSoftLoudProps> = ({ main, subtitle 
             {char}
           </span>
         ))}
-        <span className="font-extrabold text-green-900" style={{ fontSize: '80px', lineHeight: 1 }}>
+        <span className="font-extrabold text-pink-900" style={{ fontSize: '80px', lineHeight: 1 }}>
           ——
         </span>
       </div>
-      <p className="text-xl sm:text-2xl font-bold text-green-800 mb-3">
+      <p className="text-xl sm:text-2xl font-bold text-pink-800 mb-3">
         {subtitle}
       </p>
-      <div className="inline-block px-4 py-2 bg-green-200/50 rounded-lg">
-        <p className="text-base sm:text-lg text-green-700 font-semibold">
+      <div className="inline-block px-4 py-2 bg-pink-200/50 rounded-lg">
+        <p className="text-base sm:text-lg text-pink-700 font-semibold">
           작게 → 조금 크게 → 크게 → 더 크게 변화를 주며 발성해주세요
         </p>
       </div>

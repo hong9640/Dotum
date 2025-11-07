@@ -1,15 +1,15 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { RotateCcw, Upload } from 'lucide-react';
 import { useAudioRecorder } from '@/hooks/useAudioRecorder';
 import RecordToggle from './RecordToggle';
 import StatusBadge from './StatusBadge';
 import AudioPlayer from './AudioPlayer';
-import AudioVisualizer from './AudioVisualizer';
+import AudioLevelGraph, { type AudioLevelGraphRef } from './AudioLevelGraph';
 
 interface WaveRecorderProps {
   onRecordEnd?: (blob: Blob, url: string) => void;
-  onSubmit?: (audioBlob: Blob) => void;
+  onSubmit?: (audioBlob: Blob, graphImageBlob: Blob) => void;
   isSubmitting?: boolean;
 }
 
@@ -18,7 +18,8 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
   onSubmit,
   isSubmitting = false 
 }) => {
-  const { isRecording, audioBlob, audioUrl, startRecording, stopRecording, stream } = useAudioRecorder();
+  const { isRecording, audioBlob, audioUrl, startRecording, stopRecording, analyser } = useAudioRecorder();
+  const graphRef = useRef<AudioLevelGraphRef>(null);
 
   useEffect(() => {
     if (audioBlob && audioUrl) {
@@ -39,19 +40,30 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
     startRecording();
   };
 
-  const handleSubmit = () => {
-    if (audioBlob && onSubmit) {
-      onSubmit(audioBlob);
+  const handleSubmit = async () => {
+    if (!audioBlob || !onSubmit) return;
+    
+    // 그래프 이미지 캡처
+    const graphImageBlob = await graphRef.current?.captureImage();
+    if (!graphImageBlob) {
+      console.error('그래프 이미지 캡처 실패');
+      return;
     }
+    
+    onSubmit(audioBlob, graphImageBlob);
   };
 
   return (
     <div className="space-y-6">
-      <AudioVisualizer
+      <AudioLevelGraph
+        ref={graphRef}
         active={isRecording}
-        stream={stream}
-        width={800}
-        height={150}
+        analyser={analyser}
+        width={720}
+        height={200}
+        stroke="#0C2C66"
+        minDb={-60}
+        maxDb={0}
       />
 
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

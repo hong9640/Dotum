@@ -2,16 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Volume2, Home, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import WaveRecorder from './components/WaveRecorder';
 import PromptCardLoudSoft from './components/PromptCardLoudSoft';
 import { useTTS } from '@/hooks/useTTS';
 import { toast } from 'sonner';
 import { 
-  submitVocalItem, 
-  getVocalSession,
-  type VocalSessionResponse 
-} from '@/api/voice-training';
+  getTrainingSession,
+  type CreateTrainingSessionResponse 
+} from '@/api/training-session';
+import { submitVocalItem } from '@/api/voice-training';
 
 const LoudSoftPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -25,7 +25,7 @@ const LoudSoftPage: React.FC = () => {
   const [sessionId, setSessionId] = useState<number | null>(
     sessionIdParam ? parseInt(sessionIdParam) : null
   );
-  const [session, setSession] = useState<VocalSessionResponse | null>(null);
+  const [session, setSession] = useState<CreateTrainingSessionResponse | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
   
   const { supported, ready, speak } = useTTS('ko-KR');
@@ -34,7 +34,7 @@ const LoudSoftPage: React.FC = () => {
     const loadSession = async () => {
       if (sessionId) {
         try {
-          const existingSession = await getVocalSession(sessionId);
+          const existingSession = await getTrainingSession(sessionId);
           setSession(existingSession);
         } catch (error) {
           console.error('세션 조회 실패:', error);
@@ -64,7 +64,7 @@ const LoudSoftPage: React.FC = () => {
     });
   };
 
-  const handleSubmit = async (audioBlob: Blob) => {
+  const handleSubmit = async (audioBlob: Blob, graphImageBlob: Blob) => {
     if (!sessionId) {
       toast.error('세션 정보가 없습니다.');
       return;
@@ -72,21 +72,19 @@ const LoudSoftPage: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      const graphImage = new File([audioBlob], 'graph.png', { type: 'image/png' });
-      
       // Loud-Soft는 item_index 9, 10, 11 (attempt + 8)
       const itemIndex = attempt + 8;
       
       const result = await submitVocalItem({
         sessionId,
         itemIndex,
-        audioFile: new File([audioBlob], 'audio.wav', { type: 'audio/wav' }),
-        graphImage,
+        audioFile: new File([audioBlob], `loud_soft_${attempt}.wav`, { type: 'audio/wav' }),
+        graphImage: new File([graphImageBlob], `loud_soft_${attempt}_graph.png`, { type: 'image/png' }),
       });
 
       if (result.session) {
         setSession(result.session);
-        const currentItem = result.session.training_items.find(item => item.item_index === itemIndex);
+        const currentItem = result.session.training_items?.find((item: any) => item.item_index === itemIndex);
         
         if (currentItem?.is_completed) {
           setIsCompleted(true);
@@ -130,45 +128,13 @@ const LoudSoftPage: React.FC = () => {
   return (
     <div className="w-full min-h-[calc(100vh-96px)] p-4 sm:p-8">
       <div className="max-w-4xl mx-auto">
-        <Card>
+        <Card className="border-0 shadow-none">
           <CardContent className="p-6 sm:p-8">
             <PromptCardLoudSoft 
               main="아아아아아" 
               subtitle={`순간 강약 전환 훈련 - ${attempt}/3회`}
+              onPlayGuide={handlePlayGuide}
             />
-
-            <div className="flex flex-wrap gap-3 mb-8">
-              <Button
-                variant="outline"
-                size="lg"
-                disabled={!supported || !ready}
-                onClick={handlePlayGuide}
-                className="px-6 py-4 text-lg font-semibold flex items-center gap-2 hover:bg-pink-50 hover:border-pink-300"
-              >
-                <Volume2 className="w-6 h-6" strokeWidth={2.5} />
-                안내 듣기
-              </Button>
-              
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={handlePrev}
-                className="px-6 py-4 text-lg font-semibold flex items-center gap-2"
-              >
-                <ChevronLeft className="w-6 h-6" strokeWidth={2.5} />
-                이전
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="lg"
-                onClick={() => navigate('/')}
-                className="px-6 py-4 text-lg font-semibold flex items-center gap-2 text-slate-600"
-              >
-                <Home className="w-6 h-6" strokeWidth={2.5} />
-                홈
-              </Button>
-            </div>
 
             <div className="mb-6">
               <WaveRecorder 
@@ -179,8 +145,8 @@ const LoudSoftPage: React.FC = () => {
             </div>
 
             {isCompleted && (
-              <div className="mb-6 p-4 bg-green-50 rounded-xl border-2 border-green-200 text-center">
-                <p className="text-lg font-bold text-green-700">
+              <div className="mb-6 p-4 bg-orange-50 rounded-xl border-2 border-orange-200 text-center">
+                <p className="text-lg font-bold text-orange-700">
                   ✅ 훈련이 완료되었습니다! 다음으로 진행할 수 있습니다.
                 </p>
               </div>
@@ -191,7 +157,7 @@ const LoudSoftPage: React.FC = () => {
                 size="lg"
                 onClick={handleNext}
                 disabled={!isCompleted}
-                className="min-w-[240px] px-8 py-6 text-xl bg-pink-500 hover:bg-pink-600 text-white font-semibold rounded-xl flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="min-w-[240px] px-8 py-6 text-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {attempt < 3 ? (
                   <>

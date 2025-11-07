@@ -13,40 +13,40 @@ const VoiceTrainingIntro: React.FC = () => {
       icon: Volume2,
       title: '최대 발성 지속 시간 훈련 (MPT)',
       description: '편안하게 최대한 길게 발성하는 훈련',
-      color: 'bg-blue-100 border-blue-300 text-blue-700',
-      iconColor: 'text-blue-600'
+      color: 'bg-blue-100 border-blue-300 text-blue-800',
+      iconColor: 'text-blue-700'
     },
     {
       id: 2,
       icon: TrendingUp,
       title: '크레셴도 훈련 (점강)',
       description: '점점 크게 소리를 내는 훈련',
-      color: 'bg-yellow-100 border-yellow-300 text-yellow-700',
-      iconColor: 'text-yellow-600'
+      color: 'bg-teal-100 border-teal-300 text-teal-800',
+      iconColor: 'text-teal-700'
     },
     {
       id: 3,
       icon: TrendingDown,
       title: '데크레셴도 훈련 (점약)',
       description: '점점 작게 소리를 내는 훈련',
-      color: 'bg-purple-100 border-purple-300 text-purple-700',
-      iconColor: 'text-purple-600'
+      color: 'bg-yellow-100 border-yellow-300 text-yellow-800',
+      iconColor: 'text-yellow-700'
     },
     {
       id: 4,
       icon: Zap,
       title: '순간 강약 전환 훈련',
       description: '크게 시작해서 작게 끝나는 훈련',
-      color: 'bg-pink-100 border-pink-300 text-pink-700',
-      iconColor: 'text-pink-600'
+      color: 'bg-orange-100 border-orange-300 text-orange-800',
+      iconColor: 'text-orange-700'
     },
     {
       id: 5,
       icon: Activity,
       title: '연속 강약 조절 훈련',
       description: '작게 시작해서 크게 끝나는 훈련',
-      color: 'bg-green-100 border-green-300 text-green-700',
-      iconColor: 'text-green-600'
+      color: 'bg-pink-100 border-pink-300 text-pink-800',
+      iconColor: 'text-pink-700'
     }
   ];
 
@@ -120,7 +120,7 @@ const VoiceTrainingIntro: React.FC = () => {
               <Button
                 size="lg"
                 onClick={handleStart}
-                className="w-full sm:w-auto min-w-[280px] h-16 bg-green-500 hover:bg-green-600 text-white text-2xl font-semibold rounded-xl"
+                className="w-full sm:w-auto min-w-[280px] h-16 bg-blue-500 hover:bg-blue-600 text-white text-2xl font-semibold rounded-xl"
               >
                 시작하기
               </Button>

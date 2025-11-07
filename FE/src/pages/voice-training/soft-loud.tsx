@@ -2,17 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Volume2, Home, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
+import { ChevronRight, CheckCircle } from 'lucide-react';
 import WaveRecorder from './components/WaveRecorder';
 import PromptCardSoftLoud from './components/PromptCardSoftLoud';
 import { useTTS } from '@/hooks/useTTS';
 import { toast } from 'sonner';
 import { 
-  submitVocalItem, 
-  getVocalSession,
-  completeVocalSession,
-  type VocalSessionResponse 
-} from '@/api/voice-training';
+  getTrainingSession,
+  completeTrainingSession,
+  type CreateTrainingSessionResponse 
+} from '@/api/training-session';
+import { submitVocalItem } from '@/api/voice-training';
 
 const SoftLoudPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -26,7 +26,7 @@ const SoftLoudPage: React.FC = () => {
   const [sessionId, setSessionId] = useState<number | null>(
     sessionIdParam ? parseInt(sessionIdParam) : null
   );
-  const [session, setSession] = useState<VocalSessionResponse | null>(null);
+  const [session, setSession] = useState<CreateTrainingSessionResponse | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
   
   const { supported, ready, speak } = useTTS('ko-KR');
@@ -35,7 +35,7 @@ const SoftLoudPage: React.FC = () => {
     const loadSession = async () => {
       if (sessionId) {
         try {
-          const existingSession = await getVocalSession(sessionId);
+          const existingSession = await getTrainingSession(sessionId);
           setSession(existingSession);
         } catch (error) {
           console.error('세션 조회 실패:', error);
@@ -65,7 +65,7 @@ const SoftLoudPage: React.FC = () => {
     });
   };
 
-  const handleSubmit = async (audioBlob: Blob) => {
+  const handleSubmit = async (audioBlob: Blob, graphImageBlob: Blob) => {
     if (!sessionId) {
       toast.error('세션 정보가 없습니다.');
       return;
@@ -73,21 +73,19 @@ const SoftLoudPage: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      const graphImage = new File([audioBlob], 'graph.png', { type: 'image/png' });
-      
       // Soft-Loud는 item_index 12, 13, 14 (attempt + 11)
       const itemIndex = attempt + 11;
       
       const result = await submitVocalItem({
         sessionId,
         itemIndex,
-        audioFile: new File([audioBlob], 'audio.wav', { type: 'audio/wav' }),
-        graphImage,
+        audioFile: new File([audioBlob], `soft_loud_${attempt}.wav`, { type: 'audio/wav' }),
+        graphImage: new File([graphImageBlob], `soft_loud_${attempt}_graph.png`, { type: 'image/png' }),
       });
 
       if (result.session) {
         setSession(result.session);
-        const currentItem = result.session.training_items.find(item => item.item_index === itemIndex);
+        const currentItem = result.session.training_items?.find((item: any) => item.item_index === itemIndex);
         
         if (currentItem?.is_completed) {
           setIsCompleted(true);
@@ -95,7 +93,7 @@ const SoftLoudPage: React.FC = () => {
           // 마지막 시도(attempt 3)가 완료되면 세션 완료 처리
           if (attempt === 3) {
             try {
-              await completeVocalSession(sessionId);
+              await completeTrainingSession(sessionId);
               toast.success('모든 발성 훈련을 완료했습니다! 🎉');
             } catch (error) {
               console.error('세션 완료 처리 실패:', error);
@@ -146,45 +144,13 @@ const SoftLoudPage: React.FC = () => {
   return (
     <div className="w-full min-h-[calc(100vh-96px)] p-4 sm:p-8">
       <div className="max-w-4xl mx-auto">
-        <Card>
+        <Card className="border-0 shadow-none">
           <CardContent className="p-6 sm:p-8">
             <PromptCardSoftLoud 
               main="아아아아아" 
               subtitle={`연속 강약 조절 훈련 - ${attempt}/3회`}
+              onPlayGuide={handlePlayGuide}
             />
-
-            <div className="flex flex-wrap gap-3 mb-8">
-              <Button
-                variant="outline"
-                size="lg"
-                disabled={!supported || !ready}
-                onClick={handlePlayGuide}
-                className="px-6 py-4 text-lg font-semibold flex items-center gap-2 hover:bg-green-50 hover:border-green-300"
-              >
-                <Volume2 className="w-6 h-6" strokeWidth={2.5} />
-                안내 듣기
-              </Button>
-              
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={handlePrev}
-                className="px-6 py-4 text-lg font-semibold flex items-center gap-2"
-              >
-                <ChevronLeft className="w-6 h-6" strokeWidth={2.5} />
-                이전
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="lg"
-                onClick={() => navigate('/')}
-                className="px-6 py-4 text-lg font-semibold flex items-center gap-2 text-slate-600"
-              >
-                <Home className="w-6 h-6" strokeWidth={2.5} />
-                홈
-              </Button>
-            </div>
 
             <div className="mb-6">
               <WaveRecorder 
@@ -196,8 +162,8 @@ const SoftLoudPage: React.FC = () => {
 
             {/* 완료 상태 표시 */}
             {isCompleted && attempt < 3 && (
-              <div className="mb-6 p-4 bg-green-50 rounded-xl border-2 border-green-200 text-center">
-                <p className="text-lg font-bold text-green-700">
+              <div className="mb-6 p-4 bg-pink-50 rounded-xl border-2 border-pink-200 text-center">
+                <p className="text-lg font-bold text-pink-700">
                   ✅ 훈련이 완료되었습니다! 다음으로 진행할 수 있습니다.
                 </p>
               </div>
@@ -205,10 +171,10 @@ const SoftLoudPage: React.FC = () => {
 
             {/* 마지막 시도 완료 시 축하 메시지 */}
             {attempt === 3 && isCompleted && (
-              <div className="mb-6 p-6 bg-gradient-to-r from-green-50 to-blue-50 rounded-xl border-2 border-green-200">
+              <div className="mb-6 p-6 bg-gradient-to-r from-pink-50 to-pink-100 rounded-xl border-2 border-pink-300">
                 <div className="flex items-center justify-center gap-3 mb-3">
-                  <CheckCircle className="w-8 h-8 text-green-600" strokeWidth={2.5} />
-                  <h3 className="text-2xl font-bold text-green-700">
+                  <CheckCircle className="w-8 h-8 text-pink-600" strokeWidth={2.5} />
+                  <h3 className="text-2xl font-bold text-pink-700">
                     모든 훈련 완료!
                   </h3>
                 </div>
@@ -223,7 +189,7 @@ const SoftLoudPage: React.FC = () => {
                 size="lg"
                 onClick={handleNext}
                 disabled={!isCompleted}
-                className="min-w-[240px] px-8 py-6 text-xl bg-green-500 hover:bg-green-600 text-white font-semibold rounded-xl flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="min-w-[240px] px-8 py-6 text-xl bg-pink-500 hover:bg-pink-600 text-white font-semibold rounded-xl flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {attempt < 3 ? (
                   <>

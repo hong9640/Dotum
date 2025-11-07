@@ -7,6 +7,8 @@ export interface UseAudioRecorderReturn {
   startRecording: () => Promise<void>;
   stopRecording: () => void;
   stream: MediaStream | null;
+  analyser: AnalyserNode | null;
+  audioContext: AudioContext | null;
 }
 
 export function useAudioRecorder(): UseAudioRecorderReturn {
@@ -14,14 +16,34 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
+  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
   const startRecording = useCallback(async () => {
     try {
+      // 기존 녹음 데이터 초기화
+      setAudioBlob(null);
+      setAudioUrl(null);
+      
       const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setStream(mediaStream);
+      
+      // AudioContext 및 AnalyserNode 생성
+      const ctx = new AudioContext();
+      const source = ctx.createMediaStreamSource(mediaStream);
+      const analyserNode = ctx.createAnalyser();
+      
+      analyserNode.fftSize = 2048;
+      analyserNode.smoothingTimeConstant = 0;
+      
+      source.connect(analyserNode);
+      // 주의: destination에 연결하지 않음 (에코 방지)
+      
+      setAudioContext(ctx);
+      setAnalyser(analyserNode);
       
       const mediaRecorder = new MediaRecorder(mediaStream);
       mediaRecorderRef.current = mediaRecorder;
@@ -39,9 +61,16 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
         setAudioBlob(blob);
         setAudioUrl(url);
         
-        // Clean up stream
+        // Clean up
         mediaStream.getTracks().forEach(track => track.stop());
         setStream(null);
+        
+        // AudioContext cleanup
+        if (ctx.state !== 'closed') {
+          ctx.close();
+        }
+        setAudioContext(null);
+        setAnalyser(null);
       };
 
       mediaRecorder.start();
@@ -66,6 +95,8 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
     startRecording,
     stopRecording,
     stream,
+    analyser,
+    audioContext,
   };
 }
 

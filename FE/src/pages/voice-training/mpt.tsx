@@ -2,17 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Volume2, Home, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import WaveRecorder from './components/WaveRecorder';
 import PromptCardMPT from './components/PromptCardMPT';
 import { useTTS } from '@/hooks/useTTS';
 import { toast } from 'sonner';
 import { 
-  createVocalSession, 
-  submitVocalItem, 
-  getVocalSession,
-  type VocalSessionResponse 
-} from '@/api/voice-training';
+  createTrainingSession, 
+  getTrainingSession,
+  type CreateTrainingSessionResponse 
+} from '@/api/training-session';
+import { submitVocalItem } from '@/api/voice-training';
 
 const MPTPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -26,7 +26,7 @@ const MPTPage: React.FC = () => {
   const [sessionId, setSessionId] = useState<number | null>(
     sessionIdParam ? parseInt(sessionIdParam) : null
   );
-  const [session, setSession] = useState<VocalSessionResponse | null>(null);
+  const [session, setSession] = useState<CreateTrainingSessionResponse | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
   
   const { supported, ready, speak } = useTTS('ko-KR');
@@ -39,7 +39,7 @@ const MPTPage: React.FC = () => {
           // 오늘 날짜를 YYYY-MM-DD 형식으로
           const today = new Date().toISOString().split('T')[0];
           
-          const newSession = await createVocalSession({
+          const newSession = await createTrainingSession({
             session_name: '발성 연습',
             type: 'vocal',
             item_count: 15, // 5가지 훈련 × 3회
@@ -48,10 +48,10 @@ const MPTPage: React.FC = () => {
               training_types: ['MPT', 'crescendo', 'decrescendo', 'loud_soft', 'soft_loud']
             }
           });
-          setSessionId(newSession.id);
+          setSessionId(newSession.session_id);
           setSession(newSession);
           // URL에 sessionId 추가
-          navigate(`/voice-training/mpt?attempt=1&sessionId=${newSession.id}`, { replace: true });
+          navigate(`/voice-training/mpt?attempt=1&sessionId=${newSession.session_id}`, { replace: true });
           toast.success('발성 훈련 세션이 생성되었습니다!');
         } catch (error) {
           console.error('세션 생성 실패:', error);
@@ -60,7 +60,7 @@ const MPTPage: React.FC = () => {
       } else if (sessionId) {
         // 기존 세션 조회
         try {
-          const existingSession = await getVocalSession(sessionId);
+          const existingSession = await getTrainingSession(sessionId);
           setSession(existingSession);
         } catch (error) {
           console.error('세션 조회 실패:', error);
@@ -85,7 +85,7 @@ const MPTPage: React.FC = () => {
     });
   };
 
-  const handleSubmit = async (audioBlob: Blob) => {
+  const handleSubmit = async (audioBlob: Blob, graphImageBlob: Blob) => {
     if (!sessionId) {
       toast.error('세션 정보가 없습니다.');
       return;
@@ -93,17 +93,14 @@ const MPTPage: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      // 임시 그래프 이미지 생성 (실제로는 캔버스에서 생성)
-      const graphImage = new File([audioBlob], 'graph.png', { type: 'image/png' });
-      
       // MPT는 item_index 0, 1, 2 (attempt - 1)
       const itemIndex = attempt - 1;
       
       const result = await submitVocalItem({
         sessionId,
         itemIndex,
-        audioFile: new File([audioBlob], 'audio.wav', { type: 'audio/wav' }),
-        graphImage,
+        audioFile: new File([audioBlob], `mpt_${attempt}.wav`, { type: 'audio/wav' }),
+        graphImage: new File([graphImageBlob], `mpt_${attempt}_graph.png`, { type: 'image/png' }),
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total) {
             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -115,7 +112,7 @@ const MPTPage: React.FC = () => {
       // 제출 완료 확인
       if (result.session) {
         setSession(result.session);
-        const currentItem = result.session.training_items.find(item => item.item_index === itemIndex);
+        const currentItem = result.session.training_items?.find((item: any) => item.item_index === itemIndex);
         
         if (currentItem?.is_completed) {
           setIsCompleted(true);
@@ -161,47 +158,14 @@ const MPTPage: React.FC = () => {
   return (
     <div className="w-full min-h-[calc(100vh-96px)] p-4 sm:p-8">
       <div className="max-w-4xl mx-auto">
-        <Card>
+        <Card className="border-0 shadow-none">
           <CardContent className="p-6 sm:p-8">
             {/* 프롬프트 카드 */}
             <PromptCardMPT 
               main="아" 
               subtitle={`최대 발성 지속 시간 훈련 (MPT) - ${attempt}/3회`}
+              onPlayGuide={handlePlayGuide}
             />
-
-            {/* 컨트롤 버튼들 */}
-            <div className="flex flex-wrap gap-3 mb-8">
-              <Button
-                variant="outline"
-                size="lg"
-                disabled={!supported || !ready}
-                onClick={handlePlayGuide}
-                className="px-6 py-4 text-lg font-semibold flex items-center gap-2 hover:bg-blue-50 hover:border-blue-300"
-              >
-                <Volume2 className="w-6 h-6" strokeWidth={2.5} />
-                안내 듣기
-              </Button>
-              
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={handlePrev}
-                className="px-6 py-4 text-lg font-semibold flex items-center gap-2"
-              >
-                <ChevronLeft className="w-6 h-6" strokeWidth={2.5} />
-                {attempt > 1 ? '이전 시도' : '소개로'}
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="lg"
-                onClick={() => navigate('/')}
-                className="px-6 py-4 text-lg font-semibold flex items-center gap-2 text-slate-600"
-              >
-                <Home className="w-6 h-6" strokeWidth={2.5} />
-                홈
-              </Button>
-            </div>
 
             {/* 녹음 영역 */}
             <div className="mb-6">
@@ -214,8 +178,8 @@ const MPTPage: React.FC = () => {
 
             {/* 완료 상태 표시 */}
             {isCompleted && (
-              <div className="mb-6 p-4 bg-green-50 rounded-xl border-2 border-green-200 text-center">
-                <p className="text-lg font-bold text-green-700">
+              <div className="mb-6 p-4 bg-blue-50 rounded-xl border-2 border-blue-200 text-center">
+                <p className="text-lg font-bold text-blue-700">
                   ✅ 훈련이 완료되었습니다! 다음으로 진행할 수 있습니다.
                 </p>
               </div>

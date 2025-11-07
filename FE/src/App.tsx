@@ -48,7 +48,7 @@ const AppContent: React.FC<{
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50">
+    <div className="flex flex-col min-h-screen bg-white">
       <NavigationBar isLoggedIn={isLoggedIn} onLogout={onLogoutClick} />
       <main className="flex-1">
         <Routes>
@@ -164,6 +164,7 @@ const AppContent: React.FC<{
 
 const App: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
 
   const handleLogin = () => {
     setIsLoggedIn(true);
@@ -183,10 +184,25 @@ const App: React.FC = () => {
     const verifyAuth = async () => {
       const authenticated = await checkAuthStatus();
       setIsLoggedIn(authenticated);
+      setIsAuthChecking(false);
     };
     
     verifyAuth();
   }, []);
+
+  // 인증 확인 중에는 빈 화면 또는 로딩 표시
+  if (isAuthChecking) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-white">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
+            <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">로딩중...</span>
+          </div>
+          <p className="mt-4 text-slate-600">로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Router>
