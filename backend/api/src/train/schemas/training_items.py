@@ -18,6 +18,7 @@ class TrainingItemResponse(BaseModel):
     feedback: Optional[str] = None
     video_url: Optional[str] = None
     audio_url: Optional[str] = None
+    image_url: Optional[str] = None
     composited_video_url: Optional[str] = None
     media_file_id: Optional[int] = None
     composited_media_file_id: Optional[int] = None

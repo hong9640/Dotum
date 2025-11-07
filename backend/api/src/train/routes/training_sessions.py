@@ -488,7 +488,7 @@ async def submit_current_item(
     "/{session_id}/vocal/{item_index}/submit",
     response_model=ItemSubmissionResponse,
     summary="발성 훈련 아이템 제출",
-    description="발성 훈련 아이템에 오디오 파일과 그래프 영상을 업로드하고 완료 처리합니다. Praat 분석을 수행하고 다음 아이템 정보도 함께 반환됩니다.",
+    description="발성 훈련 아이템에 오디오 파일과 그래프 이미지를 업로드하고 완료 처리합니다. Praat 분석을 수행하고 다음 아이템 정보도 함께 반환됩니다.",
     responses={
         200: {"description": "처리 성공"},
         400: {"model": BadRequestErrorResponse, "description": "잘못된 요청"},
@@ -500,12 +500,13 @@ async def submit_vocal_item(
     session_id: int,
     item_index: int,
     audio_file: UploadFile = File(..., description="제출할 오디오 파일 (wav)"),
-    graph_video: UploadFile = File(..., description="제출할 그래프 영상 파일 (mp4)"),
+    graph_image: UploadFile = File(..., description="제출할 그래프 이미지 파일"),
+    graph_video: Optional[UploadFile] = File(None, description="제출할 그래프 영상 파일 (선택사항)"),
     current_user: User = Depends(get_current_user),
     service: TrainingSessionService = Depends(get_training_service),
     gcs_service: GCSService = Depends(provide_gcs_service)
 ):
-    """발성 훈련 아이템 제출 (오디오 + 그래프 영상 업로드)"""
+    """발성 훈련 아이템 제출 (오디오 + 그래프 이미지 업로드, 그래프 영상은 선택사항)"""
     # 파일 타입 검증
     if not audio_file.content_type or not audio_file.content_type.startswith("audio/"):
         raise HTTPException(
@@ -513,15 +514,29 @@ async def submit_vocal_item(
             detail="오디오 파일만 업로드 가능합니다."
         )
     
-    if not graph_video.content_type or not graph_video.content_type.startswith("video/"):
+    if not graph_image.content_type or not graph_image.content_type.startswith("image/"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="동영상 파일만 업로드 가능합니다."
+            detail="이미지 파일만 업로드 가능합니다."
         )
+    
+    # graph_video가 제공된 경우 타입 검증
+    graph_video_bytes = None
+    graph_video_filename = None
+    graph_video_content_type = None
+    if graph_video:
+        if not graph_video.content_type or not graph_video.content_type.startswith("video/"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="동영상 파일만 업로드 가능합니다."
+            )
+        graph_video_bytes = await graph_video.read()
+        graph_video_filename = graph_video.filename or "graph.mp4"
+        graph_video_content_type = graph_video.content_type or "video/mp4"
     
     # 파일 읽기
     audio_bytes = await audio_file.read()
-    video_bytes = await graph_video.read()
+    image_bytes = await graph_image.read()
     
     # 파일 크기 검증
     max_size = 100 * 1024 * 1024  # 100MB
@@ -531,7 +546,13 @@ async def submit_vocal_item(
             detail="오디오 파일 크기는 100MB를 초과할 수 없습니다."
         )
     
-    if len(video_bytes) > max_size:
+    if len(image_bytes) > max_size:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="이미지 파일 크기는 100MB를 초과할 수 없습니다."
+        )
+    
+    if graph_video_bytes and len(graph_video_bytes) > max_size:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail="동영상 파일 크기는 100MB를 초과할 수 없습니다."
@@ -543,11 +564,14 @@ async def submit_vocal_item(
             item_index=item_index,
             user=current_user,
             audio_file_bytes=audio_bytes,
-            graph_video_bytes=video_bytes,
+            graph_image_bytes=image_bytes,
             audio_filename=audio_file.filename or "audio.wav",
-            video_filename=graph_video.filename or "graph.mp4",
+            image_filename=graph_image.filename or "graph.png",
             audio_content_type=audio_file.content_type or "audio/wav",
-            video_content_type=graph_video.content_type or "video/mp4",
+            image_content_type=graph_image.content_type or "image/png",
+            graph_video_bytes=graph_video_bytes,
+            graph_video_filename=graph_video_filename,
+            graph_video_content_type=graph_video_content_type,
             gcs_service=gcs_service
         )
     except LookupError as e:
@@ -571,6 +595,8 @@ async def submit_vocal_item(
     media_file = result["media_file"]
     praat_feature = result["praat_feature"]
     video_url = result["video_url"]
+    image_url = result.get("image_url")
+    video_image_url = result.get("video_image_url")
     
     # 다음 아이템 응답 구성
     next_item_response: Optional[CurrentItemResponse] = None
@@ -599,7 +625,9 @@ async def submit_vocal_item(
         next_item=next_item_response,
         media=convert_media_to_response(media_file),
         praat=convert_praat_to_response(praat_feature),
-        video_url=video_url
+        video_url=video_url,
+        image_url=image_url,
+        video_image_url=video_image_url
     )
 
 
