@@ -21,10 +21,13 @@ async def save_session_praat_result(
     - vocal 타입 세션의 PraatFeatures를 범위별로 평균내어 SessionPraatResult 테이블에 저장합니다.
     
     범위 계산:
-    - n = total_items / 5
-    - 첫 번째 그룹 (0 ~ n-1): shimmer_local, nhr, hnr, lh_ratio_mean_db, lh_ratio_sd_db
-    - 두 번째 그룹 (n ~ 5n-1): max_f0, min_f0, intensity_mean
-    - 전체 (0 ~ 5n-1): f0, f1, f2
+    - n = total_items / 5 (프론트에서 받은 반복 횟수)
+    - 첫 번째 그룹 (0 ~ (1 * n) - 1): jitter_local, shimmer_local, nhr, hnr, lh_ratio_mean_db, lh_ratio_sd_db
+      (0번째 아이템의 시도 1, 2, ... n)
+    - 두 번째 그룹 ((1 * n) ~ (5 * n) - 1): max_f0, min_f0, intensity_mean
+      (1번째 아이템 ~ 4번째 아이템)
+    - 전체 (0 ~ (5 * n) - 1): f0, f1, f2
+      (0번째 아이템 ~ 4번째 아이템)
     
     - Praat 데이터가 일부만 있거나 전혀 없어도 안전하게 처리합니다.
     - 이미 존재하면 UPDATE, 없으면 INSERT 합니다.
@@ -77,28 +80,40 @@ async def save_session_praat_result(
         if not item.media_file_id:
             continue
         
-        # Eager loading으로 이미 로드된 media_file 사용
-        video_media = item.media_file
-        if not video_media or not video_media.object_key:
-            continue
+        # VOCAL 타입: media_file_id를 직접 사용 (오디오 파일이 직접 저장됨)
+        # WORD/SENTENCE 타입: video media에서 audio media를 찾아서 사용
+        audio_media_id = None
         
-        # 비디오 object_key를 오디오 object_key로 변환
-        if not video_media.object_key.endswith('.mp4'):
-            continue
-        
-        audio_object_key = video_media.object_key.replace('.mp4', '.wav')
-        audio_media = await media_service.get_media_file_by_object_key(audio_object_key)
-        
-        if not audio_media:
-            continue
+        if session.type == TrainingType.VOCAL:
+            # VOCAL 타입은 media_file_id에 오디오 파일이 직접 저장되어 있음
+            audio_media_id = item.media_file_id
+        else:
+            # WORD/SENTENCE 타입: video media에서 audio media 찾기
+            # Eager loading으로 이미 로드된 media_file 사용
+            video_media = item.media_file
+            if not video_media or not video_media.object_key:
+                continue
+            
+            # 비디오 object_key를 오디오 object_key로 변환
+            if not video_media.object_key.endswith('.mp4'):
+                continue
+            
+            audio_object_key = video_media.object_key.replace('.mp4', '.wav')
+            audio_media = await media_service.get_media_file_by_object_key(audio_object_key)
+            
+            if not audio_media:
+                continue
+            
+            audio_media_id = audio_media.id
         
         # PraatFeatures 조회
-        praat_stmt = select(PraatFeatures).where(PraatFeatures.media_id == audio_media.id)
-        praat_result = await db.execute(praat_stmt)
-        praat_feature = praat_result.scalar_one_or_none()
-        
-        if praat_feature:
-            praat_features_list.append((item.item_index, praat_feature))
+        if audio_media_id:
+            praat_stmt = select(PraatFeatures).where(PraatFeatures.media_id == audio_media_id)
+            praat_result = await db.execute(praat_stmt)
+            praat_feature = praat_result.scalar_one_or_none()
+            
+            if praat_feature:
+                praat_features_list.append((item.item_index, praat_feature))
     
     if not praat_features_list:
         print(f"⚠️ Session {session_id}: Praat 데이터가 없어 평균 계산을 건너뜁니다.")
@@ -133,19 +148,20 @@ async def save_session_praat_result(
             return None
         return sum(valid_values) / len(valid_values)
     
-    # 첫 번째 그룹 평균
+    # 첫 번째 그룹 평균 (0 ~ (1 * n) - 1)
+    avg_jitter_local = calc_avg([pf.jitter_local for pf in first_group])
     avg_shimmer_local = calc_avg([pf.shimmer_local for pf in first_group])
     avg_nhr = calc_avg([pf.nhr for pf in first_group])
     avg_hnr = calc_avg([pf.hnr for pf in first_group])
     avg_lh_ratio_mean_db = calc_avg([pf.lh_ratio_mean_db for pf in first_group])
     avg_lh_ratio_sd_db = calc_avg([pf.lh_ratio_sd_db for pf in first_group])
     
-    # 두 번째 그룹 평균
+    # 두 번째 그룹 평균 ((1 * n) ~ (5 * n) - 1)
     avg_max_f0 = calc_avg([pf.max_f0 for pf in second_group])
     avg_min_f0 = calc_avg([pf.min_f0 for pf in second_group])
     avg_intensity_mean = calc_avg([pf.intensity_mean for pf in second_group])
     
-    # 전체 그룹 평균
+    # 전체 그룹 평균 (0 ~ (5 * n) - 1)
     avg_f0 = calc_avg([pf.f0 for pf in all_group])
     avg_f1 = calc_avg([pf.f1 for pf in all_group])
     avg_f2 = calc_avg([pf.f2 for pf in all_group])
@@ -159,6 +175,7 @@ async def save_session_praat_result(
     
     # 7. 업데이트 또는 새로 생성
     if existing_record:
+        existing_record.avg_jitter_local = avg_jitter_local
         existing_record.avg_shimmer_local = avg_shimmer_local
         existing_record.avg_nhr = avg_nhr
         existing_record.avg_hnr = avg_hnr
@@ -176,6 +193,7 @@ async def save_session_praat_result(
     else:
         new_record = SessionPraatResult(
             training_session_id=session_id,
+            avg_jitter_local=avg_jitter_local,
             avg_shimmer_local=avg_shimmer_local,
             avg_nhr=avg_nhr,
             avg_hnr=avg_hnr,
