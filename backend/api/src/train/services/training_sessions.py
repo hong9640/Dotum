@@ -975,14 +975,17 @@ class TrainingSessionService:
         item_index: int,
         user: User,
         audio_file_bytes: bytes,
-        graph_video_bytes: bytes,
+        graph_image_bytes: bytes,
         audio_filename: str,
-        video_filename: str,
+        image_filename: str,
         audio_content_type: str,
-        video_content_type: str,
+        image_content_type: str,
+        graph_video_bytes: Optional[bytes] = None,
+        graph_video_filename: Optional[str] = None,
+        graph_video_content_type: Optional[str] = None,
         gcs_service: GCSService
     ) -> Dict[str, Any]:
-        """발성 훈련 아이템 제출 (오디오 + 그래프 영상 업로드)"""
+        """발성 훈련 아이템 제출 (오디오 + 그래프 이미지 업로드, 그래프 영상은 선택사항)"""
         # 1. 세션 확인 및 타입 검증
         session = await self.get_training_session(session_id, user.id)
         if not session:
@@ -1020,29 +1023,62 @@ class TrainingSessionService:
         if not audio_url:
             raise RuntimeError("오디오 파일 URL 생성에 실패했습니다.")
         
-        # 4. 그래프 영상 GCS 업로드 (VOCAL 타입은 item_index 사용)
-        video_upload_result = await gcs_service.upload_video(
-            file_content=graph_video_bytes,
-            username=user.username,
-            session_id=str(session_id),
-            item_index=item_index,
-            original_filename=video_filename,
-            content_type=video_content_type
+        # 4. 그래프 이미지 GCS 업로드
+        from api.utils.utils import sanitize_username_for_path
+        safe_username = sanitize_username_for_path(user.username)
+        # 이미지 파일 확장자 추출
+        image_ext = image_filename.split('.')[-1] if '.' in image_filename else "png"
+        image_object_key = f"images/{safe_username}/{session_id}/graph_item_{item_index}.{image_ext}"
+        image_blob = gcs_service.bucket.blob(image_object_key)
+        image_blob.upload_from_string(
+            graph_image_bytes,
+            content_type=image_content_type
         )
+        image_blob.metadata = {
+            "username": user.username,
+            "session_id": str(session_id),
+            "item_id": str(item.id),
+            "item_index": str(item_index),
+            "upload_date": datetime.now().isoformat(),
+            "file_type": "image"
+        }
+        image_blob.patch()
         
-        if not video_upload_result.get("success"):
-            raise RuntimeError(f"그래프 영상 업로드에 실패했습니다: {video_upload_result.get('error')}")
+        # 그래프 이미지에 대한 서명 URL 생성
+        image_url = await gcs_service.get_signed_url(image_object_key, expiration_hours=24)
+        if not image_url:
+            raise RuntimeError("그래프 이미지 URL 생성에 실패했습니다.")
         
-        video_object_key = video_upload_result.get("object_path")
-        if not video_object_key:
-            raise RuntimeError("업로드 결과에 object_path가 없습니다.")
+        # 4-1. 그래프 영상 GCS 업로드 (선택사항)
+        video_media_file = None
+        video_url = ""
+        if graph_video_bytes:
+            video_upload_result = await gcs_service.upload_video(
+                file_content=graph_video_bytes,
+                username=user.username,
+                session_id=str(session_id),
+                item_index=item_index,
+                original_filename=graph_video_filename or "graph.mp4",
+                content_type=graph_video_content_type or "video/mp4"
+            )
+            
+            if not video_upload_result.get("success"):
+                print(f"[VOCAL] 경고: 그래프 영상 업로드 실패 - {video_upload_result.get('error')}")
+            else:
+                video_object_key = video_upload_result.get("object_path")
+                if video_object_key:
+                    video_url = await gcs_service.get_signed_url(video_object_key, expiration_hours=24)
+                    if video_url:
+                        video_media_file = await self.media_repo.create_and_flush(
+                            user_id=user.id,
+                            object_key=video_object_key,
+                            media_type=MediaType.VIDEO,
+                            file_name=video_upload_result.get("filename") or (graph_video_filename or "graph.mp4"),
+                            file_size_bytes=len(graph_video_bytes),
+                            format=(graph_video_content_type.split('/')[-1] if graph_video_content_type and '/' in graph_video_content_type else "mp4")
+                        )
         
-        # 그래프 영상에 대한 서명 URL 생성
-        video_url = await gcs_service.get_signed_url(video_object_key, expiration_hours=24)
-        if not video_url:
-            raise RuntimeError("그래프 영상 URL 생성에 실패했습니다.")
-        
-        # 5. 오디오 및 비디오 미디어 파일 정보 DB 저장
+        # 5. 오디오 및 이미지 미디어 파일 정보 DB 저장
         audio_media_file = await self.media_repo.create_and_flush(
             user_id=user.id,
             object_key=audio_object_key,
@@ -1052,13 +1088,13 @@ class TrainingSessionService:
             format="wav"
         )
         
-        video_media_file = await self.media_repo.create_and_flush(
+        image_media_file = await self.media_repo.create_and_flush(
             user_id=user.id,
-            object_key=video_object_key,
-            media_type=MediaType.VIDEO,
-            file_name=video_upload_result.get("filename") or video_filename,
-            file_size_bytes=len(graph_video_bytes),
-            format=(video_content_type.split('/')[-1] if '/' in video_content_type else video_content_type)
+            object_key=image_object_key,
+            media_type=MediaType.IMAGE,
+            file_name=image_object_key.split('/')[-1],
+            file_size_bytes=len(graph_image_bytes),
+            format=(image_content_type.split('/')[-1] if '/' in image_content_type else image_ext)
         )
         
         # 6. Praat 분석 수행
@@ -1079,13 +1115,14 @@ class TrainingSessionService:
             traceback.print_exc()
             # Praat 분석 실패해도 아이템 완료는 계속 진행
         
-        # 7. 아이템 완료 처리
+        # 7. 아이템 완료 처리 (이미지 URL 저장, video_url은 선택사항)
         await self.item_repo.complete_item(
             item_id=item.id,
-            video_url=video_url,
-            media_file_id=video_media_file.id,
+            video_url=video_url,  # graph_video가 제공된 경우에만 값이 있음
+            media_file_id=image_media_file.id,  # 이미지 파일을 media_file_id로 저장
             is_completed=True,
-            audio_url=audio_url
+            audio_url=audio_url,
+            image_url=image_url
         )
         
         # 8. 세션 진행률 업데이트
@@ -1095,7 +1132,9 @@ class TrainingSessionService:
         
         await self.db.commit()
         await self.db.refresh(audio_media_file)
-        await self.db.refresh(video_media_file)
+        await self.db.refresh(image_media_file)
+        if video_media_file:
+            await self.db.refresh(video_media_file)
         if praat_feature:
             await self.db.refresh(praat_feature)
         
@@ -1109,7 +1148,9 @@ class TrainingSessionService:
             "next_item": next_item,
             "media_file": audio_media_file,  # 응답에는 오디오 파일 정보 반환
             "praat_feature": praat_feature,
-            "video_url": video_url,
+            "video_url": video_url,  # graph_video가 제공된 경우에만 값이 있음
             "audio_url": audio_url,
+            "image_url": image_url,
+            "video_image_url": video_url,  # graph_video URL (video_url과 동일)
             "has_next": has_next
         }

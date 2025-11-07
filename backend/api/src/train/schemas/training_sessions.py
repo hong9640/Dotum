@@ -84,6 +84,8 @@ class ItemSubmissionResponse(BaseModel):
     media: MediaResponse
     praat: Optional[PraatFeaturesResponse] = None
     video_url: str
+    image_url: Optional[str] = None
+    video_image_url: Optional[str] = None
     message: str = "훈련 아이템이 완료되었습니다."
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
