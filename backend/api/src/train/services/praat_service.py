@@ -5,7 +5,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from api.src.train.models.training_session import TrainingSession, TrainingType
 from api.src.train.models.training_item import TrainingItem
-from api.src.train.models.media import MediaFile
+from api.src.train.models.media import MediaFile, MediaType
 from api.src.train.models.praat import PraatFeatures
 from api.src.train.models.session_praat_result import SessionPraatResult
 from api.src.train.repositories.training_items import TrainingItemRepository
@@ -56,6 +56,12 @@ async def save_session_praat_result(
         print(f"⚠️ Session {session_id}: 아이템이 없어 평균 계산을 건너뜁니다.")
         return None
     
+    # total_items가 5의 배수가 아니면 오류 발생
+    if session.total_items % 5 != 0:
+        error_msg = f"Session {session_id}: total_items({session.total_items})는 5의 배수여야 합니다. (현재 값: {session.total_items}, 나머지: {session.total_items % 5})"
+        print(f"❌ {error_msg}")
+        raise ValueError(error_msg)
+    
     n = session.total_items / 5
     if n < 1:
         print(f"⚠️ Session {session_id}: n 값이 1보다 작아 평균 계산을 건너뜁니다. (n={n})")
@@ -77,16 +83,27 @@ async def save_session_praat_result(
     praat_features_list: List[tuple[int, PraatFeatures]] = []  # (item_index, PraatFeatures)
     
     for item in items:
-        if not item.media_file_id:
-            continue
-        
-        # VOCAL 타입: media_file_id를 직접 사용 (오디오 파일이 직접 저장됨)
-        # WORD/SENTENCE 타입: video media에서 audio media를 찾아서 사용
         audio_media_id = None
         
         if session.type == TrainingType.VOCAL:
-            # VOCAL 타입은 media_file_id에 오디오 파일이 직접 저장되어 있음
-            audio_media_id = item.media_file_id
+            # VOCAL 타입: item.media_file_id는 이미지 파일의 media_id이므로, 
+            # 오디오 파일을 별도로 찾아야 함
+            # submit_vocal_item에서 오디오 파일 object_key 패턴: audios/{username}/{session_id}/audio_item_{item.id}.wav
+            # media_files 테이블에서 media_type이 AUDIO이고 object_key에 "audio_item_{item.id}"가 포함된 파일 찾기
+            audio_media_stmt = select(MediaFile).where(
+                MediaFile.media_type == MediaType.AUDIO,
+                MediaFile.object_key.like(f"%audio_item_{item.id}.wav%")
+            )
+            audio_media_result = await db.execute(audio_media_stmt)
+            audio_media = audio_media_result.scalar_one_or_none()
+            
+            if audio_media:
+                audio_media_id = audio_media.id
+                print(f"✅ Session {session_id}: item_index {item.item_index}의 오디오 파일 찾음 (media_id: {audio_media_id}, object_key: {audio_media.object_key})")
+            else:
+                print(f"⚠️ Session {session_id}: item_index {item.item_index}의 오디오 파일을 찾을 수 없습니다. (item_id: {item.id})")
+                print(f"   → object_key 패턴: %audio_item_{item.id}.wav%")
+                continue
         else:
             # WORD/SENTENCE 타입: video media에서 audio media 찾기
             # Eager loading으로 이미 로드된 media_file 사용
@@ -114,9 +131,15 @@ async def save_session_praat_result(
             
             if praat_feature:
                 praat_features_list.append((item.item_index, praat_feature))
+                print(f"✅ Session {session_id}: item_index {item.item_index}의 PraatFeatures 조회 성공 (media_id: {audio_media_id}, praat_id: {praat_feature.id})")
+            else:
+                print(f"⚠️ Session {session_id}: item_index {item.item_index}의 PraatFeatures가 없습니다. (media_id: {audio_media_id})")
+                print(f"   → submit API에서 Praat 분석 및 저장이 수행되지 않았거나 실패했을 수 있습니다.")
     
     if not praat_features_list:
         print(f"⚠️ Session {session_id}: Praat 데이터가 없어 평균 계산을 건너뜁니다.")
+        print(f"   → 총 {len(items)}개의 아이템 중 PraatFeatures가 조회된 아이템: 0개")
+        print(f"   → 해결 방법: submit API에서 Praat 분석이 정상적으로 수행되고 저장되었는지 확인하세요.")
         return None
     
     # 5. 범위별 평균 계산
@@ -210,8 +233,9 @@ async def save_session_praat_result(
         existing_record = new_record
         print(f"✅ Session {session_id}: 평균 Praat 결과 새로 저장 (n={n}, 첫 그룹={len(first_group)}, 두 번째 그룹={len(second_group)}, 전체={len(all_group)})")
     
-    await db.commit()
-    await db.refresh(existing_record)
+    # commit은 호출하는 쪽에서 처리하도록 변경 (트랜잭션 관리 통합)
+    # await db.commit()
+    # await db.refresh(existing_record)
     
     return existing_record
 

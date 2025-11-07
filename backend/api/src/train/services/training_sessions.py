@@ -187,14 +187,25 @@ class TrainingSessionService:
             TrainingSessionStatus.COMPLETED,
             user_id
         )
-        await self.db.commit()
         
         # vocal 타입 세션의 경우 Praat 평균 결과 저장 (이미 조회한 세션 객체 전달하여 재조회 방지)
-        try:
-            await save_session_praat_result(self.db, session_id, session)
-        except Exception as e:
-            # Praat 평균 계산 실패해도 세션 완료는 정상 처리
-            print(f"⚠️ Session {session_id}: Praat 평균 결과 저장 실패: {e}")
+        if session.type == TrainingType.VOCAL:
+            try:
+                result = await save_session_praat_result(self.db, session_id, session)
+                if result:
+                    await self.db.flush()
+                    await self.db.commit()
+                    print(f"✅ Session {session_id}: Praat 평균 결과 저장 성공 (ID: {result.id})")
+                else:
+                    print(f"⚠️ Session {session_id}: Praat 평균 결과가 None으로 반환되었습니다. (Praat 데이터가 없거나 조건을 만족하지 않음)")
+            except Exception as e:
+                # Praat 평균 계산 실패해도 세션 완료는 정상 처리
+                import traceback
+                print(f"⚠️ Session {session_id}: Praat 평균 결과 저장 실패: {e}")
+                print(f"⚠️ Session {session_id}: 트레이스백:\n{traceback.format_exc()}")
+        
+        # 모든 변경사항을 한 번에 commit
+        await self.db.commit()
         
         return await self.get_training_session(session_id, user_id)
     
@@ -1133,6 +1144,7 @@ class TrainingSessionService:
             praat_data = await extract_all_features(audio_file_bytes)
             print(f"[VOCAL] Praat 분석 완료")
             
+            # PraatFeatures DB 저장 (개별 오디오 파일 분석 결과)
             praat_feature = await self.praat_repo.create_and_flush(
                 media_id=audio_media_file.id,
                 **praat_data
@@ -1166,6 +1178,10 @@ class TrainingSessionService:
             await self.db.refresh(video_media_file)
         if praat_feature:
             await self.db.refresh(praat_feature)
+            # Commit 후 Praat 데이터 저장 확인
+            print(f"[VOCAL] ✅ Commit 완료 - PraatFeatures 확인 (id: {praat_feature.id}, media_id: {praat_feature.media_id})")
+        else:
+            print(f"[VOCAL] ⚠️ PraatFeatures가 저장되지 않았습니다. (item_id: {item.id}, media_id: {audio_media_file.id})")
         
         # 9. 업데이트된 세션 및 다음 아이템 조회
         updated_session = await self.get_training_session(session_id, user.id)
