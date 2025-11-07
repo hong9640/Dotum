@@ -30,9 +30,8 @@ const HomePage: React.FC = () => {
   };
 
   const handleMaxVoiceTraining = () => {
-    // TODO: 최대 발성 훈련 페이지로 이동하거나 기능 구현
-    console.log('최대 발성 훈련 클릭');
-    // navigate('/max-voice-training'); // 필요시 라우트 추가
+    // 발성 훈련 페이지로 이동
+    navigate('/voice-training');
   };
 
   return (

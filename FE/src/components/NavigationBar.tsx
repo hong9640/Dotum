@@ -83,9 +83,8 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ isLoggedIn, onLogout }) =
       return;
     }
     
-    // TODO: 최대 발성 훈련 페이지로 이동하거나 기능 구현
-    console.log('최대 발성 훈련 클릭');
-    // navigate('/max-voice-training'); // 필요시 라우트 추가
+    // 발성 훈련 페이지로 이동
+    navigate('/voice-training');
   };
 
   return (
@@ -110,7 +109,7 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ isLoggedIn, onLogout }) =
           {/* 네비게이션 메뉴 섹션 */}
           <div className="flex items-center space-x-3 md:space-x-6">
             <a
-              href="/practice"
+              href="/voice-training"
               onClick={handleMaxVoiceTraining}
               className={`hidden sm:block px-3 py-2 text-2xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 [@media(min-width:850px)]:text-3xl ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             >
@@ -134,7 +133,7 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ isLoggedIn, onLogout }) =
               to="/training-history"
               className="hidden sm:block px-3 py-2 text-2xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 [@media(min-width:850px)]:text-3xl"
             >
-              훈련기록
+              훈련 기록
             </Link>
             {/* 로그인 상태에 따른 버튼 렌더링 */}
             {isLoggedIn ? (

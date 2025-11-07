@@ -9,6 +9,12 @@ import SignupPage from '@/pages/signup';
 import WordSetResults from '@/pages/result-list';
 import ResultDetailPage from '@/pages/result-detail';
 import TrainingHistoryPage from '@/pages/training-history';
+import VoiceTrainingIntro from '@/pages/voice-training';
+import MPTPage from '@/pages/voice-training/mpt';
+import CrescendoPage from '@/pages/voice-training/crescendo';
+import DecrescendoPage from '@/pages/voice-training/decrescendo';
+import LoudSoftPage from '@/pages/voice-training/loud-soft';
+import SoftLoudPage from '@/pages/voice-training/soft-loud';
 import { clearAuthCookies } from '@/lib/cookies';
 import { checkAuthStatus } from '@/api/user';
 import { Logout } from '@/api/logout/Logout';
@@ -79,6 +85,56 @@ const AppContent: React.FC<{
             element={
               <ProtectedRoute isLoggedIn={isLoggedIn} requireAuth={true}>
                 <TrainingHistoryPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* 발성 연습 페이지 */}
+          <Route 
+            path="/voice-training" 
+            element={
+              <ProtectedRoute isLoggedIn={isLoggedIn} requireAuth={true}>
+                <VoiceTrainingIntro />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/voice-training/mpt" 
+            element={
+              <ProtectedRoute isLoggedIn={isLoggedIn} requireAuth={true}>
+                <MPTPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/voice-training/crescendo" 
+            element={
+              <ProtectedRoute isLoggedIn={isLoggedIn} requireAuth={true}>
+                <CrescendoPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/voice-training/decrescendo" 
+            element={
+              <ProtectedRoute isLoggedIn={isLoggedIn} requireAuth={true}>
+                <DecrescendoPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/voice-training/loud-soft" 
+            element={
+              <ProtectedRoute isLoggedIn={isLoggedIn} requireAuth={true}>
+                <LoudSoftPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/voice-training/soft-loud" 
+            element={
+              <ProtectedRoute isLoggedIn={isLoggedIn} requireAuth={true}>
+                <SoftLoudPage />
               </ProtectedRoute>
             } 
           />
