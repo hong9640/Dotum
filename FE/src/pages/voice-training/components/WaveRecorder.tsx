@@ -11,15 +11,24 @@ interface WaveRecorderProps {
   onRecordEnd?: (blob: Blob, url: string) => void;
   onSubmit?: (audioBlob: Blob, graphImageBlob: Blob) => void;
   isSubmitting?: boolean;
+  resetTrigger?: number; // 리셋 트리거 (값이 변경되면 리셋)
 }
 
 const WaveRecorder: React.FC<WaveRecorderProps> = ({ 
   onRecordEnd, 
   onSubmit,
-  isSubmitting = false 
+  isSubmitting = false,
+  resetTrigger = 0
 }) => {
-  const { isRecording, audioBlob, audioUrl, startRecording, stopRecording, analyser } = useAudioRecorder();
+  const { isRecording, audioBlob, audioUrl, startRecording, stopRecording, reset, analyser } = useAudioRecorder();
   const graphRef = useRef<AudioLevelGraphRef>(null);
+  
+  // resetTrigger가 변경되면 리셋
+  React.useEffect(() => {
+    if (resetTrigger > 0) {
+      reset();
+    }
+  }, [resetTrigger, reset]);
 
   useEffect(() => {
     if (audioBlob && audioUrl) {

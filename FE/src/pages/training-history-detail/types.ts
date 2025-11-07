@@ -6,7 +6,7 @@ export interface TrainingSet {
   words: string[]; // 실제 단어/문장 텍스트 배열
   completedAt: string | null; // ISO date string, null은 진행중
   sessionId: number; // API의 session_id
-  type: 'word' | 'sentence';
+  type: 'word' | 'sentence' | 'vocal';
   status: 'completed' | 'in_progress';
   totalItems: number;
   completedItems?: number; // 완료된 아이템 수

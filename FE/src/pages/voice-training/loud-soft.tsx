@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ChevronRight } from 'lucide-react';
 import WaveRecorder from './components/WaveRecorder';
 import PromptCardLoudSoft from './components/PromptCardLoudSoft';
 import { useTTS } from '@/hooks/useTTS';
@@ -26,7 +24,7 @@ const LoudSoftPage: React.FC = () => {
     sessionIdParam ? parseInt(sessionIdParam) : null
   );
   const [_session, setSession] = useState<CreateTrainingSessionResponse | null>(null);
-  const [isCompleted, setIsCompleted] = useState(false);
+  const [resetTrigger, setResetTrigger] = useState(0);
   
   const { supported: _supported, ready: _ready, speak } = useTTS('ko-KR');
 
@@ -87,8 +85,22 @@ const LoudSoftPage: React.FC = () => {
         const currentItem = result.session.training_items?.find((item: any) => item.item_index === itemIndex);
         
         if (currentItem?.is_completed) {
-          setIsCompleted(true);
           toast.success('훈련이 완료되었습니다!');
+          
+          // 제출 성공 후 자동으로 다음으로 이동
+          if (attempt < 3) {
+            // 같은 훈련 다음 시도
+            setResetTrigger(prev => prev + 1);
+            setTimeout(() => {
+              navigate(`/voice-training/loud-soft?attempt=${attempt + 1}&sessionId=${sessionId}`);
+            }, 500);
+          } else {
+            // 다음 훈련으로
+            setResetTrigger(prev => prev + 1);
+            setTimeout(() => {
+              navigate(`/voice-training/soft-loud?attempt=1&sessionId=${sessionId}`);
+            }, 500);
+          }
         } else {
           toast.error('훈련이 완료되지 않았습니다. 다시 시도해주세요.');
         }
@@ -101,21 +113,6 @@ const LoudSoftPage: React.FC = () => {
     }
   };
 
-  const handleNext = () => {
-    if (!isCompleted) {
-      toast.error('먼저 훈련을 완료해주세요.');
-      return;
-    }
-
-    if (attempt < 3) {
-      navigate(`/voice-training/loud-soft?attempt=${attempt + 1}&sessionId=${sessionId}`);
-      setBlob(null);
-      setUrl('');
-      setIsCompleted(false);
-    } else {
-      navigate(`/voice-training/soft-loud?attempt=1&sessionId=${sessionId}`);
-    }
-  };
 
 
   return (
@@ -134,36 +131,8 @@ const LoudSoftPage: React.FC = () => {
                 onRecordEnd={handleRecordEnd}
                 onSubmit={handleSubmit}
                 isSubmitting={isSubmitting}
+                resetTrigger={resetTrigger}
               />
-            </div>
-
-            {isCompleted && (
-              <div className="mb-6 p-4 bg-orange-50 rounded-xl border-2 border-orange-200 text-center">
-                <p className="text-lg font-bold text-orange-700">
-                  ✅ 훈련이 완료되었습니다! 다음으로 진행할 수 있습니다.
-                </p>
-              </div>
-            )}
-
-            <div className="flex justify-center pt-4">
-              <Button
-                size="lg"
-                onClick={handleNext}
-                disabled={!isCompleted}
-                className="min-w-[240px] px-8 py-6 text-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {attempt < 3 ? (
-                  <>
-                    다음 시도 ({attempt + 1}/3)
-                    <ChevronRight className="w-6 h-6" strokeWidth={2.5} />
-                  </>
-                ) : (
-                  <>
-                    다음 훈련으로
-                    <ChevronRight className="w-6 h-6" strokeWidth={2.5} />
-                  </>
-                )}
-              </Button>
             </div>
           </CardContent>
         </Card>

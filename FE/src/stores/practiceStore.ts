@@ -8,13 +8,13 @@ interface PracticeStore {
   words: string[];
   currentWordIndex: number; // 현재 단어의 인덱스 (0부터 시작)
   sessionId: string | null;
-  sessionType: 'word' | 'sentence' | null;
+  sessionType: 'word' | 'sentence' | 'vocal' | null;
   
   // 액션들
   setStep: (step: number) => void;
   nextStep: () => void;
   setWords: (words: string[]) => void;
-  setSessionData: (sessionId: string, sessionType: 'word' | 'sentence', words: string[], totalItems: number, currentItemIndex: number) => void;
+  setSessionData: (sessionId: string, sessionType: 'word' | 'sentence' | 'vocal', words: string[], totalItems: number, currentItemIndex: number) => void;
   resetPractice: () => void;
   goToNextWord: () => void; // 다음 단어로 이동
   goToPreviousWord: () => void; // 이전 단어로 이동

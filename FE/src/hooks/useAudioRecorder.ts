@@ -6,6 +6,7 @@ export interface UseAudioRecorderReturn {
   audioUrl: string | null;
   startRecording: () => Promise<void>;
   stopRecording: () => void;
+  reset: () => void;
   stream: MediaStream | null;
   analyser: AnalyserNode | null;
   audioContext: AudioContext | null;
@@ -88,12 +89,40 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
     }
   }, [isRecording]);
 
+  const reset = useCallback(() => {
+    // 녹음 중이면 중지
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+    
+    // 스트림 정리
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    
+    // AudioContext 정리
+    if (audioContext && audioContext.state !== 'closed') {
+      audioContext.close();
+      setAudioContext(null);
+      setAnalyser(null);
+    }
+    
+    // 상태 초기화
+    setAudioBlob(null);
+    setAudioUrl(null);
+    chunksRef.current = [];
+    mediaRecorderRef.current = null;
+  }, [isRecording, stream, audioContext]);
+
   return {
     isRecording,
     audioBlob,
     audioUrl,
     startRecording,
     stopRecording,
+    reset,
     stream,
     analyser,
     audioContext,

@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ChevronRight, CheckCircle } from 'lucide-react';
 import WaveRecorder from './components/WaveRecorder';
 import PromptCardSoftLoud from './components/PromptCardSoftLoud';
 import { useTTS } from '@/hooks/useTTS';
@@ -27,7 +25,7 @@ const SoftLoudPage: React.FC = () => {
     sessionIdParam ? parseInt(sessionIdParam) : null
   );
   const [_session, setSession] = useState<CreateTrainingSessionResponse | null>(null);
-  const [isCompleted, setIsCompleted] = useState(false);
+  const [resetTrigger, setResetTrigger] = useState(0);
   
   const { supported: _supported, ready: _ready, speak } = useTTS('ko-KR');
 
@@ -88,19 +86,31 @@ const SoftLoudPage: React.FC = () => {
         const currentItem = result.session.training_items?.find((item: any) => item.item_index === itemIndex);
         
         if (currentItem?.is_completed) {
-          setIsCompleted(true);
-          
-          // 마지막 시도(attempt 3)가 완료되면 세션 완료 처리
-          if (attempt === 3) {
+          // 제출 성공 후 자동으로 다음으로 이동
+          if (attempt < 3) {
+            // 같은 훈련 다음 시도
+            toast.success('훈련이 완료되었습니다!');
+            setResetTrigger(prev => prev + 1);
+            setTimeout(() => {
+              navigate(`/voice-training/soft-loud?attempt=${attempt + 1}&sessionId=${sessionId}`);
+            }, 500);
+          } else {
+            // 마지막 시도(attempt 3)가 완료되면 세션 완료 처리 후 result-list로 이동
             try {
               await completeTrainingSession(sessionId);
               toast.success('모든 발성 훈련을 완료했습니다! 🎉');
+              setResetTrigger(prev => prev + 1);
+              setTimeout(() => {
+                navigate(`/result-list?sessionId=${sessionId}&type=vocal`);
+              }, 1000);
             } catch (error) {
               console.error('세션 완료 처리 실패:', error);
               toast.success('훈련이 완료되었습니다!');
+              setResetTrigger(prev => prev + 1);
+              setTimeout(() => {
+                navigate(`/result-list?sessionId=${sessionId}&type=vocal`);
+              }, 1000);
             }
-          } else {
-            toast.success('훈련이 완료되었습니다!');
           }
         } else {
           toast.error('훈련이 완료되지 않았습니다. 다시 시도해주세요.');
@@ -114,24 +124,6 @@ const SoftLoudPage: React.FC = () => {
     }
   };
 
-  const handleNext = () => {
-    if (!isCompleted) {
-      toast.error('먼저 훈련을 완료해주세요.');
-      return;
-    }
-
-    if (attempt < 3) {
-      navigate(`/voice-training/soft-loud?attempt=${attempt + 1}&sessionId=${sessionId}`);
-      setBlob(null);
-      setUrl('');
-      setIsCompleted(false);
-    } else {
-      // 마지막 훈련 완료 후 홈으로
-      setTimeout(() => {
-        navigate('/');
-      }, 1500);
-    }
-  };
 
 
   return (
@@ -150,52 +142,8 @@ const SoftLoudPage: React.FC = () => {
                 onRecordEnd={handleRecordEnd}
                 onSubmit={handleSubmit}
                 isSubmitting={isSubmitting}
+                resetTrigger={resetTrigger}
               />
-            </div>
-
-            {/* 완료 상태 표시 */}
-            {isCompleted && attempt < 3 && (
-              <div className="mb-6 p-4 bg-pink-50 rounded-xl border-2 border-pink-200 text-center">
-                <p className="text-lg font-bold text-pink-700">
-                  ✅ 훈련이 완료되었습니다! 다음으로 진행할 수 있습니다.
-                </p>
-              </div>
-            )}
-
-            {/* 마지막 시도 완료 시 축하 메시지 */}
-            {attempt === 3 && isCompleted && (
-              <div className="mb-6 p-6 bg-gradient-to-r from-pink-50 to-pink-100 rounded-xl border-2 border-pink-300">
-                <div className="flex items-center justify-center gap-3 mb-3">
-                  <CheckCircle className="w-8 h-8 text-pink-600" strokeWidth={2.5} />
-                  <h3 className="text-2xl font-bold text-pink-700">
-                    모든 훈련 완료!
-                  </h3>
-                </div>
-                <p className="text-lg text-center text-slate-600">
-                  축하합니다! 5가지 발성 훈련을 모두 완료했습니다.
-                </p>
-              </div>
-            )}
-
-            <div className="flex justify-center pt-4">
-              <Button
-                size="lg"
-                onClick={handleNext}
-                disabled={!isCompleted}
-                className="min-w-[240px] px-8 py-6 text-xl bg-pink-500 hover:bg-pink-600 text-white font-semibold rounded-xl flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {attempt < 3 ? (
-                  <>
-                    다음 시도 ({attempt + 1}/3)
-                    <ChevronRight className="w-6 h-6" strokeWidth={2.5} />
-                  </>
-                ) : (
-                  <>
-                    완료
-                    <CheckCircle className="w-6 h-6" strokeWidth={2.5} />
-                  </>
-                )}
-              </Button>
             </div>
           </CardContent>
         </Card>

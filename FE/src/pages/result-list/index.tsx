@@ -51,7 +51,7 @@ const WordSetResults: React.FC = () => {
   
   // URL 파라미터에서 sessionId, type, date 가져오기
   const sessionIdParam = searchParams.get('sessionId');
-  const typeParam = searchParams.get('type') as 'word' | 'sentence' | null;
+  const typeParam = searchParams.get('type') as 'word' | 'sentence' | 'vocal' | null;
   const dateParam = searchParams.get('date'); // training-history에서 온 경우 날짜 파라미터
 
   // 세션 상세 조회 API 호출
