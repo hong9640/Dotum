@@ -86,15 +86,23 @@ async def save_session_praat_result(
         audio_media_id = None
         
         if session.type == TrainingType.VOCAL:
-            # VOCAL 타입: item.media_file_id가 이미 오디오 MediaFile ID를 가리킴
-            # (submit_vocal_item에서 audio_media_file.id로 저장됨)
-            # Eager loading으로 이미 로드된 media_file 사용
-            audio_media = item.media_file
+            # VOCAL 타입: item.media_file_id는 이미지 파일의 media_id이므로, 
+            # 오디오 파일을 별도로 찾아야 함
+            # submit_vocal_item에서 오디오 파일 object_key 패턴: audios/{username}/{session_id}/audio_item_{item.id}.wav
+            # media_files 테이블에서 media_type이 AUDIO이고 object_key에 "audio_item_{item.id}"가 포함된 파일 찾기
+            audio_media_stmt = select(MediaFile).where(
+                MediaFile.media_type == MediaType.AUDIO,
+                MediaFile.object_key.like(f"%audio_item_{item.id}.wav%")
+            )
+            audio_media_result = await db.execute(audio_media_stmt)
+            audio_media = audio_media_result.scalar_one_or_none()
+            
             if audio_media:
                 audio_media_id = audio_media.id
                 print(f"✅ Session {session_id}: item_index {item.item_index}의 오디오 파일 찾음 (media_id: {audio_media_id}, object_key: {audio_media.object_key})")
             else:
-                print(f"⚠️ Session {session_id}: item_index {item.item_index}의 오디오 파일을 찾을 수 없습니다. (item_id: {item.id}, media_file_id: {item.media_file_id})")
+                print(f"⚠️ Session {session_id}: item_index {item.item_index}의 오디오 파일을 찾을 수 없습니다. (item_id: {item.id})")
+                print(f"   → object_key 패턴: %audio_item_{item.id}.wav%")
                 continue
         else:
             # WORD/SENTENCE 타입: video media에서 audio media 찾기
