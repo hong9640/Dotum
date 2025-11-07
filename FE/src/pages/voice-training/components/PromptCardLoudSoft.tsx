@@ -1,25 +1,19 @@
 import React from 'react';
-import { Zap } from 'lucide-react';
 
 interface PromptCardLoudSoftProps {
   main: string;
   subtitle: string;
-  onPlayGuide?: () => void;
+  attempt: number;
+  totalAttempts: number;
 }
 
-const PromptCardLoudSoft: React.FC<PromptCardLoudSoftProps> = ({ main, subtitle, onPlayGuide }) => {
+const PromptCardLoudSoft: React.FC<PromptCardLoudSoftProps> = ({ main, subtitle, attempt, totalAttempts }) => {
   const sizes = [80, 88, 80, 56, 32];
   
   return (
     <div className="p-8 sm:p-10 bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl border-3 border-orange-300 shadow-sm mb-8 text-center">
-      <div className="flex justify-center mb-4">
-        <button
-          onClick={onPlayGuide}
-          className="p-3 bg-orange-200 rounded-full hover:bg-orange-300 transition-colors cursor-pointer"
-          aria-label="안내 듣기"
-        >
-          <Zap className="w-8 h-8 text-orange-700" strokeWidth={2.5} />
-        </button>
+      <div className="text-2xl sm:text-3xl font-bold text-orange-800 mb-4">
+        {attempt}/{totalAttempts}
       </div>
       <div className="flex justify-center items-end gap-1 mb-4">
         {[...main].map((char, i) => (

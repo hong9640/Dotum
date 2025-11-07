@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ChevronRight } from 'lucide-react';
 import WaveRecorder from './components/WaveRecorder';
 import PromptCardMPT from './components/PromptCardMPT';
-import { useTTS } from '@/hooks/useTTS';
 import { toast } from 'sonner';
 import { 
   createTrainingSession, 
@@ -27,9 +24,7 @@ const MPTPage: React.FC = () => {
     sessionIdParam ? parseInt(sessionIdParam) : null
   );
   const [_session, setSession] = useState<CreateTrainingSessionResponse | null>(null);
-  const [isCompleted, setIsCompleted] = useState(false);
-  
-  const { supported: _supported, ready: _ready, speak } = useTTS('ko-KR');
+  const [resetTrigger, setResetTrigger] = useState(0);
 
   // 세션 생성 (첫 시도일 때)
   useEffect(() => {
@@ -71,18 +66,19 @@ const MPTPage: React.FC = () => {
     initSession();
   }, [attempt, sessionId]);
 
+  // attempt가 변경될 때 리셋 트리거 증가 (첫 마운트 제외)
+  const prevAttemptRef = React.useRef(attempt);
+  useEffect(() => {
+    if (prevAttemptRef.current !== attempt && prevAttemptRef.current > 0) {
+      setResetTrigger(prev => prev + 1);
+    }
+    prevAttemptRef.current = attempt;
+  }, [attempt]);
+
   const handleRecordEnd = (b: Blob, u: string) => {
     setBlob(b);
     setUrl(u);
     toast.success('녹음이 완료되었습니다!');
-  };
-
-  const handlePlayGuide = () => {
-    speak('최대 발성 지속 시간 훈련을 시작하겠습니다. "아"라고 최대한 길게 발성해주세요.', {
-      rate: 1,
-      pitch: 1.1,
-      volume: 1,
-    });
   };
 
   const handleSubmit = async (audioBlob: Blob, graphImageBlob: Blob) => {
@@ -115,8 +111,22 @@ const MPTPage: React.FC = () => {
         const currentItem = result.session.training_items?.find((item: any) => item.item_index === itemIndex);
         
         if (currentItem?.is_completed) {
-          setIsCompleted(true);
           toast.success('훈련이 완료되었습니다!');
+          
+          // 제출 성공 후 자동으로 다음으로 이동
+          if (attempt < 3) {
+            // 같은 훈련 다음 시도
+            setResetTrigger(prev => prev + 1);
+            setTimeout(() => {
+              navigate(`/voice-training/mpt?attempt=${attempt + 1}&sessionId=${sessionId}`);
+            }, 500);
+          } else {
+            // 다음 훈련으로
+            setResetTrigger(prev => prev + 1);
+            setTimeout(() => {
+              navigate(`/voice-training/crescendo?attempt=1&sessionId=${sessionId}`);
+            }, 500);
+          }
         } else {
           toast.error('훈련이 완료되지 않았습니다. 다시 시도해주세요.');
         }
@@ -129,23 +139,6 @@ const MPTPage: React.FC = () => {
     }
   };
 
-  const handleNext = () => {
-    if (!isCompleted) {
-      toast.error('먼저 훈련을 완료해주세요.');
-      return;
-    }
-
-    if (attempt < 3) {
-      // 같은 훈련 다음 시도
-      navigate(`/voice-training/mpt?attempt=${attempt + 1}&sessionId=${sessionId}`);
-      setBlob(null);
-      setUrl('');
-      setIsCompleted(false);
-    } else {
-      // 다음 훈련으로
-      navigate(`/voice-training/crescendo?attempt=1&sessionId=${sessionId}`);
-    }
-  };
 
 
   return (
@@ -156,8 +149,9 @@ const MPTPage: React.FC = () => {
             {/* 프롬프트 카드 */}
             <PromptCardMPT 
               main="아" 
-              subtitle={`최대 발성 지속 시간 훈련 (MPT) - ${attempt}/3회`}
-              onPlayGuide={handlePlayGuide}
+              subtitle="최대 발성 지속 시간 훈련 (MPT)"
+              attempt={attempt}
+              totalAttempts={3}
             />
 
             {/* 녹음 영역 */}
@@ -166,38 +160,8 @@ const MPTPage: React.FC = () => {
                 onRecordEnd={handleRecordEnd} 
                 onSubmit={handleSubmit}
                 isSubmitting={isSubmitting}
+                resetTrigger={resetTrigger}
               />
-            </div>
-
-            {/* 완료 상태 표시 */}
-            {isCompleted && (
-              <div className="mb-6 p-4 bg-blue-50 rounded-xl border-2 border-blue-200 text-center">
-                <p className="text-lg font-bold text-blue-700">
-                  ✅ 훈련이 완료되었습니다! 다음으로 진행할 수 있습니다.
-                </p>
-              </div>
-            )}
-
-            {/* 다음 버튼 */}
-            <div className="flex justify-center pt-4">
-              <Button
-                size="lg"
-                onClick={handleNext}
-                disabled={!isCompleted}
-                className="min-w-[240px] px-8 py-6 text-xl bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-xl flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {attempt < 3 ? (
-                  <>
-                    다음 시도 ({attempt + 1}/3)
-                    <ChevronRight className="w-6 h-6" strokeWidth={2.5} />
-                  </>
-                ) : (
-                  <>
-                    다음 훈련으로
-                    <ChevronRight className="w-6 h-6" strokeWidth={2.5} />
-                  </>
-                )}
-              </Button>
             </div>
           </CardContent>
         </Card>

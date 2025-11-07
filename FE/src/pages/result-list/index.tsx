@@ -32,6 +32,7 @@ const WordSetResults: React.FC = () => {
   const [resultsData, setResultsData] = useState<WordResult[]>([]);
   const [sessionType, setSessionType] = useState<'word' | 'sentence' | 'vocal'>('word');
   const [formattedDate, setFormattedDate] = useState<string>('');
+  const [totalItems, setTotalItems] = useState<number>(0);
   const [cpp, setCpp] = useState<number | null>(null);
   const [csid, setCsid] = useState<number | null>(null);
   // 발성 연습 메트릭
@@ -51,7 +52,7 @@ const WordSetResults: React.FC = () => {
   
   // URL 파라미터에서 sessionId, type, date 가져오기
   const sessionIdParam = searchParams.get('sessionId');
-  const typeParam = searchParams.get('type') as 'word' | 'sentence' | null;
+  const typeParam = searchParams.get('type') as 'word' | 'sentence' | 'vocal' | null;
   const dateParam = searchParams.get('date'); // training-history에서 온 경우 날짜 파라미터
 
   // 세션 상세 조회 API 호출
@@ -85,37 +86,68 @@ const WordSetResults: React.FC = () => {
         const sessionTypeLower = (sessionDetailData.type || '').toLowerCase();
         setSessionType(sessionTypeLower as 'word' | 'sentence' | 'vocal');
         
+        // total_items 저장 (발성 연습일 때 itemIndex 계산에 필요)
+        setTotalItems(sessionDetailData.total_items || 0);
+        
         // 날짜 포맷팅
         const formatted = formatDate(sessionDetailData.training_date);
         setFormattedDate(formatted);
         
-        // training_items에서 완료된 아이템만 필터링하여 WordResult로 변환
-        const completedItems = sessionDetailData.training_items?.filter(
-          (item) => item.is_completed
-        ) ?? [];
+        // 발성 연습 여부 확인 (type이 'vocal'인 경우)
+        // sessionTypeLower 또는 typeParam을 확인하여 발성 연습 여부 판단
+        const isVoice = sessionTypeLower === 'vocal' || (typeParam && typeParam.toLowerCase() === 'vocal');
+        setIsVoiceTraining(isVoice);
         
-        // item_index 기준으로 오름차순 정렬 (1번부터 위에서 아래로)
-        const sortedCompletedItems = [...completedItems].sort((a, b) => 
-          (a.item_index || 0) - (b.item_index || 0)
-        );
-        
-        const wordResults: WordResult[] = sortedCompletedItems.map((item) => {
-          // word 또는 sentence 필드에서 텍스트 가져오기
-          const text = item.word || item.sentence || '';
-          
-          return {
-            id: item.item_index + 1, // 1부터 시작하는 ID
-            word: text,
-            feedback: item.feedback || '피드백 정보가 없습니다.',
-            score: item.score ?? 0, // score가 null이면 0으로 설정
-          };
+        console.log('발성 연습 여부 확인:', {
+          sessionTypeLower,
+          typeParam,
+          sessionDetailDataType: sessionDetailData.type,
+          isVoice
         });
         
-        setResultsData(wordResults);
+        let wordResults: WordResult[];
         
-        // 발성 연습 여부 확인 (type이 'vocal'인 경우)
-        const isVoice = (sessionDetailData.type as string) === 'vocal';
-        setIsVoiceTraining(isVoice);
+        if (isVoice) {
+          // 발성 연습일 때: 5개의 훈련명을 고정으로 표시
+          const vocalTrainingNames = [
+            '최대 발성 지속 시간 훈련 (MPT)',
+            '크레셴도 훈련 (점강)',
+            '데크레셴도 훈련 (점약)',
+            '순간 강약 전환 훈련',
+            '연속 강약 조절 훈련'
+          ];
+          
+          wordResults = vocalTrainingNames.map((trainingName, index) => ({
+            id: index + 1,
+            word: trainingName,
+            feedback: '피드백 정보가 없습니다.',
+            score: 0,
+          }));
+        } else {
+          // 일반 연습(단어/문장): 실제 training_items에서 완료된 아이템만 필터링하여 WordResult로 변환
+          const completedItems = sessionDetailData.training_items?.filter(
+            (item) => item.is_completed
+          ) ?? [];
+          
+          // item_index 기준으로 오름차순 정렬 (1번부터 위에서 아래로)
+          const sortedCompletedItems = [...completedItems].sort((a, b) => 
+            (a.item_index || 0) - (b.item_index || 0)
+          );
+          
+          wordResults = sortedCompletedItems.map((item) => {
+            // word 또는 sentence 필드에서 텍스트 가져오기
+            const text = item.word || item.sentence || '';
+            
+            return {
+              id: item.item_index + 1, // 1부터 시작하는 ID
+              word: text,
+              feedback: item.feedback || '피드백 정보가 없습니다.',
+              score: item.score ?? 0, // score가 null이면 0으로 설정
+            };
+          });
+        }
+        
+        setResultsData(wordResults);
         
         if (isVoice) {
           // 발성 연습 메트릭 설정
@@ -222,8 +254,30 @@ const WordSetResults: React.FC = () => {
   };
 
   const handleDetailClick = (result: WordResult) => {
-    // result-detail 페이지로 이동 (URL 파라미터로 sessionId, type, itemIndex 전달)
-    if (sessionIdParam && typeParam) {
+    if (!sessionIdParam || !typeParam) {
+      console.error('세션 정보가 없습니다.');
+      alert('세션 정보를 찾을 수 없습니다.');
+      return;
+    }
+
+    // 발성 연습일 때는 praat-detail로 이동
+    if (sessionType === 'vocal' || (typeParam && typeParam.toLowerCase() === 'vocal')) {
+      // 발성 연습: 각 훈련의 첫 번째 시도로 이동
+      // n = total_items / 5 (각 훈련 반복 횟수)
+      // 훈련 인덱스 = result.id - 1 (0, 1, 2, 3, 4)
+      // 첫 번째 시도의 itemIndex = 훈련 인덱스 * n
+      const n = totalItems > 0 ? Math.floor(totalItems / 5) : 0;
+      const trainingIndex = result.id - 1; // 0, 1, 2, 3, 4
+      const itemIndex = trainingIndex * n;
+      
+      let praatUrl = `/praat-detail?sessionId=${sessionIdParam}&itemIndex=${itemIndex}`;
+      // date 파라미터가 있으면 함께 전달
+      if (dateParam) {
+        praatUrl += `&date=${dateParam}`;
+      }
+      navigate(praatUrl);
+    } else {
+      // 단어/문장 연습: result-detail 페이지로 이동
       // result.id는 1부터 시작, itemIndex는 0부터 시작하므로 -1 필요
       let detailUrl = `/result-detail?sessionId=${sessionIdParam}&type=${typeParam}&itemIndex=${result.id - 1}`;
       // date 파라미터가 있으면 함께 전달
@@ -231,9 +285,6 @@ const WordSetResults: React.FC = () => {
         detailUrl += `&date=${dateParam}`;
       }
       navigate(detailUrl);
-    } else {
-      console.error('세션 정보가 없습니다.');
-      alert('세션 정보를 찾을 수 없습니다.');
     }
   };
 
@@ -534,6 +585,7 @@ const WordSetResults: React.FC = () => {
         <WordResultsList
           results={resultsData}
           onDetailClick={handleDetailClick}
+          sessionType={sessionType}
         />
         
         {/* 다음 행동 버튼 */}

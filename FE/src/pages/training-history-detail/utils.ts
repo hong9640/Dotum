@@ -95,7 +95,7 @@ export const convertSessionsToTrainingSets = (
       words: words,
       completedAt: session.completed_at,
       sessionId: session.session_id,
-      type: (sessionType === 'vocal' ? 'sentence' : sessionType) as 'word' | 'sentence', // vocal은 sentence로 매핑
+      type: sessionType as 'word' | 'sentence' | 'vocal',
       status: session.status,
       totalItems: session.total_items,
       completedItems: session.completed_items,

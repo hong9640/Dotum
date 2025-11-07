@@ -6,9 +6,21 @@ import type { WordResult } from "../types";
 interface WordResultsListProps {
   results: WordResult[];
   onDetailClick: (result: WordResult) => void;
+  sessionType?: 'word' | 'sentence' | 'vocal';
 }
 
-const WordResultsList: React.FC<WordResultsListProps> = ({ results, onDetailClick }) => {
+const WordResultsList: React.FC<WordResultsListProps> = ({ results, onDetailClick, sessionType = 'word' }) => {
+  // 세션 타입에 따른 제목 텍스트
+  const getTitleText = () => {
+    if (sessionType === 'vocal') {
+      return '발성 연습별 결과';
+    } else if (sessionType === 'sentence') {
+      return '문장별 결과';
+    } else {
+      return '단어별 결과';
+    }
+  };
+
   return (
     <div className="w-full max-w-[1220px] pb-6 bg-white rounded-2xl outline outline-[3px] outline-offset-[-3px] outline-green-200 flex flex-col justify-start items-center gap-6 md:gap-12 overflow-hidden">
       <div className="self-stretch p-6 bg-gradient-to-r from-green-50 via-green-300 to-yellow-100 border-b-[0.80px] border-blue-100 inline-flex justify-start items-center gap-4">
@@ -16,7 +28,7 @@ const WordResultsList: React.FC<WordResultsListProps> = ({ results, onDetailClic
         <div className="flex-1 inline-flex flex-col justify-center items-start gap-2.5">
           <div className="justify-start">
             <span className="text-slate-700 text-2xl md:text-3xl font-semibold leading-tight md:leading-9">
-              단어별 결과
+              {getTitleText()}
             </span>
             <span className="text-slate-500 text-lg md:text-2xl font-semibold leading-snug md:leading-8">
               {" "}(총 {results.length}개)
