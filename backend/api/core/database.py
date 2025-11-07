@@ -8,7 +8,7 @@ from api.core.config import settings
 engine = create_async_engine(
     settings.DB_URL,
     # SQL 쿼리 로깅 (DEBUG 모드에서만 활성화)
-    echo=settings.DB_ECHO or settings.DEBUG,
+    echo=False,
     future=True,
     
     # 커넥션 풀 최적화
