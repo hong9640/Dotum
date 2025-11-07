@@ -124,14 +124,17 @@ class AIService:
         
         gpu_memory_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
         
+        # T4 GPU (15.75GB)를 고려한 설정
         if gpu_memory_gb >= 40:
             return 64
         elif gpu_memory_gb >= 24:
             return 32
-        elif gpu_memory_gb >= 16:
-            return 24
-        else:
+        elif gpu_memory_gb >= 15:  # T4 GPU (15.75GB)
+            return 20
+        elif gpu_memory_gb >= 12:
             return 16
+        else:
+            return 12
     
     async def _download_file_from_gcs(self, gs_path: str, filename: str) -> Optional[str]:
         """GCS에서 파일 다운로드"""
@@ -182,11 +185,11 @@ class AIService:
                 device = "cuda" if torch.cuda.is_available() and use_gpu else "cpu"
                 logger.info(f"Running Wav2Lip on {device.upper()}")
                 
-                # GPU 최적화 파라미터 설정
+                # GPU 최적화 파라미터 설정 (T4 GPU 기준)
                 if device == "cuda":
-                    # GPU: 더 큰 배치 크기 및 Static Face Detection
+                    # T4 GPU: 메모리 효율적인 배치 크기
                     batch_size = str(self._optimal_batch_size)
-                    face_det_batch = str(min(self._optimal_batch_size // 2, 16))
+                    face_det_batch = str(min(self._optimal_batch_size // 2, 10))
                 else:
                     # CPU: 보수적 배치 크기
                     batch_size = "8"
@@ -198,10 +201,12 @@ class AIService:
                     "--face", face_local,
                     "--audio", audio_local,
                     "--outfile", output_local,
-                    "--pads", "0", "20", "0", "0",
+                    "--pads", "0", "20", "0", "0",  # 아래쪽 패딩으로 턱 포함
                     "--wav2lip_batch_size", batch_size,
                     "--face_det_batch_size", face_det_batch,
-                    "--resize_factor", "2",  # GPU에서는 품질 향상 (960x540)
+                    "--resize_factor", "2",  # 해상도 절반 (속도/품질 균형)
+                    "--nosmooth",  # Face detection smoothing 비활성화 (속도 향상)
+                    "--box", "-1", "-1", "-1", "-1",  # Static Face Detection (성능 최적화)
                 ]
                 
                 logger.info(f"Running Wav2Lip inference: {' '.join(cmd)}")
