@@ -118,23 +118,23 @@ class AIService:
                 logger.info(f"Cleaned up {cleaned_count} temporary files")
     
     def _detect_optimal_batch_size(self) -> int:
-        """GPU 메모리에 따라 최적 배치 크기 자동 감지"""
+        """GPU 메모리에 따라 최적 배치 크기 자동 감지 (품질 우선)"""
         if not torch.cuda.is_available():
             return 8
         
         gpu_memory_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
         
-        # T4 GPU (15.75GB)를 고려한 설정
+        # 품질 우선: 원본 해상도 사용 시 더 작은 배치 크기 필요
         if gpu_memory_gb >= 40:
-            return 64
+            return 32  # 64 → 32
         elif gpu_memory_gb >= 24:
-            return 32
+            return 20  # 32 → 20
         elif gpu_memory_gb >= 15:  # T4 GPU (15.75GB)
-            return 20
+            return 12  # 20 → 12 (원본 해상도 대응)
         elif gpu_memory_gb >= 12:
-            return 16
+            return 10  # 16 → 10
         else:
-            return 12
+            return 8  # 12 → 8
     
     async def _download_file_from_gcs(self, gs_path: str, filename: str) -> Optional[str]:
         """GCS에서 파일 다운로드"""
@@ -185,11 +185,11 @@ class AIService:
                 device = "cuda" if torch.cuda.is_available() and use_gpu else "cpu"
                 logger.info(f"Running Wav2Lip on {device.upper()}")
                 
-                # GPU 최적화 파라미터 설정 (T4 GPU 기준)
+                # GPU 파라미터 설정 (품질 우선)
                 if device == "cuda":
-                    # T4 GPU: 메모리 효율적인 배치 크기
-                    batch_size = str(self._optimal_batch_size)
-                    face_det_batch = str(min(self._optimal_batch_size // 2, 10))
+                    # T4 GPU: 품질을 위한 안정적인 배치 크기
+                    batch_size = str(min(self._optimal_batch_size, 16))  # 배치 크기 제한
+                    face_det_batch = str(min(self._optimal_batch_size // 2, 8))
                 else:
                     # CPU: 보수적 배치 크기
                     batch_size = "8"
@@ -201,12 +201,11 @@ class AIService:
                     "--face", face_local,
                     "--audio", audio_local,
                     "--outfile", output_local,
-                    "--pads", "0", "20", "0", "0",  # 아래쪽 패딩으로 턱 포함
+                    "--pads", "0", "15", "0", "0",  # 아래쪽 패딩 15픽셀 (턱 포함, 경계 최소화)
                     "--wav2lip_batch_size", batch_size,
                     "--face_det_batch_size", face_det_batch,
-                    "--resize_factor", "2",  # 해상도 절반 (속도/품질 균형)
-                    "--nosmooth",  # Face detection smoothing 비활성화 (속도 향상)
-                    "--box", "-1", "-1", "-1", "-1",  # Static Face Detection (성능 최적화)
+                    "--resize_factor", "1",  # 원본 해상도 유지 (품질 우선)
+                    "--box", "-1", "-1", "-1", "-1",  # 자동 얼굴 감지
                 ]
                 
                 logger.info(f"Running Wav2Lip inference: {' '.join(cmd)}")

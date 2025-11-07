@@ -91,10 +91,11 @@ def face_detect(images):
 			cv2.imwrite('temp/faulty_frame.jpg', image) # check this frame where the face was not detected.
 			raise ValueError('Face not detected! Ensure the video contains a face in all the frames.')
 
-		y1 = max(0, rect[1] - pady1)
-		y2 = min(image.shape[0], rect[3] + pady2)
-		x1 = max(0, rect[0] - padx1)
-		x2 = min(image.shape[1], rect[2] + padx2)
+		# 좌표를 정수로 명시적 변환하여 경계 오차 방지
+		y1 = int(max(0, rect[1] - pady1))
+		y2 = int(min(image.shape[0], rect[3] + pady2))
+		x1 = int(max(0, rect[0] - padx1))
+		x2 = int(min(image.shape[1], rect[2] + padx2))
 		
 		results.append([x1, y1, x2, y2])
 
@@ -266,9 +267,40 @@ def main():
 		
 		for p, f, c in zip(pred, frames, coords):
 			y1, y2, x1, x2 = c
-			p = cv2.resize(p.astype(np.uint8), (x2 - x1, y2 - y1))
-
-			f[y1:y2, x1:x2] = p
+			# 좌표를 정수로 변환 (이미 정수여야 하지만 명시적 변환)
+			y1, y2, x1, x2 = int(y1), int(y2), int(x1), int(x2)
+			
+			# 정확한 크기로 리사이즈
+			target_width = x2 - x1
+			target_height = y2 - y1
+			p = cv2.resize(p.astype(np.uint8), (target_width, target_height))
+			
+			# 페더링을 적용하여 경계를 부드럽게
+			# 가장자리 픽셀 수 계산 (영역의 약 7% 또는 최대 15픽셀, 품질 우선)
+			feather_amount = min(15, max(5, target_width // 15, target_height // 15))
+			
+			if feather_amount > 0:
+				# 알파 마스크 생성
+				mask = np.ones((target_height, target_width), dtype=np.float32)
+				
+				# 가장자리 페더링 적용
+				for i in range(feather_amount):
+					fade = float(i) / feather_amount
+					mask[i, :] *= fade  # 위쪽
+					mask[-(i+1), :] *= fade  # 아래쪽
+					mask[:, i] *= fade  # 왼쪽
+					mask[:, -(i+1)] *= fade  # 오른쪽
+				
+				# 알파 블렌딩
+				mask = mask[:, :, np.newaxis]  # (H, W, 1) -> 3채널에 브로드캐스트
+				original_region = f[y1:y2, x1:x2].astype(np.float32)
+				blended = (p.astype(np.float32) * mask + original_region * (1 - mask)).astype(np.uint8)
+				
+				f[y1:y2, x1:x2] = blended
+			else:
+				# 페더링 없이 직접 대입
+				f[y1:y2, x1:x2] = p
+			
 			out.write(f)
 
 	out.release()
