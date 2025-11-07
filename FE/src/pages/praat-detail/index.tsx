@@ -28,7 +28,6 @@ const PraatDetailPage: React.FC = () => {
   const [currentRecordingIndex, setCurrentRecordingIndex] = useState(0);
   const [compositedVideoUrl, setCompositedVideoUrl] = useState<string | null>(null);
   const [baseItemIndex, setBaseItemIndex] = useState<number>(0); // 현재 훈련의 첫 번째 itemIndex
-  const [sessionTotalItems, setSessionTotalItems] = useState<number>(0);
 
   // URL 파라미터에서 세션 정보 가져오기
   const sessionIdParam = searchParams.get("sessionId");
@@ -78,7 +77,6 @@ const PraatDetailPage: React.FC = () => {
         if (isVocal && sessionData.total_items) {
           const count = Math.floor(sessionData.total_items / 5);
           setRecordingCount(count);
-          setSessionTotalItems(sessionData.total_items);
           // 현재 itemIndex가 속한 훈련의 첫 번째 itemIndex 계산
           const n = count;
           const trainingIndex = Math.floor(itemIndex / n);
