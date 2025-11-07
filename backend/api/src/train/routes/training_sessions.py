@@ -501,7 +501,7 @@ async def submit_current_item(
         session=await convert_session_to_response(session, service.db, gcs_service, current_user.username),
         next_item=next_item_response,
         media=convert_media_to_response(media_file),
-        praat=convert_praat_to_response(praat_feature),
+        praat=await convert_praat_to_response(praat_feature),
         video_url=result["video_url"]
     )
 
@@ -646,7 +646,7 @@ async def submit_vocal_item(
         session=await convert_session_to_response(session, service.db, gcs_service, current_user.username),
         next_item=next_item_response,
         media=convert_media_to_response(media_file),
-        praat=convert_praat_to_response(praat_feature),
+        praat=await convert_praat_to_response(praat_feature),
         video_url=video_url,
         image_url=image_url,
         video_image_url=video_image_url
@@ -802,7 +802,7 @@ async def resubmit_item_video(
         session=await convert_session_to_response(result["session"], service.db, gcs_service, current_user.username),
         next_item=None,
         media=convert_media_to_response(result["media_file"]),
-        praat=convert_praat_to_response(result["praat_feature"]),
+        praat=await convert_praat_to_response(result["praat_feature"]),
         video_url=result["video_url"],
         message="동영상이 교체되었습니다."
     )
