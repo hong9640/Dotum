@@ -27,6 +27,8 @@ const PraatDetailPage: React.FC = () => {
   const [recordingCount, setRecordingCount] = useState(0);
   const [currentRecordingIndex, setCurrentRecordingIndex] = useState(0);
   const [compositedVideoUrl, setCompositedVideoUrl] = useState<string | null>(null);
+  const [baseItemIndex, setBaseItemIndex] = useState<number>(0); // 현재 훈련의 첫 번째 itemIndex
+  const [sessionTotalItems, setSessionTotalItems] = useState<number>(0);
 
   // URL 파라미터에서 세션 정보 가져오기
   const sessionIdParam = searchParams.get("sessionId");
@@ -68,14 +70,27 @@ const PraatDetailPage: React.FC = () => {
         console.log("item_id:", itemDetailData.item_id);
 
         // 발성연습 여부 확인 (type이 'vocal'인 경우)
-        const isVocal = (sessionData.type as string) === 'vocal';
+        const sessionTypeLower = (sessionData.type || '').toLowerCase();
+        const isVocal = sessionTypeLower === 'vocal';
         setIsVocalExercise(isVocal);
 
         // 발성연습일 때 녹음 횟수 계산 (total_items / 5)
         if (isVocal && sessionData.total_items) {
           const count = Math.floor(sessionData.total_items / 5);
           setRecordingCount(count);
+          setSessionTotalItems(sessionData.total_items);
+          // 현재 itemIndex가 속한 훈련의 첫 번째 itemIndex 계산
+          const n = count;
+          const trainingIndex = Math.floor(itemIndex / n);
+          const baseIndex = trainingIndex * n;
+          setBaseItemIndex(baseIndex);
+          // 현재 itemIndex에 해당하는 녹음 탭 인덱스 설정 (0부터 시작)
+          const currentTabIndex = itemIndex - baseIndex;
+          setCurrentRecordingIndex(currentTabIndex);
           console.log("발성연습 녹음 횟수:", count, "(total_items:", sessionData.total_items, ")");
+          console.log("현재 itemIndex:", itemIndex, "→ 훈련 인덱스:", trainingIndex, "→ baseItemIndex:", baseIndex, "→ 탭 인덱스:", currentTabIndex);
+        } else {
+          setBaseItemIndex(itemIndex);
         }
 
         // item_id 저장 (Praat API 호출에 필요)
@@ -92,7 +107,24 @@ const PraatDetailPage: React.FC = () => {
         }
 
         // 환자 정보 설정
-        const word = itemDetailData.word || itemDetailData.sentence || "";
+        let word = itemDetailData.word || itemDetailData.sentence || "";
+        
+        // 발성 연습일 때는 훈련 명칭으로 표시
+        if (isVocal && sessionData.total_items) {
+          const vocalTrainingNames = [
+            '최대 발성 지속 시간 훈련 (MPT)',
+            '크레셴도 훈련 (점강)',
+            '데크레셴도 훈련 (점약)',
+            '순간 강약 전환 훈련',
+            '연속 강약 조절 훈련'
+          ];
+          const n = Math.floor(sessionData.total_items / 5);
+          const trainingIndex = Math.floor(itemIndex / n);
+          if (trainingIndex >= 0 && trainingIndex < vocalTrainingNames.length) {
+            word = vocalTrainingNames[trainingIndex];
+          }
+        }
+        
         const analyzedAt = new Date().toLocaleString("ko-KR", {
           year: "numeric",
           month: "long",
@@ -102,6 +134,7 @@ const PraatDetailPage: React.FC = () => {
         setPatientInfo({
           analyzedAt,
           word,
+          isVocalExercise: isVocal,
         });
 
         setIsLoading(false);
@@ -168,10 +201,37 @@ const PraatDetailPage: React.FC = () => {
   }, [praatError, error]);
 
   // 녹음 탭 선택 핸들러
-  const handleRecordingSelect = (index: number) => {
+  const handleRecordingSelect = async (index: number) => {
     setCurrentRecordingIndex(index);
-    // TODO: 선택한 녹음에 해당하는 Praat 데이터를 다시 로드해야 할 수도 있음
-    console.log("녹음 선택:", index);
+    
+    // 발성 연습일 때만 해당 녹음의 데이터를 다시 로드
+    if (isVocalExercise && sessionIdParam) {
+      try {
+        const sessionId = Number(sessionIdParam);
+        // 선택한 녹음의 itemIndex 계산 (baseItemIndex + index)
+        const selectedItemIndex = baseItemIndex + index;
+        
+        console.log("녹음 선택:", index, "→ itemIndex:", selectedItemIndex);
+        
+        // 해당 itemIndex의 아이템 데이터 조회
+        const itemDetailData = await getSessionItemByIndex(sessionId, selectedItemIndex);
+        
+        // item_id 업데이트 (Praat API 호출에 필요)
+        if (itemDetailData.item_id) {
+          setItemId(itemDetailData.item_id);
+          console.log("✅ 선택한 녹음의 item_id 설정:", itemDetailData.item_id);
+        }
+        
+        // composited_video_url 업데이트
+        if (itemDetailData.composited_video_url) {
+          setCompositedVideoUrl(itemDetailData.composited_video_url);
+        } else {
+          setCompositedVideoUrl(null);
+        }
+      } catch (err: any) {
+        console.error("선택한 녹음 데이터 로드 실패:", err);
+      }
+    }
   };
 
   // 이전 페이지로 돌아가기
@@ -238,21 +298,30 @@ const PraatDetailPage: React.FC = () => {
         )}
 
         {/* 발성연습일 때 음형 파장 비디오 표시 */}
-        {isVocalExercise && compositedVideoUrl && (
+        {isVocalExercise && (
           <PraatSectionCard
             title="음형 파장"
             titleIconClass="w-4 h-4 bg-blue-600"
             className="w-full"
           >
             <div className="w-full">
-              <video
-                src={compositedVideoUrl}
-                controls
-                className="w-full rounded-lg"
-                style={{ maxHeight: "600px" }}
-              >
-                브라우저가 비디오 태그를 지원하지 않습니다.
-              </video>
+              {compositedVideoUrl ? (
+                <video
+                  src={compositedVideoUrl}
+                  controls
+                  className="w-full rounded-lg"
+                  style={{ maxHeight: "600px" }}
+                >
+                  브라우저가 비디오 태그를 지원하지 않습니다.
+                </video>
+              ) : (
+                <div className="w-full h-[600px] bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
+                  <div className="text-center">
+                    <div className="text-gray-400 text-lg mb-2">📹</div>
+                    <div className="text-gray-500 text-base">파형 그래프 영상을 불러오는 중...</div>
+                  </div>
+                </div>
+              )}
             </div>
           </PraatSectionCard>
         )}
