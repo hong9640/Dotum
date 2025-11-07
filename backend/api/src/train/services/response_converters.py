@@ -159,7 +159,7 @@ async def convert_session_to_response(
     gcs_service: GCSService,
     username: str
 ) -> TrainingSessionResponse:
-    """TrainingSession 모델을 TrainingSessionResponse로 변환"""
+    """TrainingSession 모델을 TrainingSessionResponse로 변환 (병렬 URL 생성 최적화)"""
     # Composited media를 일괄 조회하기 위한 object_key 리스트 생성
     composited_object_keys = [
         f"results/{username}/{session.id}/result_item_{item.id}.mp4"
@@ -177,18 +177,39 @@ async def convert_session_to_response(
         composited_medias = result.scalars().all()
         composited_media_map = {media.object_key: media for media in composited_medias}
     
-    # training_items를 비동기로 변환
-    training_items = []
+    # 🚀 성능 개선: Signed URL을 병렬로 생성
+    # 1단계: URL 생성 작업 준비
+    url_generation_tasks = []
+    items_with_media = []  # (item, composited_media) 튜플 리스트
+    
     for item in session.training_items:
-        # 미리 조회한 composited media 사용
         composited_object_key = f"results/{username}/{session.id}/result_item_{item.id}.mp4"
         composited_media = composited_media_map.get(composited_object_key)
         
-        composited_video_url = None
-        composited_media_file_id = None
+        items_with_media.append((item, composited_media))
+        
+        # Composited media가 있으면 URL 생성 태스크 추가
         if composited_media:
-            composited_media_file_id = composited_media.id
-            composited_video_url = await gcs_service.get_signed_url(composited_media.object_key, expiration_hours=24)
+            url_generation_tasks.append(
+                gcs_service.get_signed_url(composited_media.object_key, expiration_hours=24)
+            )
+        else:
+            # 없으면 None을 반환하는 더미 태스크 (순서 유지를 위해)
+            url_generation_tasks.append(asyncio.sleep(0, result=None))
+    
+    # 2단계: 모든 URL을 병렬로 생성 (핵심 최적화!)
+    # 예: 10개 아이템 → 순차: ~2초, 병렬: ~0.2초
+    composited_video_urls = await asyncio.gather(*url_generation_tasks, return_exceptions=True)
+    
+    # 3단계: 결과 조립
+    training_items = []
+    for idx, (item, composited_media) in enumerate(items_with_media):
+        # URL 생성 결과 가져오기 (예외 발생 시 None)
+        composited_video_url = composited_video_urls[idx]
+        if isinstance(composited_video_url, Exception):
+            composited_video_url = None
+        
+        composited_media_file_id = composited_media.id if composited_media else None
         
         item_response = TrainingItemResponse(
             item_id=item.id,
