@@ -94,7 +94,12 @@ const WordSetResults: React.FC = () => {
           (item) => item.is_completed
         ) ?? [];
         
-        const wordResults: WordResult[] = completedItems.map((item) => {
+        // item_index 기준으로 오름차순 정렬 (1번부터 위에서 아래로)
+        const sortedCompletedItems = [...completedItems].sort((a, b) => 
+          (a.item_index || 0) - (b.item_index || 0)
+        );
+        
+        const wordResults: WordResult[] = sortedCompletedItems.map((item) => {
           // word 또는 sentence 필드에서 텍스트 가져오기
           const text = item.word || item.sentence || '';
           

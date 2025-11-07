@@ -510,6 +510,12 @@ const PracticePage: React.FC = () => {
   const handleNextWord = async () => {
     if (!sessionIdParam || !currentItem?.has_next) return;
     
+    // 단어연습 또는 문장연습인 경우, 업로드가 완료되지 않았으면 다음 단어로 이동하지 않음
+    if ((sessionTypeParam === 'word' || sessionTypeParam === 'sentence') && !currentItem.is_completed) {
+      console.log('업로드가 완료되지 않아 다음 단어로 이동할 수 없습니다.');
+      return;
+    }
+    
     const sessionId = Number(sessionIdParam);
     if (isNaN(sessionId)) return;
     
