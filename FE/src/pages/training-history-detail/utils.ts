@@ -37,7 +37,8 @@ export const generateSampleData = (count: number, date: string): TrainingSet[] =
 export const convertSessionsToTrainingSets = (
   response: DailyRecordSearchResponse
 ): TrainingSet[] => {
-  const sessions = response.sessions;
+  // 가장 오래된 것부터 1번이 되도록 역순으로 처리
+  const sessions = [...response.sessions].reverse();
   
   // 타입별 카운터
   let wordCounter = 0;

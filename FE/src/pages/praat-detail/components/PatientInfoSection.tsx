@@ -2,7 +2,7 @@ import React from "react";
 import PraatSectionCard from "./PraatSectionCard";
 
 export type PatientInfo = {
-  analyzedAt?: string; // "2024년 1월 15일 14:30"
+  analyzedAt?: string; // "2024년 1월 15일"
   word?: string; // 훈련 단어
 };
 
