@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, ClipboardList, Languages } from 'lucide-react';
+import { BookOpen, ClipboardList, Languages, Smile } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import 도드미안경 from '@/assets/도드미_안경.png';
@@ -7,7 +7,7 @@ import { useTrainingSession } from '@/hooks/training-session';
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
-  const { createWordSession, createSentenceSession, isLoading, apiError } = useTrainingSession();
+  const { createWordSession, createSentenceSession, createVocalSession, isLoading, apiError } = useTrainingSession();
 
   const handleWordTraining = async () => {
     try {
@@ -29,9 +29,14 @@ const HomePage: React.FC = () => {
     navigate('/training-history');
   };
 
+  const handleMaxVoiceTraining = () => {
+    // 발성 훈련 페이지로 이동
+    navigate('/voice-training');
+  };
+
   return (
-    <div className="w-full min-h-screen p-[49px] flex justify-center items-center">
-      <div className="w-full max-w-7xl pt-0 sm:pt-10 pb-12 px-12 rounded-2xl flex flex-col lg:flex-row justify-center items-center sm:gap-7 gap-4 mx-1.5">
+    <div className="w-full h-full min-h-100vh p-[49px] flex justify-center items-center">
+      <div className="w-full max-w-7xl pt-0 sm:pt-12 pb-12 px-12 rounded-2xl flex flex-col lg:flex-row justify-center items-center sm:gap-7 gap-4 mx-1.5">
         {/* 에러 메시지 표시 */}
         {apiError && (
           <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50">
@@ -66,6 +71,19 @@ const HomePage: React.FC = () => {
 
         {/* 오른쪽 섹션 - 버튼들 */}
         <div className="w-full lg:w-auto flex flex-col justify-start items-center gap-3.5">
+          {/* 발성 연습 시작 버튼 */}
+          <Button
+            size="lg"
+            onClick={handleMaxVoiceTraining}
+            disabled={isLoading}
+            className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-lime-300 rounded-xl flex justify-center items-center gap-3 hover:bg-lime-400 disabled:opacity-50"
+          >
+            <Smile size={32} className="size-7 lg:size-9 text-white" strokeWidth={2.5} />
+            <span className="text-center text-white text-2xl lg:text-3xl font-semibold leading-9">
+              {isLoading ? "세션 생성 중..." : "발성 연습 시작"}
+            </span>
+          </Button>
+
           {/* 단어 연습 시작 버튼 */}
           <Button
             size="lg"
@@ -73,7 +91,8 @@ const HomePage: React.FC = () => {
             disabled={isLoading}
             className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-green-500 rounded-xl flex justify-center items-center gap-3 hover:bg-green-600 disabled:opacity-50"
           >
-            <Languages size={32} className="text-white" strokeWidth={2.5} />
+            <Languages size={32} className="size-7 lg:size-9 text-white" strokeWidth={2.5} />
+            {/* <Languages size={32} className="hidden sm:block text-white" strokeWidth={2.5} /> */}
             <span className="text-center text-white text-2xl lg:text-3xl font-semibold leading-9">
               {isLoading ? "세션 생성 중..." : "단어 연습 시작"}
             </span>
@@ -86,7 +105,7 @@ const HomePage: React.FC = () => {
             disabled={isLoading}
             className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-cyan-500 rounded-xl flex justify-center items-center gap-3 hover:bg-cyan-600 disabled:opacity-50"
           >
-            <BookOpen size={32} className="text-white" strokeWidth={2.5} />
+            <BookOpen size={32} className="size-7 lg:size-9 text-white" strokeWidth={2.5} />
             <span className="text-center text-white text-2xl lg:text-3xl font-semibold leading-9">
               {isLoading ? "세션 생성 중..." : "문장 연습 시작"}
             </span>
@@ -99,7 +118,7 @@ const HomePage: React.FC = () => {
             onClick={handleTrainingHistory}
             className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-white rounded-xl outline outline-2 outline-slate-200 flex justify-center items-center gap-3 hover:bg-gray-100"
           >
-            <ClipboardList size={32} className="text-slate-800" strokeWidth={2.5} />
+            <ClipboardList size={32} className="size-7 lg:size-9 text-slate-800" strokeWidth={2.5} />
             <span className="text-center text-slate-800 text-2xl lg:text-3xl font-semibold leading-9">
               훈련 기록
             </span>

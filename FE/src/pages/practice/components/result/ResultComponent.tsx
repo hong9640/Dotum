@@ -5,6 +5,7 @@ import FeedbackCard from "./FeedbackCard";
 import ActionButtons from "./ActionButtons";
 import { usePracticeStore } from "@/stores/practiceStore";
 import { getTrainingSession, completeTrainingSession, type CreateTrainingSessionResponse } from "@/api/training-session";
+import type { PraatMetrics } from "@/api/training-session/praat";
 
 interface ResultComponentProps {
   userVideoUrl?: string;
@@ -15,6 +16,8 @@ interface ResultComponentProps {
   hasNext?: boolean;
   onBack?: () => void; // result-detail 페이지용 돌아가기 핸들러
   onRetake?: () => void; // 다시 녹화 핸들러
+  praatData?: PraatMetrics | null;
+  praatLoading?: boolean;
 }
 
 const ResultComponent: React.FC<ResultComponentProps> = ({
@@ -26,6 +29,8 @@ const ResultComponent: React.FC<ResultComponentProps> = ({
   hasNext,
   onBack,
   onRetake,
+  praatData,
+  praatLoading = false,
 }) => {
   const navigate = useNavigate();
   const { sessionId } = usePracticeStore();
@@ -116,13 +121,22 @@ const ResultComponent: React.FC<ResultComponentProps> = ({
 
   return (
     <>
-      <ResultVideoDisplay 
+      {/* result-detail 페이지에서는 동영상 부분 주석처리 */}
+      {!onBack && (
+        <ResultVideoDisplay 
+          userVideoUrl={userVideoUrl}
+          compositedVideoUrl={compositedVideoUrl}
+          isLoadingCompositedVideo={isLoadingCompositedVideo}
+          compositedVideoError={compositedVideoError}
+        />
+      )}
+      {/* <ResultVideoDisplay 
         userVideoUrl={userVideoUrl}
         compositedVideoUrl={compositedVideoUrl}
         isLoadingCompositedVideo={isLoadingCompositedVideo}
         compositedVideoError={compositedVideoError}
-      />
-      <FeedbackCard />
+      /> */}
+      <FeedbackCard hideSections={!!onBack} praatData={praatData} praatLoading={praatLoading} />
       <ActionButtons
         onRetake={onBack ? undefined : handleRetake}
         onViewAllResults={onBack ? undefined : handleViewAllResults}

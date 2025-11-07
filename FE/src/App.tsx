@@ -8,7 +8,14 @@ import LoginPage from '@/pages/login';
 import SignupPage from '@/pages/signup';
 import WordSetResults from '@/pages/result-list';
 import ResultDetailPage from '@/pages/result-detail';
+import PraatDetailPage from '@/pages/praat-detail';
 import TrainingHistoryPage from '@/pages/training-history';
+import VoiceTrainingIntro from '@/pages/voice-training';
+import MPTPage from '@/pages/voice-training/mpt';
+import CrescendoPage from '@/pages/voice-training/crescendo';
+import DecrescendoPage from '@/pages/voice-training/decrescendo';
+import LoudSoftPage from '@/pages/voice-training/loud-soft';
+import SoftLoudPage from '@/pages/voice-training/soft-loud';
 import { clearAuthCookies } from '@/lib/cookies';
 import { checkAuthStatus } from '@/api/user';
 import { Logout } from '@/api/logout/Logout';
@@ -42,9 +49,9 @@ const AppContent: React.FC<{
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="flex flex-col min-h-screen bg-white">
       <NavigationBar isLoggedIn={isLoggedIn} onLogout={onLogoutClick} />
-      <main>
+      <main className="flex-1">
         <Routes>
           {/* 공개 페이지 */}
           <Route path="/" element={<HomePage />} />
@@ -75,10 +82,68 @@ const AppContent: React.FC<{
             } 
           />
           <Route 
+            path="/praat-detail" 
+            element={
+              <ProtectedRoute isLoggedIn={isLoggedIn} requireAuth={true}>
+                <PraatDetailPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
             path="/training-history" 
             element={
               <ProtectedRoute isLoggedIn={isLoggedIn} requireAuth={true}>
                 <TrainingHistoryPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* 발성 연습 페이지 */}
+          <Route 
+            path="/voice-training" 
+            element={
+              <ProtectedRoute isLoggedIn={isLoggedIn} requireAuth={true}>
+                <VoiceTrainingIntro />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/voice-training/mpt" 
+            element={
+              <ProtectedRoute isLoggedIn={isLoggedIn} requireAuth={true}>
+                <MPTPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/voice-training/crescendo" 
+            element={
+              <ProtectedRoute isLoggedIn={isLoggedIn} requireAuth={true}>
+                <CrescendoPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/voice-training/decrescendo" 
+            element={
+              <ProtectedRoute isLoggedIn={isLoggedIn} requireAuth={true}>
+                <DecrescendoPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/voice-training/loud-soft" 
+            element={
+              <ProtectedRoute isLoggedIn={isLoggedIn} requireAuth={true}>
+                <LoudSoftPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/voice-training/soft-loud" 
+            element={
+              <ProtectedRoute isLoggedIn={isLoggedIn} requireAuth={true}>
+                <SoftLoudPage />
               </ProtectedRoute>
             } 
           />
@@ -108,6 +173,7 @@ const AppContent: React.FC<{
 
 const App: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
 
   const handleLogin = () => {
     setIsLoggedIn(true);
@@ -127,10 +193,25 @@ const App: React.FC = () => {
     const verifyAuth = async () => {
       const authenticated = await checkAuthStatus();
       setIsLoggedIn(authenticated);
+      setIsAuthChecking(false);
     };
     
     verifyAuth();
   }, []);
+
+  // 인증 확인 중에는 빈 화면 또는 로딩 표시
+  if (isAuthChecking) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-white">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
+            <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">로딩중...</span>
+          </div>
+          <p className="mt-4 text-slate-600">로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Router>

@@ -15,7 +15,21 @@ const ResultHeader: React.FC<ResultHeaderProps> = ({ type, date, onBack, title }
   const [searchParams] = useSearchParams();
   
   // title이 제공되면 title을 사용하고, 없으면 type 기반으로 제목 생성
-  const headerTitle = title || `${type === 'word' ? '단어' : '문장'} 훈련 결과`;
+  // API에서 대문자로 오는 경우를 대비해 소문자로 변환하여 비교
+  const typeLower = (type || '').toLowerCase();
+  let headerTitle: string;
+  
+  if (title) {
+    headerTitle = title;
+  } else if (typeLower === 'word') {
+    headerTitle = '단어 연습 결과';
+  } else if (typeLower === 'sentence') {
+    headerTitle = '문장 연습 결과';
+  } else if (typeLower === 'vocal') {
+    headerTitle = '발성 연습 결과';
+  } else {
+    headerTitle = '훈련 결과';
+  }
   
   // 버튼 텍스트 결정: URL에 date 파라미터가 있거나 result-detail 페이지이면 "돌아가기", 아니면 "홈으로"
   const dateParam = searchParams.get('date');

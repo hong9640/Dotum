@@ -43,7 +43,11 @@ export function TrainingSetCard({ trainingSet, onClick }: TrainingSetCardProps) 
             <div className="flex flex-wrap gap-2">
               {trainingSet.words.length > 0 ? (
                 trainingSet.words.map((word, index) => (
-                  <WordChip key={`${word}-${index}`} word={word} />
+                  <WordChip 
+                    key={`${word}-${index}`} 
+                    word={word} 
+                    isSentence={trainingSet.type === 'sentence'}
+                  />
                 ))
               ) : (
                 <span className="text-sm text-gray-500">표시할 항목이 없습니다.</span>

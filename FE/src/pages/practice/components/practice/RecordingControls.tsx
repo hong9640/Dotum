@@ -1,7 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Square, RotateCcw, Upload } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+// import { useNavigate } from "react-router-dom";
 
 interface RecordingControlsProps {
   recordingState: "idle" | "recording" | "processing" | "error";
@@ -20,18 +20,18 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   onStartRecording,
   onStopRecording,
   onRetake,
-  onViewResults,
+  // onViewResults,
   onUpload,
   isUploading = false,
 }) => {
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
 
-  const handleViewResults = () => {
-    if (onViewResults) {
-      onViewResults();
-    }
-    navigate('/result');
-  };
+  // const handleViewResults = () => {
+  //   if (onViewResults) {
+  //     onViewResults();
+  //   }
+  //   navigate('/result');
+  // };
   return (
     <div className="flex justify-center gap-3 sm:gap-4">
       {recordingState === "idle" && !blobUrl && (
@@ -69,16 +69,16 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
               {isUploading ? "업로드 중..." : "영상 업로드"}
             </Button>
           )}
-          {onViewResults && (
+          {/* {onViewResults && (
             <Button 
               size="lg" 
               variant="outline" 
               className="px-8 py-6 text-xl flex items-center gap-3" 
-              onClick={handleViewResults}
+              // onClick={handleViewResults}
             >
               결과 보기
             </Button>
-          )}
+          )} */}
         </div>
       )}
     </div>
