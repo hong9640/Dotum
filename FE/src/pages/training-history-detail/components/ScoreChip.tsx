@@ -1,4 +1,4 @@
-import { getScoreLevel, scoreColorClasses } from '../types';
+import { scoreColorClasses } from '../types';
 
 interface ScoreChipProps {
   score: number | null; // null은 진행중 상태

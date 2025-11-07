@@ -42,14 +42,25 @@ export const convertSessionsToTrainingSets = (
   // 타입별 카운터
   let wordCounter = 0;
   let sentenceCounter = 0;
+  let vocalCounter = 0;
   
   return sessions.map((session) => {
     // 타입에 따라 카운터 증가 및 제목 생성
+    // API에서 대문자로 오는 경우를 대비해 소문자로 변환하여 비교
+    const sessionType = (session.type || '').toLowerCase();
     let title: string;
-    if (session.type === 'word') {
+    
+    if (sessionType === 'word') {
       wordCounter++;
       title = `단어 세트 ${wordCounter}`;
+    } else if (sessionType === 'sentence') {
+      sentenceCounter++;
+      title = `문장 세트 ${sentenceCounter}`;
+    } else if (sessionType === 'vocal') {
+      vocalCounter++;
+      title = `발성 연습 ${vocalCounter}`;
     } else {
+      // 알 수 없는 타입의 경우 기본값
       sentenceCounter++;
       title = `문장 세트 ${sentenceCounter}`;
     }
@@ -76,29 +87,14 @@ export const convertSessionsToTrainingSets = (
       ? (session.average_score ?? 50) // average_score가 있으면 사용, 없으면 임시로 50점
       : null;
     
-    // title 생성: 단어인 경우 첫 번째 단어, 문장인 경우 첫 번째 단어 + "..."
-    let displayTitle: string;
-    if (words.length > 0) {
-      if (session.type === 'word') {
-        displayTitle = words[0];
-      } else {
-        // 문장인 경우: 첫 번째 단어와 "..."
-        const firstWord = words[0].split(' ')[0]; // 첫 번째 단어 추출
-        displayTitle = `${firstWord}...`;
-      }
-    } else {
-      // words가 없으면 기존 title 사용
-      displayTitle = title;
-    }
-    
     return {
       id: String(session.session_id),
-      title: displayTitle,
+      title: title,
       score,
       words: words,
       completedAt: session.completed_at,
       sessionId: session.session_id,
-      type: session.type,
+      type: (sessionType === 'vocal' ? 'sentence' : sessionType) as 'word' | 'sentence', // vocal은 sentence로 매핑
       status: session.status,
       totalItems: session.total_items,
       completedItems: session.completed_items,

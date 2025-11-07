@@ -85,8 +85,9 @@ const WordSetResults: React.FC = () => {
         
         console.log('세션 상세 조회 성공:', sessionDetailData);
         
-        // 세션 타입 설정
-        setSessionType(sessionDetailData.type);
+        // 세션 타입 설정 (대문자로 올 수 있으므로 소문자로 변환)
+        const sessionTypeLower = (sessionDetailData.type || '').toLowerCase();
+        setSessionType(sessionTypeLower as 'word' | 'sentence' | 'vocal');
         
         // 날짜 포맷팅
         const formatted = formatDate(sessionDetailData.training_date);
