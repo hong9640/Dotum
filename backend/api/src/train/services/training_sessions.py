@@ -14,6 +14,7 @@ from ..repositories.training_sessions import TrainingSessionRepository
 from ..repositories.training_items import TrainingItemRepository
 from ..repositories.media import MediaRepository
 from ..repositories.praat import PraatRepository
+from ..repositories.session_praat import SessionPraatResultRepository
 from ..schemas.training_sessions import (
     TrainingSessionCreate,
     TrainingSessionUpdate,
@@ -43,6 +44,7 @@ class TrainingSessionService:
         self.item_repo = TrainingItemRepository(db)
         self.media_repo = MediaRepository(db)
         self.praat_repo = PraatRepository(db)
+        self.session_praat_repo = SessionPraatResultRepository(db)
     
     async def create_training_session(
         self, 
@@ -1202,4 +1204,140 @@ class TrainingSessionService:
             "image_url": image_url,
             "video_image_url": video_url,  # graph_video URL (video_url과 동일)
             "has_next": has_next
+        }
+    
+    async def get_vocal_results_summary(
+        self,
+        session_id: int,
+        user_id: int
+    ) -> Optional[Dict[str, Any]]:
+        """VOCAL 타입 세션의 평균 Praat 결과 조회
+        
+        평균 계산 규칙:
+        - n = total_items / 5 (프론트에서 "아~" 발음 반복 횟수)
+        - jitter, shimmer: 처음 n개 아이템 (index 0 ~ n-1)의 평균
+        - 나머지 지표: 전체 아이템의 평균
+        
+        예시: total_items=15면 n=3
+        - jitter, shimmer: 아이템 0, 1, 2의 평균
+        - 나머지: 전체 15개의 평균
+        
+        Returns:
+            세션 정보와 평균 Praat 결과를 포함한 딕셔너리
+        """
+        # 세션 조회 및 소유권 확인
+        session = await self.get_training_session(session_id, user_id)
+        if not session:
+            return None
+        
+        # VOCAL 타입 확인
+        if session.type != TrainingType.VOCAL:
+            raise ValueError("이 API는 VOCAL 타입 세션에서만 사용할 수 있습니다.")
+        
+        # 아이템별 Praat 결과 조회하여 직접 평균 계산
+        items_with_praat = await self.session_praat_repo.get_session_items_with_praat(session_id)
+        
+        # Praat 데이터가 있는 아이템만 필터링
+        praat_list = [(item, praat) for item, praat in items_with_praat if praat is not None]
+        
+        # 실제 아이템 수 기준으로 n 계산 (total_items가 아닌 실제 제출된 아이템 수)
+        actual_items_count = len(praat_list)
+        
+        if actual_items_count == 0:
+            raise ValueError("Praat 데이터가 있는 아이템이 없습니다.")
+        
+        if actual_items_count % 5 != 0:
+            raise ValueError(f"제출된 아이템 수({actual_items_count})가 5의 배수가 아닙니다.")
+        
+        n = actual_items_count // 5
+        
+        # 평균 계산 헬퍼 함수
+        def calc_avg(values: List[Optional[float]]) -> Optional[float]:
+            """None이 아닌 값들의 평균 계산"""
+            valid_values = [v for v in values if v is not None]
+            if not valid_values:
+                return None
+            return sum(valid_values) / len(valid_values)
+        
+        # jitter, shimmer: 처음 n개 아이템 (index 0 ~ n-1)의 평균
+        first_n_items = [praat for item, praat in praat_list if item.item_index < n]
+        avg_jitter_local = calc_avg([p.jitter_local for p in first_n_items])
+        avg_shimmer_local = calc_avg([p.shimmer_local for p in first_n_items])
+        
+        # 나머지: 전체 아이템의 평균
+        all_items = [praat for _, praat in praat_list]
+        avg_nhr = calc_avg([p.nhr for p in all_items])
+        avg_hnr = calc_avg([p.hnr for p in all_items])
+        avg_lh_ratio_mean_db = calc_avg([p.lh_ratio_mean_db for p in all_items])
+        avg_lh_ratio_sd_db = calc_avg([p.lh_ratio_sd_db for p in all_items])
+        avg_max_f0 = calc_avg([p.max_f0 for p in all_items])
+        avg_min_f0 = calc_avg([p.min_f0 for p in all_items])
+        avg_intensity_mean = calc_avg([p.intensity_mean for p in all_items])
+        avg_f0 = calc_avg([p.f0 for p in all_items])
+        avg_f1 = calc_avg([p.f1 for p in all_items])
+        avg_f2 = calc_avg([p.f2 for p in all_items])
+        
+        # 결과 객체 생성
+        from ..models.session_praat_result import SessionPraatResult
+        avg_result = SessionPraatResult(
+            training_session_id=session_id,
+            avg_jitter_local=avg_jitter_local,
+            avg_shimmer_local=avg_shimmer_local,
+            avg_nhr=avg_nhr,
+            avg_hnr=avg_hnr,
+            avg_lh_ratio_mean_db=avg_lh_ratio_mean_db,
+            avg_lh_ratio_sd_db=avg_lh_ratio_sd_db,
+            avg_max_f0=avg_max_f0,
+            avg_min_f0=avg_min_f0,
+            avg_intensity_mean=avg_intensity_mean,
+            avg_f0=avg_f0,
+            avg_f1=avg_f1,
+            avg_f2=avg_f2
+        )
+        
+        return {
+            "session_id": session.id,
+            "session_name": session.session_name,
+            "total_items": session.total_items,
+            "completed_items": session.completed_items,
+            "average_results": avg_result
+        }
+    
+    async def get_vocal_results_detail(
+        self,
+        session_id: int,
+        user_id: int
+    ) -> Optional[Dict[str, Any]]:
+        """VOCAL 타입 세션의 아이템별 상세 Praat 결과 조회
+        
+        Returns:
+            세션 정보와 각 아이템별 Praat 결과를 포함한 딕셔너리
+        """
+        # 세션 조회 및 소유권 확인
+        session = await self.get_training_session(session_id, user_id)
+        if not session:
+            return None
+        
+        # VOCAL 타입 확인
+        if session.type != TrainingType.VOCAL:
+            raise ValueError("이 API는 VOCAL 타입 세션에서만 사용할 수 있습니다.")
+        
+        # 아이템별 Praat 결과 조회
+        items_with_praat = await self.session_praat_repo.get_session_items_with_praat(session_id)
+        
+        # 응답 형식으로 변환
+        items_detail = []
+        for item, praat_feature in items_with_praat:
+            items_detail.append({
+                "item_index": item.item_index,
+                "item_id": item.id,
+                "praat_features": praat_feature
+            })
+        
+        return {
+            "session_id": session.id,
+            "session_name": session.session_name,
+            "total_items": session.total_items,
+            "completed_items": session.completed_items,
+            "items": items_detail
         }
