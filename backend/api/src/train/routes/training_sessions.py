@@ -2,6 +2,7 @@ from fastapi import Response, APIRouter, Depends, HTTPException, status, Query, 
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Dict
 from datetime import date
+import asyncio
 
 from ..schemas.training_sessions import (
     TrainingSessionCreate,
@@ -96,7 +97,7 @@ async def get_user_training_sessions(
     service: TrainingSessionService = Depends(get_training_service),
     gcs_service: GCSService = Depends(provide_gcs_service)
 ):
-    """사용자의 훈련 세션 목록 조회"""
+    """사용자의 훈련 세션 목록 조회 (병렬 변환 최적화)"""
     sessions = await service.get_user_training_sessions(
         user_id=current_user.id,
         type=type,
@@ -104,11 +105,17 @@ async def get_user_training_sessions(
         limit=limit,
         offset=offset
     )
-    # DB 모델을 Response 스키마로 명시적으로 변환
-    result = []
-    for session in sessions:
-        response = await convert_session_to_response(session, service.db, gcs_service, current_user.username)
-        result.append(response)
+    
+    # 🚀 성능 개선: 여러 세션을 병렬로 변환
+    # 예: 10개 세션 → 순차: ~5초, 병렬: ~0.5초
+    if not sessions:
+        return []
+    
+    conversion_tasks = [
+        convert_session_to_response(session, service.db, gcs_service, current_user.username)
+        for session in sessions
+    ]
+    result = await asyncio.gather(*conversion_tasks)
     return result
 
 
@@ -251,7 +258,7 @@ async def get_daily_training_records(
     service: TrainingSessionService = Depends(get_training_service),
     gcs_service: GCSService = Depends(provide_gcs_service)
 ):
-    """특정 날짜의 훈련 기록 조회"""
+    """특정 날짜의 훈련 기록 조회 (병렬 변환 최적화)"""
     try:
         training_date = date.fromisoformat(date_str)
         sessions = await service.get_training_sessions_by_date(
@@ -259,10 +266,17 @@ async def get_daily_training_records(
             training_date, 
             type
         )
-        converted_sessions = []
-        for session in sessions:
-            response = await convert_session_to_response(session, service.db, gcs_service, current_user.username)
-            converted_sessions.append(response)
+        
+        # 🚀 성능 개선: 여러 세션을 병렬로 변환
+        if not sessions:
+            converted_sessions = []
+        else:
+            conversion_tasks = [
+                convert_session_to_response(session, service.db, gcs_service, current_user.username)
+                for session in sessions
+            ]
+            converted_sessions = await asyncio.gather(*conversion_tasks)
+        
         return DailyTrainingResponse(
             date=date_str, 
             sessions=converted_sessions,

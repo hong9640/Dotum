@@ -206,6 +206,43 @@ class GCSService:
             print(f"서명된 URL 생성 오류: {e}")
             return None
     
+    async def get_signed_urls_batch(
+        self, 
+        object_paths: list[str], 
+        expiration_hours: int = 1
+    ) -> dict[str, Optional[str]]:
+        """
+        여러 객체에 대한 서명된 URL을 일괄 생성 (병렬 처리)
+        
+        Args:
+            object_paths: GCS 객체 경로 리스트
+            expiration_hours: 만료 시간 (시간)
+            
+        Returns:
+            dict: {object_path: signed_url} 매핑 (실패 시 None)
+        """
+        import asyncio
+        
+        async def get_url_safe(path: str) -> tuple[str, Optional[str]]:
+            """개별 URL 생성을 안전하게 수행"""
+            url = await self.get_signed_url(path, expiration_hours)
+            return (path, url)
+        
+        # 모든 URL 생성을 병렬로 실행
+        tasks = [get_url_safe(path) for path in object_paths]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # 결과를 딕셔너리로 변환
+        url_map = {}
+        for result in results:
+            if isinstance(result, Exception):
+                print(f"배치 URL 생성 오류: {result}")
+                continue
+            path, url = result
+            url_map[path] = url
+        
+        return url_map
+    
     async def list_user_videos(
         self, 
         username: str, 
