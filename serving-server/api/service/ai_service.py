@@ -202,8 +202,6 @@ class AIService:
                     "--wav2lip_batch_size", batch_size,
                     "--face_det_batch_size", face_det_batch,
                     "--resize_factor", "2",  # GPU에서는 품질 향상 (960x540)
-                    "--nosmooth",  # Face detection smoothing 비활성화 (속도 향상)
-                    "--box", "-1", "-1", "-1", "-1",  # Static Face Detection (최대 성능 향상!)
                 ]
                 
                 logger.info(f"Running Wav2Lip inference: {' '.join(cmd)}")
