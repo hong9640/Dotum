@@ -28,14 +28,14 @@ const PraatMetricsSections: React.FC<PraatMetricsSectionsProps> = ({
             value={values.cpp}
             unit="dB"
             normalText="0"
-            status={statusBadgeByRule("gt", nz(values.cpp), 15)}
+            status={statusBadgeByRule("gt", nz(values.cpp), 15, undefined, "0")}
             className="flex-1"
           />
           <PraatMetricTile
             title="CSID (Cepstral Spectral Index)"
             value={values.csid}
             normalText="0"
-            status={statusBadgeByRule("lt", nz(values.csid), 3.0)}
+            status={statusBadgeByRule("lt", nz(values.csid), 3.0, undefined, "0")}
             className="flex-1"
           />
         </div>
@@ -55,14 +55,14 @@ const PraatMetricsSections: React.FC<PraatMetricsSectionsProps> = ({
               value={values.hnr}
               unit="dB"
               normalText="0"
-              status={statusBadgeByRule("gt", nz(values.hnr), 15)}
+              status={statusBadgeByRule("gt", nz(values.hnr), 15, undefined, "0")}
               className="flex-1"
             />
             <PraatMetricTile
               title="NHR (Noise-to-Harmonics Ratio)"
               value={values.nhr}
               normalText="0"
-              status={statusBadgeByRule("lt", nz(values.nhr), 0.05)}
+              status={statusBadgeByRule("lt", nz(values.nhr), 0.05, undefined, "0")}
               className="flex-1"
             />
           </div>
@@ -77,7 +77,8 @@ const PraatMetricsSections: React.FC<PraatMetricsSectionsProps> = ({
                 "between",
                 nz(values.lh_ratio_mean_db),
                 -15,
-                -8
+                -8,
+                "0"
               )}
               className="flex-1"
             />
@@ -86,7 +87,7 @@ const PraatMetricsSections: React.FC<PraatMetricsSectionsProps> = ({
               value={values.lh_ratio_sd_db}
               unit="dB"
               normalText="0"
-              status={statusBadgeByRule("lt", nz(values.lh_ratio_sd_db), 3.0)}
+              status={statusBadgeByRule("lt", nz(values.lh_ratio_sd_db), 3.0, undefined, "0")}
               className="flex-1"
             />
             <PraatMetricTile
@@ -98,7 +99,8 @@ const PraatMetricsSections: React.FC<PraatMetricsSectionsProps> = ({
                 "between",
                 nz(values.intensity),
                 60,
-                80
+                80,
+                "0"
               )}
               className="flex-1"
             />
@@ -118,7 +120,7 @@ const PraatMetricsSections: React.FC<PraatMetricsSectionsProps> = ({
             value={values.jitter_local}
             unit="%"
             normalText="0"
-            status={statusBadgeByRule("lt", nz(values.jitter_local), 0.02)}
+            status={statusBadgeByRule("lt", nz(values.jitter_local), 0.02, undefined, "0")}
             className="flex-1"
           />
           <PraatMetricTile
@@ -126,7 +128,7 @@ const PraatMetricsSections: React.FC<PraatMetricsSectionsProps> = ({
             value={values.shimmer_local}
             unit="%"
             normalText="0"
-            status={statusBadgeByRule("lt", nz(values.shimmer_local), 0.04)}
+            status={statusBadgeByRule("lt", nz(values.shimmer_local), 0.04, undefined, "0")}
             className="flex-1"
           />
         </div>
@@ -144,7 +146,7 @@ const PraatMetricsSections: React.FC<PraatMetricsSectionsProps> = ({
             value={values.f0}
             unit="Hz"
             normalText="0"
-            status={statusBadgeByRule("between", nz(values.f0), 150, 250)}
+            status={statusBadgeByRule("between", nz(values.f0), 150, 250, "0")}
             className="w-full sm:w-[calc(33.333%-0.67rem)] lg:w-80"
           />
           <PraatMetricTile
@@ -156,7 +158,8 @@ const PraatMetricsSections: React.FC<PraatMetricsSectionsProps> = ({
               "between",
               nz(values.max_f0),
               180,
-              300
+              300,
+              "0"
             )}
             className="w-full sm:w-[calc(33.333%-0.67rem)] lg:w-80"
           />
@@ -169,7 +172,8 @@ const PraatMetricsSections: React.FC<PraatMetricsSectionsProps> = ({
               "between",
               nz(values.min_f0),
               120,
-              200
+              200,
+              "0"
             )}
             className="w-full sm:w-[calc(33.333%-0.67rem)] lg:w-80"
           />
@@ -188,7 +192,7 @@ const PraatMetricsSections: React.FC<PraatMetricsSectionsProps> = ({
             value={values.f1}
             unit="Hz"
             normalText="0"
-            status={statusBadgeByRule("between", nz(values.f1), 600, 900)}
+            status={statusBadgeByRule("between", nz(values.f1), 600, 900, "0")}
             className="flex-1"
           />
           <PraatMetricTile
@@ -200,7 +204,8 @@ const PraatMetricsSections: React.FC<PraatMetricsSectionsProps> = ({
               "between",
               nz(values.f2),
               1000,
-              1500
+              1500,
+              "0"
             )}
             className="flex-1"
           />

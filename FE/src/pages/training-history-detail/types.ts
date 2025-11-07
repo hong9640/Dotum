@@ -3,7 +3,7 @@ export interface TrainingSet {
   id: string;
   title: string;
   score: number | null; // null은 진행중 상태
-  words: string[]; // word_id 또는 sentence_id를 문자열로 저장 (임시)
+  words: string[]; // 실제 단어/문장 텍스트 배열
   completedAt: string | null; // ISO date string, null은 진행중
   sessionId: number; // API의 session_id
   type: 'word' | 'sentence';

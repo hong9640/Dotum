@@ -4,7 +4,10 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
 import PatientInfoSection, { type PatientInfo } from "./components/PatientInfoSection";
 import PraatMetricsSections from "./components/PraatMetricsSections";
+import RecordingTabs from "./components/RecordingTabs";
+import PraatSectionCard from "./components/PraatSectionCard";
 import { getSessionItemByIndex, getSessionItemErrorMessage } from "@/api/training-session/sessionItemSearch";
+import { getTrainingSession } from "@/api/training-session";
 import { usePraat } from "@/hooks/usePraat";
 import { getPraatErrorMessage } from "@/api/training-session/praat";
 import type { PraatValues } from "./types";
@@ -20,6 +23,10 @@ const PraatDetailPage: React.FC = () => {
   const [patientInfo, setPatientInfo] = useState<PatientInfo | null>(null);
   const [itemId, setItemId] = useState<number | undefined>(undefined);
   const [praatValues, setPraatValues] = useState<PraatValues>({});
+  const [isVocalExercise, setIsVocalExercise] = useState(false);
+  const [recordingCount, setRecordingCount] = useState(0);
+  const [currentRecordingIndex, setCurrentRecordingIndex] = useState(0);
+  const [compositedVideoUrl, setCompositedVideoUrl] = useState<string | null>(null);
 
   // URL 파라미터에서 세션 정보 가져오기
   const sessionIdParam = searchParams.get("sessionId");
@@ -51,11 +58,25 @@ const PraatDetailPage: React.FC = () => {
 
         console.log("Praat 상세 데이터 로드 시작:", { sessionId, itemIndex });
 
-        // 세션 아이템 상세 조회 API 호출
-        const itemDetailData = await getSessionItemByIndex(sessionId, itemIndex);
+        // 세션 상세 정보와 아이템 상세 정보를 병렬로 조회
+        const [sessionData, itemDetailData] = await Promise.all([
+          getTrainingSession(sessionId),
+          getSessionItemByIndex(sessionId, itemIndex),
+        ]);
 
-        console.log("Praat 상세 데이터 로드 성공:", itemDetailData);
+        console.log("Praat 상세 데이터 로드 성공:", { sessionData, itemDetailData });
         console.log("item_id:", itemDetailData.item_id);
+
+        // 발성연습 여부 확인 (type이 'vocal'인 경우)
+        const isVocal = (sessionData.type as string) === 'vocal';
+        setIsVocalExercise(isVocal);
+
+        // 발성연습일 때 녹음 횟수 계산 (total_items / 5)
+        if (isVocal && sessionData.total_items) {
+          const count = Math.floor(sessionData.total_items / 5);
+          setRecordingCount(count);
+          console.log("발성연습 녹음 횟수:", count, "(total_items:", sessionData.total_items, ")");
+        }
 
         // item_id 저장 (Praat API 호출에 필요)
         if (itemDetailData.item_id) {
@@ -63,6 +84,11 @@ const PraatDetailPage: React.FC = () => {
           console.log("✅ item_id 설정 완료:", itemDetailData.item_id);
         } else {
           console.error("❌ item_id가 없습니다!");
+        }
+
+        // composited_video_url 설정 (발성연습일 때 사용)
+        if (isVocal && itemDetailData.composited_video_url) {
+          setCompositedVideoUrl(itemDetailData.composited_video_url);
         }
 
         // 환자 정보 설정
@@ -143,6 +169,13 @@ const PraatDetailPage: React.FC = () => {
     }
   }, [praatError, error]);
 
+  // 녹음 탭 선택 핸들러
+  const handleRecordingSelect = (index: number) => {
+    setCurrentRecordingIndex(index);
+    // TODO: 선택한 녹음에 해당하는 Praat 데이터를 다시 로드해야 할 수도 있음
+    console.log("녹음 선택:", index);
+  };
+
   // 이전 페이지로 돌아가기
   const handleBack = () => {
     if (sessionIdParam && typeParam) {
@@ -196,6 +229,35 @@ const PraatDetailPage: React.FC = () => {
       <div className="p-4 md:p-8 flex flex-col justify-start items-center gap-8 w-full max-w-[1152px] mx-auto">
         {/* 환자 정보 */}
         {patientInfo && <PatientInfoSection info={patientInfo} />}
+
+        {/* 발성연습일 때만 녹음 횟수 탭 표시 */}
+        {isVocalExercise && recordingCount > 0 && (
+          <RecordingTabs
+            totalRecordings={recordingCount}
+            currentRecordingIndex={currentRecordingIndex}
+            onRecordingSelect={handleRecordingSelect}
+          />
+        )}
+
+        {/* 발성연습일 때 음형 파장 비디오 표시 */}
+        {isVocalExercise && compositedVideoUrl && (
+          <PraatSectionCard
+            title="음형 파장"
+            titleIconClass="w-4 h-4 bg-blue-600"
+            className="w-full"
+          >
+            <div className="w-full">
+              <video
+                src={compositedVideoUrl}
+                controls
+                className="w-full rounded-lg"
+                style={{ maxHeight: "600px" }}
+              >
+                브라우저가 비디오 태그를 지원하지 않습니다.
+              </video>
+            </div>
+          </PraatSectionCard>
+        )}
 
         {/* Praat 지표 섹션들 */}
         <PraatMetricsSections values={praatValues} />
