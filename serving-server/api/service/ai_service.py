@@ -168,7 +168,7 @@ class AIService:
                 shutil.copy2(face_video_path, face_local)
                 
                 # 모델 경로
-                model_local = os.path.join(settings.LOCAL_WAV2LIP_PATH, "checkpoints", "Wav2Lip_v1.pth")
+                model_local = os.path.join(settings.LOCAL_WAV2LIP_PATH, "checkpoints", "Wav2Lip_gan.pth")
                 if not os.path.exists(model_local):
                     logger.error(f"Wav2Lip model not found: {model_local}")
                     return None

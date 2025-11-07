@@ -31,7 +31,7 @@ async def health_check():
     """헬스 체크 엔드포인트"""
     try:
         # Wav2Lip 모델 파일 존재 확인
-        wav2lip_model_path = os.path.join(settings.LOCAL_WAV2LIP_PATH, "checkpoints", "Wav2Lip_v1.pth")
+        wav2lip_model_path = os.path.join(settings.LOCAL_WAV2LIP_PATH, "checkpoints", "Wav2Lip_gan.pth")
         wav2lip_model_exists = os.path.exists(wav2lip_model_path)
         
         log_success("Health check completed", wav2lip_model=wav2lip_model_exists)
