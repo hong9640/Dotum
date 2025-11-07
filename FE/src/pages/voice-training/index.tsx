@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Volume2, TrendingUp, TrendingDown, Zap, Activity } from 'lucide-react';
+import { Volume2, TrendingUp, TrendingDown, Zap, Activity, ArrowRight } from 'lucide-react';
 
 const VoiceTrainingIntro: React.FC = () => {
   const navigate = useNavigate();
@@ -107,7 +107,6 @@ const VoiceTrainingIntro: React.FC = () => {
                   <p className="text-base sm:text-lg font-semibold">📌 훈련 방법</p>
                   <ul className="space-y-1 text-sm sm:text-base ml-4">
                     <li>• 각 훈련마다 3회씩 녹음할 수 있습니다</li>
-                    <li>• 안내 듣기 버튼을 누르면 음성 안내를 들을 수 있습니다</li>
                     <li>• 녹음 버튼을 눌러 발성을 녹음해보세요</li>
                     <li>• 재녹음을 원하시면 다시 녹음할 수 있습니다</li>
                   </ul>
@@ -120,20 +119,12 @@ const VoiceTrainingIntro: React.FC = () => {
               <Button
                 size="lg"
                 onClick={handleStart}
-                className="w-full sm:w-auto min-w-[280px] h-16 bg-blue-500 hover:bg-blue-600 text-white text-2xl font-semibold rounded-xl"
+                className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-green-500 rounded-xl flex justify-center items-center gap-3 hover:bg-green-600"
               >
-                시작하기
-              </Button>
-            </div>
-
-            {/* 뒤로가기 버튼 */}
-            <div className="flex justify-center pt-2">
-              <Button
-                variant="outline"
-                onClick={() => navigate('/')}
-                className="text-slate-600 hover:text-slate-800"
-              >
-                홈으로 돌아가기
+                <span className="text-center text-white text-2xl lg:text-3xl font-semibold leading-9">
+                  시작하기
+                </span>
+                <ArrowRight className="size-7 lg:size-9 text-white" strokeWidth={2.5} />
               </Button>
             </div>
           </CardContent>

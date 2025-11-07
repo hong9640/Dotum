@@ -3,7 +3,8 @@ import PraatSectionCard from "./PraatSectionCard";
 
 export type PatientInfo = {
   analyzedAt?: string; // "2024년 1월 15일"
-  word?: string; // 훈련 단어
+  word?: string; // 훈련 단어 또는 훈련 명칭
+  isVocalExercise?: boolean; // 발성 연습 여부
 };
 
 export type PatientInfoSectionProps = {
@@ -28,7 +29,9 @@ const PatientInfoSection: React.FC<PatientInfoSectionProps> = ({ info }) => {
           </div>
         </div>
         <div className="w-96">
-          <div className="text-gray-500 text-sm">훈련 단어</div>
+          <div className="text-gray-500 text-sm">
+            {info.isVocalExercise ? "훈련 명칭" : "훈련 단어"}
+          </div>
           <div className="text-gray-900 text-base font-medium">
             {info.word ?? "-"}
           </div>

@@ -21,16 +21,18 @@ const PraatSectionCard: React.FC<PraatSectionCardProps> = ({
     <Card
       className={`rounded-2xl shadow-sm border-gray-200 ${className ?? ""}`}
     >
-      <CardHeader className="pb-4">
+      <CardHeader className="pb-6">
         <div className="flex items-center">
           {titleIconClass ? (
             <span className="pr-3 flex items-center">
-              <span className="relative flex items-center w-4 h-4">
-                <span className={`absolute left-0 top-0 block ${titleIconClass}`} />
+              <span className="relative flex items-center w-5 h-8">
+                <span className="w-5 h-5 left-0 top-[6px] absolute overflow-hidden">
+                  <span className={`absolute left-[2.85px] top-[0.83px] block ${titleIconClass}`} />
+                </span>
               </span>
             </span>
           ) : null}
-          <h3 className="text-gray-900 text-xl font-semibold">{title}</h3>
+          <h3 className="text-gray-900 text-xl font-semibold font-['Roboto'] leading-8">{title}</h3>
         </div>
       </CardHeader>
       <CardContent>{children}</CardContent>

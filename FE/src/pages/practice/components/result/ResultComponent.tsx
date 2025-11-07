@@ -76,7 +76,7 @@ const ResultComponent: React.FC<ResultComponentProps> = ({
         });
         
         // 같지 않으면 alert 표시 후 함수 종료
-        const trainingType = sessionData.type === 'word' ? '단어' : '문장';
+        const trainingType = sessionData.type === 'word' ? '단어' : sessionData.type === 'sentence' ? '문장' : '발성';
         alert(`아직 제출하지 않은 ${trainingType} 훈련이 있습니다.`);
         return;
       }
@@ -96,7 +96,7 @@ const ResultComponent: React.FC<ResultComponentProps> = ({
       // 에러 상태에 따른 처리
       if (error.status === 400) {
         // 400: 아직 모든 아이템이 완료되지 않음
-        const trainingType = sessionData?.type === 'word' ? '단어' : '문장';
+        const trainingType = sessionData?.type === 'word' ? '단어' : sessionData?.type === 'sentence' ? '문장' : '발성';
         alert(`아직 제출하지 않은 ${trainingType} 훈련이 있습니다.`);
       } else if (error.status === 401) {
         // 401: 인증 필요
