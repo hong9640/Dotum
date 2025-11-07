@@ -8,6 +8,7 @@ import LoginPage from '@/pages/login';
 import SignupPage from '@/pages/signup';
 import WordSetResults from '@/pages/result-list';
 import ResultDetailPage from '@/pages/result-detail';
+import PraatDetailPage from '@/pages/praat-detail';
 import TrainingHistoryPage from '@/pages/training-history';
 import VoiceTrainingIntro from '@/pages/voice-training';
 import MPTPage from '@/pages/voice-training/mpt';
@@ -77,6 +78,14 @@ const AppContent: React.FC<{
             element={
               <ProtectedRoute isLoggedIn={isLoggedIn} requireAuth={true}>
                 <ResultDetailPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/praat-detail" 
+            element={
+              <ProtectedRoute isLoggedIn={isLoggedIn} requireAuth={true}>
+                <PraatDetailPage />
               </ProtectedRoute>
             } 
           />

@@ -99,7 +99,6 @@ const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
               poster={videoSrc ? undefined : "https://placehold.co/510x323/e2e8f0/64748b?text=Video+Stream"}
               preload="metadata"
               playsInline
-              muted
               onPlay={() => setIsPlaying(true)}
               onPause={() => setIsPlaying(false)}
               onEnded={() => setIsPlaying(false)}

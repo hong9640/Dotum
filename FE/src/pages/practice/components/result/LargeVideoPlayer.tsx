@@ -79,7 +79,6 @@ const LargeVideoPlayer: React.FC<LargeVideoPlayerProps> = ({
             poster={videoSrc ? undefined : (posterSrc || "https://placehold.co/867x549/e2e8f0/64748b?text=Large+Video")}
             preload="metadata"
             playsInline
-            muted
             onPlay={() => setIsPlaying(true)}
             onPause={() => setIsPlaying(false)}
             onEnded={() => setIsPlaying(false)}

@@ -7,7 +7,7 @@ import { useTrainingSession } from '@/hooks/training-session';
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
-  const { createWordSession, createSentenceSession, isLoading, apiError } = useTrainingSession();
+  const { createWordSession, createSentenceSession, createVocalSession, isLoading, apiError } = useTrainingSession();
 
   const handleWordTraining = async () => {
     try {

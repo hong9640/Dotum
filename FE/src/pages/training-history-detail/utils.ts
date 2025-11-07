@@ -37,33 +37,44 @@ export const generateSampleData = (count: number, date: string): TrainingSet[] =
 export const convertSessionsToTrainingSets = (
   response: DailyRecordSearchResponse
 ): TrainingSet[] => {
-  const sessions = response.sessions;
+  // 가장 오래된 것부터 1번이 되도록 역순으로 처리
+  const sessions = [...response.sessions].reverse();
   
   // 타입별 카운터
   let wordCounter = 0;
   let sentenceCounter = 0;
+  let vocalCounter = 0;
   
   return sessions.map((session) => {
     // 타입에 따라 카운터 증가 및 제목 생성
+    // API에서 대문자로 오는 경우를 대비해 소문자로 변환하여 비교
+    const sessionType = (session.type || '').toLowerCase();
     let title: string;
-    if (session.type === 'word') {
+    
+    if (sessionType === 'word') {
       wordCounter++;
       title = `단어 세트 ${wordCounter}`;
+    } else if (sessionType === 'sentence') {
+      sentenceCounter++;
+      title = `문장 세트 ${sentenceCounter}`;
+    } else if (sessionType === 'vocal') {
+      vocalCounter++;
+      title = `발성 연습 ${vocalCounter}`;
     } else {
+      // 알 수 없는 타입의 경우 기본값
       sentenceCounter++;
       title = `문장 세트 ${sentenceCounter}`;
     }
     
-    // 단어 ID 배열 생성 (최대 3개)
-    // word_id가 있으면 word_id를, sentence_id가 있으면 sentence_id를 사용
-    const wordIds: string[] = [];
+    // 실제 단어/문장 텍스트 배열 생성 (최대 3개)
+    const words: string[] = [];
     const items = session.training_items.slice(0, 3); // 최대 3개만
     
     items.forEach((item) => {
-      if (item.word_id !== null) {
-        wordIds.push(`word_${item.word_id}`);
-      } else if (item.sentence_id !== null) {
-        wordIds.push(`sentence_${item.sentence_id}`);
+      if (item.word) {
+        words.push(item.word);
+      } else if (item.sentence) {
+        words.push(item.sentence);
       }
     });
     
@@ -79,12 +90,12 @@ export const convertSessionsToTrainingSets = (
     
     return {
       id: String(session.session_id),
-      title,
+      title: title,
       score,
-      words: wordIds,
+      words: words,
       completedAt: session.completed_at,
       sessionId: session.session_id,
-      type: session.type,
+      type: (sessionType === 'vocal' ? 'sentence' : sessionType) as 'word' | 'sentence', // vocal은 sentence로 매핑
       status: session.status,
       totalItems: session.total_items,
       completedItems: session.completed_items,

@@ -9,19 +9,15 @@ import { useTrainingSession } from '@/hooks/training-session';
 import { retryTrainingSession } from '@/api/training-session/sessionRetry';
 import 도드미치료사 from "@/assets/도드미_치료사.png";
 
-// 날짜 포맷팅 함수
+// 날짜 포맷팅 함수 (시간 제외)
 const formatDate = (dateString: string): string => {
   try {
     const date = new Date(dateString);
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
-    const dateHours = date.getHours();
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const ampm = dateHours < 12 ? '오전' : '오후';
-    const displayHours = dateHours % 12 || 12;
     
-    return `${year}년 ${month}월 ${day}일 ${ampm} ${displayHours}:${minutes} 완료`;
+    return `${year}년 ${month}월 ${day}일 완료`;
   } catch (error) {
     console.error('날짜 포맷팅 실패:', error);
     return '날짜 정보 없음';
@@ -48,7 +44,7 @@ const WordSetResults: React.FC = () => {
   const [lhRatioMeanDb, setLhRatioMeanDb] = useState<number | null>(null);
   const [lhRatioSdDb, setLhRatioSdDb] = useState<number | null>(null);
   const [isVoiceTraining, setIsVoiceTraining] = useState<boolean>(false);
-  const [overallFeedback, setOverallFeedback] = useState<string>('피드백 정보가 없습니다.');
+  const [_overallFeedback, setOverallFeedback] = useState<string>('피드백 정보가 없습니다.');
   
   // 훈련 세션 훅 사용 (새로운 훈련 시작 시 사용)
   const { createWordSession, createSentenceSession } = useTrainingSession();
@@ -85,8 +81,9 @@ const WordSetResults: React.FC = () => {
         
         console.log('세션 상세 조회 성공:', sessionDetailData);
         
-        // 세션 타입 설정
-        setSessionType(sessionDetailData.type);
+        // 세션 타입 설정 (대문자로 올 수 있으므로 소문자로 변환)
+        const sessionTypeLower = (sessionDetailData.type || '').toLowerCase();
+        setSessionType(sessionTypeLower as 'word' | 'sentence' | 'vocal');
         
         // 날짜 포맷팅
         const formatted = formatDate(sessionDetailData.training_date);
@@ -285,7 +282,7 @@ const WordSetResults: React.FC = () => {
   };
 
   return (
-    <div className="self-stretch pt-7 pb-10 flex flex-col justify-start items-center bg-slate-50 min-h-screen">
+    <div className="self-stretch pt-7 pb-10 flex flex-col justify-start items-center bg-white min-h-screen">
       
       {/* 헤더 */}
       <ResultHeader
@@ -483,7 +480,7 @@ const WordSetResults: React.FC = () => {
                         </div>
                         <div className="self-stretch pt-1 inline-flex justify-start items-start">
                           <div className="w-full h-6 flex justify-start items-center">
-                            <div className="justify-center text-gray-500 text-sm font-normal leading-6">정상 범위: &lt; 0.02</div>
+                            <div className="justify-center text-gray-500 text-sm font-normal leading-6">정상 범위: 0</div>
                           </div>
                         </div>
                       </div>
@@ -507,7 +504,7 @@ const WordSetResults: React.FC = () => {
                         </div>
                         <div className="self-stretch pt-1 inline-flex justify-start items-start">
                           <div className="w-full h-6 flex justify-start items-center">
-                            <div className="justify-center text-gray-500 text-sm font-normal leading-6">정상 범위: &lt; 0.02</div>
+                            <div className="justify-center text-gray-500 text-sm font-normal leading-6">정상 범위: 0</div>
                           </div>
                         </div>
                       </div>
@@ -516,14 +513,14 @@ const WordSetResults: React.FC = () => {
                 )}
               </div>
 
-              {/* 피드백 메시지 */}
-              <div className="self-stretch p-6 bg-green-50 rounded-2xl flex flex-col justify-start items-start">
+              {/* 피드백 메시지 - 숨김 처리 */}
+              {/* <div className="self-stretch p-6 bg-green-50 rounded-2xl flex flex-col justify-start items-start">
                 <div className="self-stretch inline-flex justify-start items-center gap-2.5">
                   <div className="justify-start text-slate-700 text-2xl font-semibold leading-8">
-                    {overallFeedback}
+                    {_overallFeedback}
                   </div>
                 </div>
-              </div>
+              </div> */}
             </div>
           </div>
         </div>
