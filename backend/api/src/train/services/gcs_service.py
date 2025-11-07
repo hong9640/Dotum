@@ -52,7 +52,7 @@ class GCSService:
     
     async def upload_video(
         self, 
-        file_content: bytes, 
+        file_path: str, # 파일 경로를 받도록 변경
         username: str, 
         session_id: str,
         train_id: Optional[int] = None,
@@ -67,7 +67,7 @@ class GCSService:
         동영상 파일을 GCS에 업로드
         
         Args:
-            file_content: 파일 바이너리 데이터
+            file_path: 업로드할 파일의 로컬 경로
             username: 사용자명
             session_id: 세션 ID
             train_id: 훈련 ID (단어 훈련용)
@@ -110,20 +110,20 @@ class GCSService:
             }
             
             # 파일 업로드
-            blob.upload_from_string(
-                file_content,
-                content_type=content_type
-            )
+            blob.upload_from_filename(file_path, content_type=content_type)
             
             # 공개 URL 생성 (필요시)
             public_url = f"https://storage.googleapis.com/{self.bucket_name}/{object_path}"
+            
+            # 파일 크기 가져오기
+            file_size = os.path.getsize(file_path)
             
             return {
                 "success": True,
                 "object_path": object_path,
                 "public_url": public_url,
                 "filename": object_path.split('/')[-1],
-                "file_size": len(file_content),
+                "file_size": file_size,
                 "content_type": content_type
             }
             

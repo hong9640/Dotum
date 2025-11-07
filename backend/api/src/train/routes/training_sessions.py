@@ -433,6 +433,7 @@ async def submit_current_item(
             detail="동영상 파일만 업로드 가능합니다."
         )
     
+    # 파일 크기 검증을 위해 먼저 읽기
     file_bytes = await file.read()
     max_size = 100 * 1024 * 1024  # 100MB
     if len(file_bytes) > max_size:
@@ -441,11 +442,14 @@ async def submit_current_item(
             detail="파일 크기는 100MB를 초과할 수 없습니다."
         )
     
+    # 서비스 함수에는 스트리밍 처리를 위해 파일 포인터를 처음으로 되돌림
+    await file.seek(0)
+    
     try:
         result = await service.submit_current_item_with_video(
             session_id=session_id,
             user=current_user,
-            file_bytes=file_bytes,
+            video_file=file, # UploadFile 객체 자체를 전달
             filename=file.filename or "video.mp4",
             content_type=file.content_type or "video/mp4",
             gcs_service=gcs_service,
