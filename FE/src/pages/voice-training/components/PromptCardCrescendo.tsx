@@ -1,24 +1,13 @@
 import React from 'react';
-import { TrendingUp } from 'lucide-react';
 
 interface PromptCardCrescendoProps {
   main: string;
   subtitle: string;
-  onPlayGuide?: () => void;
 }
 
-const PromptCardCrescendo: React.FC<PromptCardCrescendoProps> = ({ main, subtitle, onPlayGuide }) => {
+const PromptCardCrescendo: React.FC<PromptCardCrescendoProps> = ({ main, subtitle }) => {
   return (
     <div className="p-8 sm:p-10 bg-gradient-to-br from-teal-50 to-teal-100 rounded-2xl border-3 border-teal-300 shadow-sm mb-8 text-center">
-      <div className="flex justify-center mb-4">
-        <button
-          onClick={onPlayGuide}
-          className="p-3 bg-teal-200 rounded-full hover:bg-teal-300 transition-colors cursor-pointer"
-          aria-label="안내 듣기"
-        >
-          <TrendingUp className="w-8 h-8 text-teal-700" strokeWidth={2.5} />
-        </button>
-      </div>
       <div className="flex justify-center items-end gap-1 mb-4">
         {[...main].map((char, i) => (
           <span

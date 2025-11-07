@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import WaveRecorder from './components/WaveRecorder';
 import PromptCardMPT from './components/PromptCardMPT';
-import { useTTS } from '@/hooks/useTTS';
 import { toast } from 'sonner';
 import { 
   createTrainingSession, 
@@ -26,8 +25,6 @@ const MPTPage: React.FC = () => {
   );
   const [_session, setSession] = useState<CreateTrainingSessionResponse | null>(null);
   const [resetTrigger, setResetTrigger] = useState(0);
-  
-  const { supported: _supported, ready: _ready, speak } = useTTS('ko-KR');
 
   // 세션 생성 (첫 시도일 때)
   useEffect(() => {
@@ -73,14 +70,6 @@ const MPTPage: React.FC = () => {
     setBlob(b);
     setUrl(u);
     toast.success('녹음이 완료되었습니다!');
-  };
-
-  const handlePlayGuide = () => {
-    speak('최대 발성 지속 시간 훈련을 시작하겠습니다. "아"라고 최대한 길게 발성해주세요.', {
-      rate: 1,
-      pitch: 1.1,
-      volume: 1,
-    });
   };
 
   const handleSubmit = async (audioBlob: Blob, graphImageBlob: Blob) => {
@@ -152,7 +141,6 @@ const MPTPage: React.FC = () => {
             <PromptCardMPT 
               main="아" 
               subtitle={`최대 발성 지속 시간 훈련 (MPT) - ${attempt}/3회`}
-              onPlayGuide={handlePlayGuide}
             />
 
             {/* 녹음 영역 */}

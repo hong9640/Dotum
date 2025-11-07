@@ -107,7 +107,6 @@ const VoiceTrainingIntro: React.FC = () => {
                   <p className="text-base sm:text-lg font-semibold">📌 훈련 방법</p>
                   <ul className="space-y-1 text-sm sm:text-base ml-4">
                     <li>• 각 훈련마다 3회씩 녹음할 수 있습니다</li>
-                    <li>• 안내 듣기 버튼을 누르면 음성 안내를 들을 수 있습니다</li>
                     <li>• 녹음 버튼을 눌러 발성을 녹음해보세요</li>
                     <li>• 재녹음을 원하시면 다시 녹음할 수 있습니다</li>
                   </ul>

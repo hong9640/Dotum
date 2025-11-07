@@ -1,24 +1,13 @@
 import React from 'react';
-import { TrendingDown } from 'lucide-react';
 
 interface PromptCardDecrescendoProps {
   main: string;
   subtitle: string;
-  onPlayGuide?: () => void;
 }
 
-const PromptCardDecrescendo: React.FC<PromptCardDecrescendoProps> = ({ main, subtitle, onPlayGuide }) => {
+const PromptCardDecrescendo: React.FC<PromptCardDecrescendoProps> = ({ main, subtitle }) => {
   return (
     <div className="p-8 sm:p-10 bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-2xl border-3 border-yellow-300 shadow-sm mb-8 text-center">
-      <div className="flex justify-center mb-4">
-        <button
-          onClick={onPlayGuide}
-          className="p-3 bg-yellow-200 rounded-full hover:bg-yellow-300 transition-colors cursor-pointer"
-          aria-label="안내 듣기"
-        >
-          <TrendingDown className="w-8 h-8 text-yellow-700" strokeWidth={2.5} />
-        </button>
-      </div>
       <div className="flex justify-center items-end gap-1 mb-4">
         {[...main].map((char, i) => (
           <span

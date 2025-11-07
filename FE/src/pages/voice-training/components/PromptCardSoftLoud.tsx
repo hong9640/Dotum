@@ -1,26 +1,15 @@
 import React from 'react';
-import { Activity } from 'lucide-react';
 
 interface PromptCardSoftLoudProps {
   main: string;
   subtitle: string;
-  onPlayGuide?: () => void;
 }
 
-const PromptCardSoftLoud: React.FC<PromptCardSoftLoudProps> = ({ main, subtitle, onPlayGuide }) => {
+const PromptCardSoftLoud: React.FC<PromptCardSoftLoudProps> = ({ main, subtitle }) => {
   const sizes = [32, 56, 80, 88, 80];
   
   return (
     <div className="p-8 sm:p-10 bg-gradient-to-br from-pink-50 to-pink-100 rounded-2xl border-3 border-pink-300 shadow-sm mb-8 text-center">
-      <div className="flex justify-center mb-4">
-        <button
-          onClick={onPlayGuide}
-          className="p-3 bg-pink-200 rounded-full hover:bg-pink-300 transition-colors cursor-pointer"
-          aria-label="안내 듣기"
-        >
-          <Activity className="w-8 h-8 text-pink-700" strokeWidth={2.5} />
-        </button>
-      </div>
       <div className="flex justify-center items-end gap-1 mb-4">
         {[...main].map((char, i) => (
           <span

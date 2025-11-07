@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import WaveRecorder from './components/WaveRecorder';
 import PromptCardCrescendo from './components/PromptCardCrescendo';
-import { useTTS } from '@/hooks/useTTS';
 import { toast } from 'sonner';
 import { 
   getTrainingSession,
@@ -25,8 +24,6 @@ const CrescendoPage: React.FC = () => {
   );
   const [_session, setSession] = useState<CreateTrainingSessionResponse | null>(null);
   const [resetTrigger, setResetTrigger] = useState(0);
-  
-  const { supported: _supported, ready: _ready, speak } = useTTS('ko-KR');
 
   useEffect(() => {
     const loadSession = async () => {
@@ -52,14 +49,6 @@ const CrescendoPage: React.FC = () => {
     setBlob(b);
     setUrl(u);
     toast.success('녹음이 완료되었습니다!');
-  };
-
-  const handlePlayGuide = () => {
-    speak('크레셴도 훈련을 시작하겠습니다. "아"라고 점점 크게 발성해주세요.', {
-      rate: 1,
-      pitch: 1.1,
-      volume: 1,
-    });
   };
 
   const handleSubmit = async (audioBlob: Blob, graphImageBlob: Blob) => {
@@ -123,7 +112,6 @@ const CrescendoPage: React.FC = () => {
             <PromptCardCrescendo 
               main="아아아아아" 
               subtitle={`크레셴도 훈련 (점강) - ${attempt}/3회`}
-              onPlayGuide={handlePlayGuide}
             />
 
             <div className="mb-6">

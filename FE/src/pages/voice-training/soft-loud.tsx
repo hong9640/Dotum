@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import WaveRecorder from './components/WaveRecorder';
 import PromptCardSoftLoud from './components/PromptCardSoftLoud';
-import { useTTS } from '@/hooks/useTTS';
 import { toast } from 'sonner';
 import { 
   getTrainingSession,
@@ -26,8 +25,6 @@ const SoftLoudPage: React.FC = () => {
   );
   const [_session, setSession] = useState<CreateTrainingSessionResponse | null>(null);
   const [resetTrigger, setResetTrigger] = useState(0);
-  
-  const { supported: _supported, ready: _ready, speak } = useTTS('ko-KR');
 
   useEffect(() => {
     const loadSession = async () => {
@@ -53,14 +50,6 @@ const SoftLoudPage: React.FC = () => {
     setBlob(b);
     setUrl(u);
     toast.success('녹음이 완료되었습니다!');
-  };
-
-  const handlePlayGuide = () => {
-    speak('연속 강약 조절 훈련을 시작하겠습니다. "아"를 작게, 조금 크게, 크게, 더 크게 변화를 주며 발성해주세요.', {
-      rate: 1,
-      pitch: 1.1,
-      volume: 1,
-    });
   };
 
   const handleSubmit = async (audioBlob: Blob, graphImageBlob: Blob) => {
@@ -134,7 +123,6 @@ const SoftLoudPage: React.FC = () => {
             <PromptCardSoftLoud 
               main="아아아아아" 
               subtitle={`연속 강약 조절 훈련 - ${attempt}/3회`}
-              onPlayGuide={handlePlayGuide}
             />
 
             <div className="mb-6">
