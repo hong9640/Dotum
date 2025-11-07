@@ -13,7 +13,11 @@ from ..schemas.training_sessions import (
 )
 from ..schemas.training_items import CurrentItemResponse
 from ..schemas.media import MediaUploadUrlResponse
-from ..schemas.praat import PraatFeaturesResponse
+from ..schemas.praat import (
+    PraatFeaturesResponse, 
+    VocalTrainingResultsSummary, 
+    VocalTrainingResultsDetail
+)
 from ..schemas.common import NotFoundErrorResponse, BadRequestErrorResponse, UnauthorizedErrorResponse, ProcessingErrorResponse
 from ..models.training_session import TrainingType, TrainingSessionStatus
 from ..services.training_sessions import TrainingSessionService
@@ -882,3 +886,69 @@ async def read_praat_analysis(
     except PermissionError as e:
         # Case 4: 파일 소유자가 아님
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+
+
+@router.get(
+    "/{session_id}/vocal-results",
+    response_model=VocalTrainingResultsSummary,
+    summary="VOCAL 훈련 결과 요약 조회 (평균)",
+    description="VOCAL 타입 훈련 세션의 모든 아이템 지표를 평균 내어 반환합니다. 세션이 완료되어야 평균 결과가 계산됩니다.",
+    responses={
+        200: {"description": "조회 성공"},
+        400: {"model": BadRequestErrorResponse, "description": "VOCAL 타입이 아님"},
+        401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"},
+        404: {"model": NotFoundErrorResponse, "description": "세션을 찾을 수 없음"}
+    }
+)
+async def get_vocal_training_results_summary(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    service: TrainingSessionService = Depends(get_training_service)
+):
+    """VOCAL 타입 훈련 세션의 평균 Praat 결과 조회"""
+    try:
+        result = await service.get_vocal_results_summary(session_id, current_user.id)
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="훈련 세션을 찾을 수 없습니다."
+            )
+        return result
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.get(
+    "/{session_id}/vocal-results/detail",
+    response_model=VocalTrainingResultsDetail,
+    summary="VOCAL 훈련 결과 상세 조회 (아이템별)",
+    description="VOCAL 타입 훈련 세션의 각 아이템별 Praat 분석 결과를 모두 반환합니다.",
+    responses={
+        200: {"description": "조회 성공"},
+        400: {"model": BadRequestErrorResponse, "description": "VOCAL 타입이 아님"},
+        401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"},
+        404: {"model": NotFoundErrorResponse, "description": "세션을 찾을 수 없음"}
+    }
+)
+async def get_vocal_training_results_detail(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    service: TrainingSessionService = Depends(get_training_service)
+):
+    """VOCAL 타입 훈련 세션의 아이템별 상세 Praat 결과 조회"""
+    try:
+        result = await service.get_vocal_results_detail(session_id, current_user.id)
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="훈련 세션을 찾을 수 없습니다."
+            )
+        return result
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
