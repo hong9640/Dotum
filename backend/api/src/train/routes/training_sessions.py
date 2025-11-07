@@ -13,7 +13,11 @@ from ..schemas.training_sessions import (
 )
 from ..schemas.training_items import CurrentItemResponse
 from ..schemas.media import MediaUploadUrlResponse
-from ..schemas.praat import PraatFeaturesResponse
+from ..schemas.praat import (
+    PraatFeaturesResponse, 
+    VocalTrainingResultsSummary, 
+    VocalTrainingResultsDetail
+)
 from ..schemas.common import NotFoundErrorResponse, BadRequestErrorResponse, UnauthorizedErrorResponse, ProcessingErrorResponse
 from ..models.training_session import TrainingType, TrainingSessionStatus
 from ..services.training_sessions import TrainingSessionService
@@ -433,6 +437,7 @@ async def submit_current_item(
             detail="동영상 파일만 업로드 가능합니다."
         )
     
+    # 파일 크기 검증을 위해 먼저 읽기
     file_bytes = await file.read()
     max_size = 100 * 1024 * 1024  # 100MB
     if len(file_bytes) > max_size:
@@ -441,11 +446,14 @@ async def submit_current_item(
             detail="파일 크기는 100MB를 초과할 수 없습니다."
         )
     
+    # 서비스 함수에는 스트리밍 처리를 위해 파일 포인터를 처음으로 되돌림
+    await file.seek(0)
+    
     try:
         result = await service.submit_current_item_with_video(
             session_id=session_id,
             user=current_user,
-            file_bytes=file_bytes,
+            video_file=file, # UploadFile 객체 자체를 전달
             filename=file.filename or "video.mp4",
             content_type=file.content_type or "video/mp4",
             gcs_service=gcs_service,
@@ -752,6 +760,7 @@ async def resubmit_item_video(
             detail="동영상 파일만 업로드 가능합니다."
         )
 
+    # 파일 크기 검증을 위해 먼저 읽기
     file_bytes = await file.read()
     max_size = 100 * 1024 * 1024  # 100MB
     if len(file_bytes) > max_size:
@@ -759,13 +768,15 @@ async def resubmit_item_video(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail="파일 크기는 100MB를 초과할 수 없습니다."
         )
+    # 서비스 함수에는 스트리밍 처리를 위해 파일 포인터를 처음으로 되돌림
+    await file.seek(0)
 
     try:
         result = await service.resubmit_item_video(
             session_id=session_id,
             item_id=item_id,
             user=current_user,
-            file_bytes=file_bytes,
+            video_file=file, # UploadFile 객체 자체를 전달
             filename=file.filename or "video.mp4",
             content_type=file.content_type or "video/mp4",
             gcs_service=gcs_service,
@@ -882,3 +893,101 @@ async def read_praat_analysis(
     except PermissionError as e:
         # Case 4: 파일 소유자가 아님
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+
+
+@router.get(
+    "/{session_id}/vocal-results",
+    response_model=VocalTrainingResultsSummary,
+    summary="VOCAL 훈련 결과 요약 조회 (평균)",
+    description="VOCAL 타입 훈련 세션의 평균 Praat 지표를 반환합니다. 세션이 완료되면 저장된 평균값을 반환하고, 진행 중이면 실시간 계산 결과를 반환합니다.",
+    responses={
+        200: {"description": "조회 성공"},
+        400: {"model": BadRequestErrorResponse, "description": "VOCAL 타입이 아님 또는 데이터 부족"},
+        401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"},
+        404: {"model": NotFoundErrorResponse, "description": "세션을 찾을 수 없음"}
+    }
+)
+async def get_vocal_training_results_summary(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    service: TrainingSessionService = Depends(get_training_service)
+):
+    """VOCAL 타입 훈련 세션의 평균 Praat 결과 조회
+    
+    - 완료된 세션: DB에 저장된 평균 결과 반환
+    - 진행 중인 세션: 현재까지 제출된 아이템으로 실시간 평균 계산
+    """
+    try:
+        # 1. 세션 조회 및 권한 확인
+        session = await service.get_training_session(session_id, current_user.id)
+        if not session:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="훈련 세션을 찾을 수 없습니다."
+            )
+        
+        # 2. VOCAL 타입 확인
+        if session.type != TrainingType.VOCAL:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="이 API는 VOCAL 타입 세션에서만 사용할 수 있습니다."
+            )
+        
+        # 3. 완료된 세션이면 DB에 저장된 평균 결과 조회
+        if session.status == TrainingSessionStatus.COMPLETED:
+            db_result = await service.session_praat_repo.get_by_session_id(session_id)
+            if db_result:
+                return VocalTrainingResultsSummary(
+                    session_id=session.id,
+                    session_name=session.session_name,
+                    total_items=session.total_items,
+                    completed_items=session.completed_items,
+                    average_results=db_result
+                )
+        
+        # 4. 진행 중이거나 DB에 저장된 결과가 없으면 실시간 계산
+        result = await service.get_vocal_results_summary(session_id, current_user.id)
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="훈련 세션을 찾을 수 없습니다."
+            )
+        return result
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.get(
+    "/{session_id}/vocal-results/detail",
+    response_model=VocalTrainingResultsDetail,
+    summary="VOCAL 훈련 결과 상세 조회 (아이템별)",
+    description="VOCAL 타입 훈련 세션의 각 아이템별 Praat 분석 결과를 모두 반환합니다.",
+    responses={
+        200: {"description": "조회 성공"},
+        400: {"model": BadRequestErrorResponse, "description": "VOCAL 타입이 아님"},
+        401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"},
+        404: {"model": NotFoundErrorResponse, "description": "세션을 찾을 수 없음"}
+    }
+)
+async def get_vocal_training_results_detail(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    service: TrainingSessionService = Depends(get_training_service)
+):
+    """VOCAL 타입 훈련 세션의 아이템별 상세 Praat 결과 조회"""
+    try:
+        result = await service.get_vocal_results_detail(session_id, current_user.id)
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="훈련 세션을 찾을 수 없습니다."
+            )
+        return result
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )

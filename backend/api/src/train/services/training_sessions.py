@@ -1,14 +1,20 @@
-from fastapi import BackgroundTasks
+from fastapi import BackgroundTasks, UploadFile
 import httpx
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession
+import time
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date
+import tempfile
+import os
+import aiofiles
 
 from ..models.training_session import TrainingSession, TrainingType, TrainingSessionStatus
 from ..repositories.training_sessions import TrainingSessionRepository
 from ..repositories.training_items import TrainingItemRepository
 from ..repositories.media import MediaRepository
 from ..repositories.praat import PraatRepository
+from ..repositories.session_praat import SessionPraatResultRepository
 from ..schemas.training_sessions import (
     TrainingSessionCreate,
     TrainingSessionUpdate,
@@ -27,6 +33,8 @@ from ..services.praat_service import save_session_praat_result
 from api.src.user.user_model import User
 from api.core.config import settings
 
+logger = logging.getLogger(__name__)
+
 class TrainingSessionService:
     """통합된 훈련 세션 서비스"""
     
@@ -36,6 +44,7 @@ class TrainingSessionService:
         self.item_repo = TrainingItemRepository(db)
         self.media_repo = MediaRepository(db)
         self.praat_repo = PraatRepository(db)
+        self.session_praat_repo = SessionPraatResultRepository(db)
     
     async def create_training_session(
         self, 
@@ -187,7 +196,6 @@ class TrainingSessionService:
             TrainingSessionStatus.COMPLETED,
             user_id
         )
-        await self.db.commit()
         
         # vocal 타입 세션의 경우 Praat 평균 결과 저장 (이미 조회한 세션 객체 전달하여 재조회 방지)
         try:
@@ -195,6 +203,7 @@ class TrainingSessionService:
         except Exception as e:
             # Praat 평균 계산 실패해도 세션 완료는 정상 처리
             print(f"⚠️ Session {session_id}: Praat 평균 결과 저장 실패: {e}")
+            logger.error(f"Session {session_id}: Praat 평균 결과 저장 실패: {e}", exc_info=True)
         
         return await self.get_training_session(session_id, user_id)
     
@@ -256,13 +265,8 @@ class TrainingSessionService:
         user_id: int,
         output_object_key: str
     ):
-        """외부 wav2lip 서버에 처리를 요청하는 백그라운드 작업
-        
-        Args:
-            guide_audio_gs_path: ElevenLabs TTS로 생성된 가이드 음성의 GCS 경로
-            user_video_gs_path: 사용자가 업로드한 원본 영상의 GCS 경로
-            output_video_gs_path: Wav2Lip 결과 영상을 저장할 GCS 경로
-        """
+        """외부 wav2lip 서버에 처리를 요청하는 백그라운드 작업"""
+        start_time = time.time()
         WAV2LIP_API_URL = f"{settings.ML_SERVER_URL}/api/v1/lip-video"
         
         payload = {
@@ -279,7 +283,7 @@ class TrainingSessionService:
             async with httpx.AsyncClient(timeout=120.0) as client:
                 response = await client.post(WAV2LIP_API_URL, json=payload)
                 response.raise_for_status()
-                print(f"[WAV2LIP] Wav2Lip 작업 요청 성공: {response.json()}")
+                logger.info(f"Wav2Lip 작업 요청 성공: {response.json()}")
 
                 gcs_service = GCSService(settings)
 
@@ -290,7 +294,7 @@ class TrainingSessionService:
                     file_size = blob.size # 파일 크기(bytes)
                     print(f"[WAV2LIP] GCS 결과 파일 크기: {file_size} bytes")
                 else:
-                    print(f"[WAV2LIP] 경고: GCS에서 {output_object_key} 파일을 찾을 수 없어 파일 크기를 0으로 저장합니다.")
+                    logger.warning(f"GCS에서 {output_object_key} 파일을 찾을 수 없어 파일 크기를 0으로 저장합니다.")
 
                 # 3. MediaFile 객체 생성 시 file_size_bytes에 값 할당
                 result_media_file = await self.media_repo.create_and_flush(
@@ -302,16 +306,17 @@ class TrainingSessionService:
                     file_size_bytes=file_size,
                 )
                 await self.db.commit()
-                print(f"[WAV2LIP] Wav2Lip 결과 미디어 파일 정보 저장 성공: {result_media_file.id}")
-
+                logger.info(f"Wav2Lip 결과 미디어 파일 정보 저장 성공: {result_media_file.id}")
+        
         except httpx.RequestError as e:
-            print(f"[WAV2LIP] Wav2Lip 작업 요청 실패: {e}")
-            import traceback
-            traceback.print_exc()
+            elapsed_time = time.time() - start_time
+            logger.error(f"Wav2Lip 작업 요청 실패: {e} (소요 시간: {elapsed_time:.2f}초)", exc_info=True)
         except Exception as e:
-            print(f"[WAV2LIP] Wav2Lip 결과 저장 중 DB 오류 발생: {e}")
-            import traceback
-            traceback.print_exc()
+            elapsed_time = time.time() - start_time
+            logger.error(f"Wav2Lip 결과 저장 중 DB 오류 발생: {e} (소요 시간: {elapsed_time:.2f}초)", exc_info=True)
+        finally:
+            elapsed_time = time.time() - start_time
+            logger.info(f"Wav2Lip 처리 작업 완료. (총 소요 시간: {elapsed_time:.2f}초)")
     
     async def trigger_guide_audio_generation(
         self,
@@ -324,16 +329,10 @@ class TrainingSessionService:
         gcs_service: GCSService,
         original_video_object_key: str # Wav2Lip 처리를 위해 원본 비디오 경로 추가
     ):
-        """백그라운드 작업: ElevenLabs TTS로 가이드 음성을 생성하고 Wav2Lip 처리를 트리거
-        
-        1. 사용자의 원본 음성을 다운로드
-        2. ElevenLabs API로 음성 복제하여 가이드 음성(MP3) 생성
-        3. MP3를 WAV로 변환
-        4. GCS에 가이드 음성 업로드 및 DB 저장
-        5. Wav2Lip 처리 요청 (ElevenLabs 가이드 음성 + 사용자 원본 비디오)
-        """
+        """백그라운드 작업: 원본 음성을 복제하여 가이드 음성을 생성하고 GCS에 저장"""
+        start_time = time.time()
         try:
-            print(f"[ELEVENLABS] 가이드 음성 생성 시작 - item_id: {item_id}, text: {text[:50]}...")
+            logger.info(f"가이드 음성 생성 시작 - item_id: {item_id}, user: {user.username}")
             
             # 1. GCS에서 원본 음성 파일 다운로드
             guide_audio_object_key = f"guides/{user.username}/{session_id}/guide_item_{item_id}.wav"
@@ -342,13 +341,13 @@ class TrainingSessionService:
             media_service = MediaService(self.db)
             existing_guide_media = await media_service.get_media_file_by_object_key(guide_audio_object_key)
             if existing_guide_media:
-                print(f"[ELEVENLABS] 기존 가이드 음성 DB 레코드 삭제: {existing_guide_media.id}")
+                logger.info(f"기존 가이드 음성 DB 레코드 삭제: {existing_guide_media.id}")
                 await self.db.delete(existing_guide_media)
                 await self.db.flush() # 삭제를 즉시 반영
 
             original_audio_bytes = await gcs_service.download_video(original_audio_object_key)
             if not original_audio_bytes:
-                print(f"[ELEVENLABS] 원본 음성 다운로드 실패: {original_audio_object_key}")
+                logger.error(f"가이드 음성 생성을 위한 원본 음성 다운로드 실패: {original_audio_object_key}")
                 return
 
             # 2. ElevenLabs TTS로 MP3 음성 생성 (음성 복제)
@@ -366,14 +365,14 @@ class TrainingSessionService:
             video_processor = VideoProcessor()
             wav_bytes = await video_processor.convert_mp3_to_wav(mp3_bytes)
             if not wav_bytes:
-                print(f"[ELEVENLABS] 가이드 음성(WAV) 변환 실패 - item_id: {item_id}")
+                logger.error(f"가이드 음성(WAV) 변환 실패 - item_id: {item_id}")
                 return
             print(f"[ELEVENLABS] WAV 변환 완료 - 크기: {len(wav_bytes)} bytes")
 
             # 4. GCS에 '가이드 음성'을 다른 이름으로 업로드
             guide_audio_blob = gcs_service.bucket.blob(guide_audio_object_key)
             guide_audio_blob.upload_from_string(wav_bytes, content_type="audio/wav")
-            print(f"[ELEVENLABS] 가이드 음성 GCS 업로드 성공: {guide_audio_object_key}")
+            logger.info(f"가이드 음성 GCS 업로드 성공: {guide_audio_object_key}")
 
             # 5. MediaFile DB에 '가이드 음성' 정보 저장
             await self.media_repo.create_and_flush(
@@ -385,7 +384,7 @@ class TrainingSessionService:
                 format="wav"
             )
             await self.db.commit()
-            print(f"[ELEVENLABS] 가이드 음성 DB 저장 성공")
+            logger.info(f"가이드 음성 DB 저장 성공 - item_id: {item_id}")
 
             # [이동된 로직] Wav2Lip 처리 요청
             # ElevenLabs로 생성된 가이드 음성을 사용하여 Wav2Lip 처리를 트리거합니다.
@@ -407,172 +406,181 @@ class TrainingSessionService:
 
         except Exception as e:
             await self.db.rollback()
-            print(f"[ELEVENLABS] ElevenLabs 가이드 음성 생성/저장 중 오류 발생: {e}")
-            import traceback
-            traceback.print_exc()
+            elapsed_time = time.time() - start_time
+            logger.error(f"가이드 음성 생성/저장 중 오류 발생 - item_id: {item_id}: {e} (소요 시간: {elapsed_time:.2f}초)", exc_info=True)
+        finally:
+            elapsed_time = time.time() - start_time
+            logger.info(f"가이드 음성 생성 작업 완료 - item_id: {item_id}. (총 소요 시간: {elapsed_time:.2f}초)")
 
     async def _submit_item_with_video(
         self,
         *,
-        session_id: int,
+        session: TrainingSession,
         item_id: int,
         user: User,
-        file_bytes: bytes,
+        video_file: UploadFile,
         filename: str,
         content_type: str,
         gcs_service: GCSService,
         background_tasks: BackgroundTasks
     ) -> Dict[str, Any]:
         """내부 메서드: 특정 아이템에 동영상 업로드 및 완료 처리"""
-        print(f"[WAV] ========== _submit_item_with_video 메서드 시작 - session_id: {session_id}, item_id: {item_id} ==========")
-        session = await self.get_training_session(session_id, user.id)
-        if not session:
-            raise LookupError("훈련 세션을 찾을 수 없습니다.")
+        start_time = time.time()
+        temp_video_path = None
+        processing_result = None
+        audio_path = None
+
+        logger.info(f"[_submit_item_with_video] 시작 - session_id: {session.id}, item_id: {item_id}")
         
-        item = await self.item_repo.get_item(session_id, item_id, include_relations=True)
+        item = await self.item_repo.get_item(session.id, item_id, include_relations=True)
         if not item:
             raise LookupError("훈련 아이템을 찾을 수 없습니다.")
         
         if item.is_completed:
             raise ValueError("이미 완료된 아이템입니다.")
         
-        upload_result = await gcs_service.upload_video(
-            file_content=file_bytes,
-            username=user.username,
-            session_id=str(session_id),
-            train_id=item.id,  # 아이템 ID를 train_id로 사용
-            word_id=item.word_id,
-            sentence_id=item.sentence_id,
-            original_filename=filename,
-            content_type=content_type
-        )
-        
-        if not upload_result.get("success"):
-            raise RuntimeError(f"동영상 업로드에 실패했습니다: {upload_result.get('error')}")
-        
-        object_key = upload_result.get("object_path")
-        if not object_key:
-            raise RuntimeError("업로드 결과에 object_path가 없습니다.")
-        
-        # Private 버킷이므로 signed URL 생성
-        video_url = await gcs_service.get_signed_url(object_key, expiration_hours=24)
-        if not video_url:
-            raise RuntimeError("동영상 URL 생성에 실패했습니다.")
-        # Wav2Lip 호출 로직은 guide audio 생성 후로 이동되었으므로 여기서는 제거합니다.
-        
-        # 동영상 파일 정보 저장
-        media_file = await self.media_repo.create_and_flush(
-            user_id=user.id,
-            object_key=object_key,
-            media_type=MediaType.VIDEO,
-            file_name=upload_result.get("filename") or filename,
-            file_size_bytes=len(file_bytes),
-            format=(content_type.split('/')[-1] if '/' in content_type else content_type)
-        )
-        print(f"[WAV] ========== 동영상 저장 완료, 이제 음성 추출 시작 ==========")
-        
-        # 음성 추출 및 저장
-        audio_media_file = None
-        new_praat_record = None
         try:
-            print(f"[WAV] 음성 처리 시작 - video: {object_key}")
-            # VideoProcessor를 사용하여 음성 추출
-            video_processor = VideoProcessor()
-            processing_result = await video_processor.process_uploaded_video_with_audio(
-                gcs_bucket=gcs_service.bucket_name,
-                gcs_blob_name=object_key
-            )
-            print(f"[WAV] 음성 처리 완료 - audio_blob_name: {processing_result.get('audio_blob_name')}")
+            # 1. UploadFile을 임시 파일로 저장
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_video:
+                temp_video_path = temp_video.name
+                # 비동기적으로 파일 쓰기
+                async with aiofiles.open(temp_video_path, 'wb') as out_file:
+                    while content := await video_file.read(1024 * 1024):  # 1MB씩 읽기
+                        await out_file.write(content)
             
-            praat_data = processing_result.get('praat_features')
-            # 음성 파일 정보 저장
-            if processing_result.get('audio_blob_name'):
-                print(f"[WAV] DB 저장 시작 - audio_blob_name: {processing_result['audio_blob_name']}")
+            # 2. GCS에 동영상 업로드 (로컬 경로 사용)
+            upload_result = await gcs_service.upload_video(
+                file_path=temp_video_path,
+                username=user.username,
+                session_id=str(session.id),
+                train_id=item.id,
+                word_id=item.word_id,
+                sentence_id=item.sentence_id,
+                original_filename=filename,
+                content_type=content_type
+            )
+            if not upload_result.get("success"):
+                raise RuntimeError(f"동영상 업로드에 실패했습니다: {upload_result.get('error')}")
+            
+            object_key = upload_result.get("object_path")
+            video_url = await gcs_service.get_signed_url(object_key, expiration_hours=24)
+            if not video_url:
+                raise RuntimeError("동영상 URL 생성에 실패했습니다.")
+
+            # 3. 로컬 임시 파일을 사용하여 미디어 처리
+            video_processor = VideoProcessor()
+            logger.info(f"[_submit_item_with_video] 로컬 파일로 음성 처리 시작 - path: {temp_video_path}")
+            processing_result = await video_processor.process_uploaded_video_with_audio(temp_video_path)
+            logger.info(f"[_submit_item_with_video] 로컬 파일 음성 처리 완료")
+
+            # 4. 동영상 파일 정보 DB 저장
+            media_file = await self.media_repo.create_and_flush(
+                user_id=user.id,
+                object_key=object_key,
+                media_type=MediaType.VIDEO,
+                file_name=upload_result.get("filename") or filename,
+                file_size_bytes=upload_result.get("file_size", 0),
+                format=(content_type.split('/')[-1] if '/' in content_type else content_type)
+            )
+            logger.info(f"[_submit_item_with_video] 동영상 정보 DB 저장 완료 (media_id: {media_file.id})")
+
+            # 5. 추출된 음성 파일 처리
+            audio_media_file = None
+            new_praat_record = None
+            audio_path = processing_result.get('audio_path')
+
+            if audio_path and os.path.exists(audio_path):
+                # 5-1. 음성 파일을 GCS에 업로드
+                audio_object_key = object_key.replace('.mp4', '.wav')
+                audio_blob = gcs_service.bucket.blob(audio_object_key)
+                audio_blob.upload_from_filename(audio_path, content_type="audio/wav")
+                logger.info(f"[_submit_item_with_video] 추출된 음성 파일 GCS 업로드 완료: {audio_object_key}")
+
+                # 5-2. 음성 파일 정보 DB 저장
                 audio_media_file = await self.media_repo.create_and_flush(
                     user_id=user.id,
-                    object_key=processing_result['audio_blob_name'],
+                    object_key=audio_object_key,
                     media_type=MediaType.AUDIO,
-                    file_name=processing_result['audio_blob_name'].split('/')[-1],
-                    file_size_bytes=0,  # 크기는 나중에 업데이트
+                    file_name=audio_object_key.split('/')[-1],
+                    file_size_bytes=os.path.getsize(audio_path),
                     format="wav"
                 )
-                print(f"[WAV] DB 저장 완료 - media_id: {audio_media_file.id}")
+                logger.info(f"[_submit_item_with_video] 음성 정보 DB 저장 완료 - media_id: {audio_media_file.id}")
+
+                # 5-3. Praat 분석 결과 DB 저장
+                praat_data = processing_result.get('praat_features')
+                if praat_data:
+                    new_praat_record = await self.praat_repo.create_and_flush(
+                        media_id=audio_media_file.id,
+                        **praat_data
+                    )
+                    logger.info(f"[_submit_item_with_video] Praat DB 저장 완료 - praat_id: {new_praat_record.id}")
             else:
-                print(f"[WAV] 경고: audio_blob_name이 없습니다")
-            
-            if praat_data and audio_media_file:
-                print(f"[WAV] Praat DB 저장 - media_id: {audio_media_file.id}")
-                new_praat_record = await self.praat_repo.create_and_flush(
-                    media_id=audio_media_file.id,
-                    **praat_data
-                )
-                print(f"[WAV] Praat DB 저장 완료 - praat_id: {new_praat_record.id}")
+                logger.warning(f"[_submit_item_with_video] 경고: 음성 파일이 생성되지 않았습니다.")
 
-        except Exception as e:
-            # 음성 추출 실패해도 동영상 업로드는 계속 진행
-            print(f"[WAV] Audio extraction failed: {str(e)}")
-            import traceback
-            traceback.print_exc()
-        
-        # ElevenLabs 가이드 음성 생성 및 Wav2Lip 처리를 위한 백그라운드 작업 추가
-        if (item.word or item.sentence) and audio_media_file:
-            text_for_guide = item.word.word if item.word else item.sentence.sentence
-            print(f"[SUBMIT] ElevenLabs 가이드 음성 생성 백그라운드 작업 추가 - item_id: {item.id}")
-            background_tasks.add_task(
-                self.trigger_guide_audio_generation,
-                user=user,
-                session_id=session_id,
-                item_id=item.id,
-                text=text_for_guide,
-                original_audio_object_key=audio_media_file.object_key,
-                gcs_service=gcs_service,
-                original_video_object_key=object_key # Wav2Lip 처리를 위해 원본 비디오 경로 전달
+            # 6. 가이드 음성 생성 백그라운드 작업 추가
+            # if (item.word or item.sentence) and audio_media_file:
+            #     logger.info(f"[_submit_item_with_video] 가이드 음성 생성 백그라운드 작업 추가 - item_id: {item.id}")
+            #     text_for_guide = item.word.word if item.word else item.sentence.sentence
+            #     background_tasks.add_task(
+            #         self.trigger_guide_audio_generation,
+            #         user=user,
+            #         session_id=session.id,
+            #         item_id=item.id,
+            #         text=text_for_guide,
+            #         original_audio_object_key=audio_media_file.object_key,
+            #         gcs_service=gcs_service,
+            #         original_video_object_key=object_key
+            #     )
+
+            # 7. 아이템 완료 처리
+            await self.item_repo.complete_item(
+                item_id=item.id, video_url=video_url, media_file_id=media_file.id, is_completed=True
             )
-
-        await self.item_repo.complete_item(
-            item_id=item.id,
-            video_url=video_url,
-            media_file_id=media_file.id,
-            is_completed=True
-        )
-        
-        completed_count = await self.repo.get_completed_items_count(session_id)
-        await self.repo.update_progress(session_id, completed_count)
-        await self.repo.move_to_next_item(session_id)
-        
-        await self.db.commit()
-        await self.db.refresh(media_file)
-        if audio_media_file:
-            await self.db.refresh(audio_media_file)
-        
-        updated_session = await self.get_training_session(session_id, user.id)
-        next_item = await self.item_repo.get_current_item(session_id, include_relations=True)
-        has_next = False
-        if next_item:
-            has_next = await self.item_repo.get_next_item(session_id, next_item.item_index) is not None
-        
-        return {
-            "session": updated_session,
-            "next_item": next_item,
-            "media_file": media_file,
-            "praat_feature": new_praat_record,
-            "audio_media_file": audio_media_file,
-            "video_url": video_url,
-            "has_next": has_next
-        }
+            
+            completed_count = await self.repo.get_completed_items_count(session.id)
+            await self.repo.update_progress(session.id, completed_count)
+            await self.repo.move_to_next_item(session.id)
+            
+            await self.db.commit()
+            await self.db.refresh(media_file)
+            if audio_media_file:
+                await self.db.refresh(audio_media_file)
+            
+            updated_session = await self.get_training_session(session.id, user.id)
+            next_item = await self.item_repo.get_current_item(session.id, include_relations=True)
+            has_next = await self.item_repo.get_next_item(session.id, next_item.item_index) is not None if next_item else False
+            
+            return {
+                "session": updated_session, "next_item": next_item, "media_file": media_file,
+                "praat_feature": new_praat_record, "audio_media_file": audio_media_file,
+                "video_url": video_url, "has_next": has_next
+            }
+        finally:
+            # 8. 임시 파일 정리
+            if temp_video_path and os.path.exists(temp_video_path):
+                os.remove(temp_video_path)
+                logger.info(f"임시 동영상 파일 삭제: {temp_video_path}")
+            if audio_path and os.path.exists(audio_path):
+                os.remove(audio_path)
+                logger.info(f"임시 음성 파일 삭제: {audio_path}")
+            
+            elapsed_time = time.time() - start_time
+            logger.info(f"[_submit_item_with_video] 완료 - session_id: {session.id}, item_id: {item.id}. (총 소요 시간: {elapsed_time:.2f}초)")
     
     async def submit_current_item_with_video(
         self,
         *,
         session_id: int,
         user: User,
-        file_bytes: bytes,
+        video_file: UploadFile,
         filename: str,
         content_type: str,
         gcs_service: GCSService,
         background_tasks: BackgroundTasks
     ) -> Dict[str, Any]:
         """현재 진행 중인 아이템에 동영상 업로드 및 완료 처리"""
+        start_time = time.time()
         session = await self.get_training_session(session_id, user.id)
         if not session:
             raise LookupError("훈련 세션을 찾을 수 없습니다.")
@@ -586,16 +594,20 @@ class TrainingSessionService:
             raise ValueError("이미 완료된 아이템입니다.")
         
         # 내부 메서드 호출
-        return await self._submit_item_with_video(
-            session_id=session_id,
+        # 로깅 사용을 위해 return을 맨 마지막에 명시
+        result = await self._submit_item_with_video(
+            session=session,
             item_id=current_item.id,
             user=user,
-            file_bytes=file_bytes,
+            video_file=video_file,
             filename=filename,
             content_type=content_type,
             gcs_service=gcs_service,
             background_tasks=background_tasks
         )
+        elapsed_time = time.time() - start_time
+        logger.info(f"[submit_current_item_with_video] 완료 - session_id: {session_id}. (총 소요 시간: {elapsed_time:.2f}초)")
+        return result
     
     async def resubmit_item_video(
         self,
@@ -603,7 +615,7 @@ class TrainingSessionService:
         session_id: int,
         item_id: int,
         user: User,
-        file_bytes: bytes,
+        video_file: UploadFile,
         filename: str,
         content_type: str,
         gcs_service: GCSService,
@@ -613,6 +625,12 @@ class TrainingSessionService:
         완료된 아이템도 허용하며 진행률/포인터는 변경하지 않는다.
         같은 경로에 새 파일을 업로드하여 기존 파일을 덮어쓴다.
         """
+        start_time = time.time()
+        temp_video_path = None
+        processing_result = None
+        audio_path = None
+        logger.info(f"[resubmit_item_video] 시작 - session_id: {session_id}, item_id: {item_id}")
+
         session = await self.get_training_session(session_id, user.id)
         if not session:
             raise LookupError("훈련 세션을 찾을 수 없습니다.")
@@ -626,153 +644,144 @@ class TrainingSessionService:
         if item.media_file_id:
             old_media_file = item.media_file # Eager Loading으로 이미 로드된 객체 사용
 
-        # 같은 경로에 새 동영상 업로드 (덮어쓰기)
-        upload_result = await gcs_service.upload_video(
-            file_content=file_bytes,
-            username=user.username,
-            session_id=str(session_id),
-            train_id=item.id,
-            word_id=item.word_id,
-            sentence_id=item.sentence_id,
-            original_filename=filename,
-            content_type=content_type
-        )
-
-        if not upload_result.get("success"):
-            raise RuntimeError(f"동영상 업로드에 실패했습니다: {upload_result.get('error')}")
-
-        object_key = upload_result.get("object_path")
-        if not object_key:
-            raise RuntimeError("업로드 결과에 object_path가 없습니다.")
-
-        video_url = await gcs_service.get_signed_url(object_key, expiration_hours=24)
-        if not video_url:
-            raise RuntimeError("동영상 URL 생성에 실패했습니다.")
-
-        # 기존 미디어 파일이 있으면 업데이트, 없으면 새로 생성
-        if old_media_file:
-            # 기존 미디어 파일 정보 업데이트
-            media_file = await self.media_repo.update_media_file(
-                media_file=old_media_file,
-                file_name=upload_result.get("filename") or filename,
-                file_size_bytes=len(file_bytes),
-                format=content_type.split('/')[-1] if '/' in content_type else content_type
-            )
-        else:
-            # 새 미디어 파일 생성
-            media_file = await self.media_repo.create_and_flush(
-                user_id=user.id,
-                object_key=object_key,
-                media_type=MediaType.VIDEO,
-                file_name=upload_result.get("filename") or filename,
-                file_size_bytes=len(file_bytes),
-                format=(content_type.split('/')[-1] if '/' in content_type else content_type)
-            )
-
-        audio_media_file = None
-        new_praat_record = None
         try:
-            print(f"[WAV] 재업로드 - 음성 처리 시작 - video: {object_key}")
-            video_processor = VideoProcessor()
-            processing_result = await video_processor.process_uploaded_video_with_audio(
-                gcs_bucket=gcs_service.bucket_name,
-                gcs_blob_name=object_key
+            # 1. UploadFile을 임시 파일로 저장
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_video:
+                temp_video_path = temp_video.name
+                async with aiofiles.open(temp_video_path, 'wb') as out_file:
+                    while content := await video_file.read(1024 * 1024):
+                        await out_file.write(content)
+
+            # 2. GCS에 동영상 업로드 (덮어쓰기)
+            upload_result = await gcs_service.upload_video(
+                file_path=temp_video_path,
+                username=user.username,
+                session_id=str(session_id),
+                train_id=item.id,
+                word_id=item.word_id,
+                sentence_id=item.sentence_id,
+                original_filename=filename,
+                content_type=content_type
             )
-            print(f"[WAV] 재업로드 - 음성 처리 완료 - audio_blob_name: {processing_result.get('audio_blob_name')}")
-            
-            if processing_result.get('audio_blob_name'):
-                from ..services.media import MediaService
+            if not upload_result.get("success"):
+                raise RuntimeError(f"동영상 재업로드에 실패했습니다: {upload_result.get('error')}")
+
+            object_key = upload_result.get("object_path")
+            video_url = await gcs_service.get_signed_url(object_key, expiration_hours=24)
+            if not video_url:
+                raise RuntimeError("동영상 URL 생성에 실패했습니다.")
+
+            # 3. 기존 미디어 파일이 있으면 업데이트, 없으면 새로 생성
+            if old_media_file:
+                media_file = await self.media_repo.update_media_file(
+                    media_file=old_media_file,
+                    file_name=upload_result.get("filename") or filename,
+                    file_size_bytes=upload_result.get("file_size", 0),
+                    format=content_type.split('/')[-1] if '/' in content_type else content_type
+                )
+            else:
+                media_file = await self.media_repo.create_and_flush(
+                    user_id=user.id, object_key=object_key, media_type=MediaType.VIDEO,
+                    file_name=upload_result.get("filename") or filename,
+                    file_size_bytes=upload_result.get("file_size", 0),
+                    format=(content_type.split('/')[-1] if '/' in content_type else content_type)
+                )
+
+            # 4. 로컬 임시 파일을 사용하여 미디어 처리
+            video_processor = VideoProcessor()
+            logger.info(f"[resubmit_item_video] 로컬 파일로 음성 처리 시작 - path: {temp_video_path}")
+            processing_result = await video_processor.process_uploaded_video_with_audio(temp_video_path)
+            logger.info(f"[resubmit_item_video] 로컬 파일 음성 처리 완료")
+
+            # 5. 추출된 음성 파일 처리
+            audio_media_file = None
+            new_praat_record = None
+            audio_path = processing_result.get('audio_path')
+
+            if audio_path and os.path.exists(audio_path):
+                # 5-1. 음성 파일을 GCS에 업로드
+                audio_object_key = object_key.replace('.mp4', '.wav')
+                audio_blob = gcs_service.bucket.blob(audio_object_key)
+                audio_blob.upload_from_filename(audio_path, content_type="audio/wav")
+                logger.info(f"[resubmit_item_video] 추출된 음성 파일 GCS 업로드 완료: {audio_object_key}")
+
+                # 5-2. 음성 파일 정보 DB 업데이트 또는 생성
                 media_service = MediaService(self.db)
-                existing_audio = await media_service.get_media_file_by_object_key(processing_result['audio_blob_name'])
+                existing_audio = await media_service.get_media_file_by_object_key(audio_object_key)
                 if existing_audio:
-                    print(f"[WAV] 재업로드 - 기존 DB 레코드 업데이트 - media_id: {existing_audio.id}")
-                    # 메타데이터 갱신만 수행
+                    logger.info(f"[resubmit_item_video] 기존 오디오 DB 레코드 업데이트 - media_id: {existing_audio.id}")
                     audio_media_file = await self.media_repo.update_media_file(
                         media_file=existing_audio,
-                        file_name=processing_result['audio_blob_name'].split('/')[-1],
+                        file_name=audio_object_key.split('/')[-1],
+                        file_size_bytes=os.path.getsize(audio_path),
                         format="wav"
                     )
                 else:
-                    print(f"[WAV] 재업로드 - 새 DB 레코드 생성")
+                    logger.info(f"[resubmit_item_video] 새 오디오 DB 레코드 생성")
                     audio_media_file = await self.media_repo.create_and_flush(
-                        user_id=user.id,
-                        object_key=processing_result['audio_blob_name'],
-                        media_type=MediaType.AUDIO,
-                        file_name=processing_result['audio_blob_name'].split('/')[-1],
-                        file_size_bytes=0,
-                        format="wav"
+                        user_id=user.id, object_key=audio_object_key, media_type=MediaType.AUDIO,
+                        file_name=audio_object_key.split('/')[-1],
+                        file_size_bytes=os.path.getsize(audio_path), format="wav"
                     )
-                print(f"[WAV] 재업로드 - DB 저장 완료 - media_id: {audio_media_file.id}")
 
-                # Praat 분석 결과 생성 또는 업데이트
+                # 5-3. Praat 분석 결과 DB 업데이트 또는 생성
                 praat_data = processing_result.get('praat_features')
                 if praat_data and audio_media_file:
-                    # 기존 분석 결과가 있는지 확인
                     existing_praat = await self.praat_repo.get_by_media_id(audio_media_file.id)
                     if existing_praat:
-                        print(f"[WAV] 재업로드 - Praat DB 업데이트 - praat_id: {existing_praat.id}")
-                        # 1. 업데이트할 객체의 속성을 직접 변경
+                        logger.info(f"[resubmit_item_video] Praat DB 업데이트 - praat_id: {existing_praat.id}")
                         for key, value in praat_data.items():
                             setattr(existing_praat, key, value)
-                        # 2. 변경된 객체를 전달하여 업데이트
                         new_praat_record = await self.praat_repo.update(existing_praat)
                     else:
-                        print(f"[WAV] 재업로드 - Praat DB 생성 - media_id: {audio_media_file.id}")
+                        logger.info(f"[resubmit_item_video] Praat DB 생성 - media_id: {audio_media_file.id}")
                         new_praat_record = await self.praat_repo.create_and_flush(
-                            media_id=audio_media_file.id,
-                            **praat_data
+                            media_id=audio_media_file.id, **praat_data
                         )
-                    print(f"[WAV] 재업로드 - Praat DB 처리 완료 - praat_id: {new_praat_record.id}")
-
             else:
-                print(f"[WAV] 재업로드 - 경고: audio_blob_name이 없습니다")
-        except Exception as e:
-            print(f"[WAV] 재업로드 - Audio extraction failed: {str(e)}")
-            import traceback
-            traceback.print_exc()
+                logger.warning(f"[resubmit_item_video] 경고: 음성 파일이 생성되지 않았습니다.")
 
-        # [수정] ElevenLabs 가이드 음성 생성 및 Wav2Lip 처리를 위한 백그라운드 작업 추가
-        if (item.word or item.sentence) and audio_media_file:
-            text_for_guide = item.word.word if item.word else item.sentence.sentence
-            print(f"[RESUBMIT] ElevenLabs 가이드 음성 생성 백그라운드 작업 추가 - item_id: {item.id}")
-            background_tasks.add_task(
-                self.trigger_guide_audio_generation,
-                user=user,
-                session_id=session_id,
-                item_id=item.id,
-                text=text_for_guide,
-                original_audio_object_key=audio_media_file.object_key,
-                gcs_service=gcs_service,
-                original_video_object_key=object_key # 재업로드 시에도 Wav2Lip 처리를 위해 원본 비디오 경로 전달
+            # 6. 가이드 음성 생성 백그라운드 작업 추가
+            # if (item.word or item.sentence) and audio_media_file:
+            #     logger.info(f"[resubmit_item_video] 가이드 음성 생성 백그라운드 작업 추가 - item_id: {item.id}")
+            #     text_for_guide = item.word.word if item.word else item.sentence.sentence
+            #     background_tasks.add_task(
+            #         self.trigger_guide_audio_generation,
+            #         user=user, session_id=session_id, item_id=item.id, text=text_for_guide,
+            #         original_audio_object_key=audio_media_file.object_key,
+            #         gcs_service=gcs_service, original_video_object_key=object_key
+            #     )
+
+            # 7. 아이템의 동영상 정보 업데이트 (완료 상태 유지)
+            await self.item_repo.complete_item(
+                item_id=item.id, video_url=video_url, media_file_id=media_file.id, is_completed=True
             )
 
+            await self.db.commit()
+            await self.db.refresh(media_file)
+            if audio_media_file:
+                await self.db.refresh(audio_media_file)
+            if new_praat_record:
+                await self.db.refresh(new_praat_record)
 
-        # 아이템의 동영상 정보 업데이트 (완료 상태 유지)
-        await self.item_repo.complete_item(
-            item_id=item.id,
-            video_url=video_url,
-            media_file_id=media_file.id,
-            is_completed=True
-        )
+            updated_session = await self.get_training_session(session_id, user.id)
 
-        await self.db.commit()
-        await self.db.refresh(media_file)
-        if audio_media_file:
-            await self.db.refresh(audio_media_file)
-        if new_praat_record:
-            await self.db.refresh(new_praat_record)
-
-        updated_session = await self.get_training_session(session_id, user.id)
-
-        return {
-            "session": updated_session,
-            "next_item": None,
-            "media_file": media_file,
-            "praat_feature": new_praat_record,
-            "audio_media_file": audio_media_file,
-            "video_url": video_url,
-            "has_next": False
-        }
+            return {
+                "session": updated_session, "next_item": None, "media_file": media_file,
+                "praat_feature": new_praat_record, "audio_media_file": audio_media_file,
+                "video_url": video_url, "has_next": False
+            }
+        finally:
+            # 8. 임시 파일 정리
+            if temp_video_path and os.path.exists(temp_video_path):
+                os.remove(temp_video_path)
+                logger.info(f"임시 동영상 파일 삭제: {temp_video_path}")
+            if audio_path and os.path.exists(audio_path):
+                os.remove(audio_path)
+                logger.info(f"임시 음성 파일 삭제: {audio_path}")
+            
+            elapsed_time = time.time() - start_time
+            logger.info(f"[resubmit_item_video] 완료 - session_id: {session_id}, item_id: {item_id}. (총 소요 시간: {elapsed_time:.2f}초)")
     
     async def get_wav2lip_result(
         self,
@@ -1015,6 +1024,7 @@ class TrainingSessionService:
         gcs_service: GCSService
     ) -> Dict[str, Any]:
         """발성 훈련 아이템 제출 (오디오 + 그래프 이미지 업로드, 그래프 영상은 선택사항)"""
+        start_time = time.time()
         # 1. 세션 확인 및 타입 검증
         session = await self.get_training_session(session_id, user.id)
         if not session:
@@ -1093,6 +1103,7 @@ class TrainingSessionService:
             
             if not video_upload_result.get("success"):
                 print(f"[VOCAL] 경고: 그래프 영상 업로드 실패 - {video_upload_result.get('error')}")
+                logger.warning(f"[submit_vocal_item] 경고: 그래프 영상 업로드 실패 - {video_upload_result.get('error')}")
             else:
                 video_object_key = video_upload_result.get("object_path")
                 if video_object_key:
@@ -1130,18 +1141,22 @@ class TrainingSessionService:
         praat_feature = None
         try:
             print(f"[VOCAL] Praat 분석 시작 - item_id: {item.id}")
+            logger.info(f"[submit_vocal_item] Praat 분석 시작 - item_id: {item.id}")
             praat_data = await extract_all_features(audio_file_bytes)
             print(f"[VOCAL] Praat 분석 완료")
             
+            # PraatFeatures DB 저장 (개별 오디오 파일 분석 결과)
             praat_feature = await self.praat_repo.create_and_flush(
                 media_id=audio_media_file.id,
                 **praat_data
             )
             print(f"[VOCAL] Praat DB 저장 완료 - praat_id: {praat_feature.id}")
+            logger.info(f"[submit_vocal_item] Praat DB 저장 완료 - praat_id: {praat_feature.id}")
         except Exception as e:
             print(f"[VOCAL] Praat 분석 실패: {str(e)}")
             import traceback
             traceback.print_exc()
+            logger.error(f"[submit_vocal_item] Praat 분석 실패: {e}", exc_info=True)
             # Praat 분석 실패해도 아이템 완료는 계속 진행
         
         # 7. 아이템 완료 처리 (이미지 URL 저장, video_url은 선택사항)
@@ -1166,11 +1181,18 @@ class TrainingSessionService:
             await self.db.refresh(video_media_file)
         if praat_feature:
             await self.db.refresh(praat_feature)
+            # Commit 후 Praat 데이터 저장 확인
+            print(f"[VOCAL] ✅ Commit 완료 - PraatFeatures 확인 (id: {praat_feature.id}, media_id: {praat_feature.media_id})")
+        else:
+            print(f"[VOCAL] ⚠️ PraatFeatures가 저장되지 않았습니다. (item_id: {item.id}, media_id: {audio_media_file.id})")
         
         # 9. 업데이트된 세션 및 다음 아이템 조회
         updated_session = await self.get_training_session(session_id, user.id)
         next_item = await self.item_repo.get_item_by_index(session_id, item_index + 1, include_relations=True)
         has_next = next_item is not None
+        
+        elapsed_time = time.time() - start_time
+        logger.info(f"[submit_vocal_item] 완료 - session_id: {session_id}, item_index: {item_index}. (총 소요 시간: {elapsed_time:.2f}초)")
         
         return {
             "session": updated_session,
@@ -1182,4 +1204,140 @@ class TrainingSessionService:
             "image_url": image_url,
             "video_image_url": video_url,  # graph_video URL (video_url과 동일)
             "has_next": has_next
+        }
+    
+    async def get_vocal_results_summary(
+        self,
+        session_id: int,
+        user_id: int
+    ) -> Optional[Dict[str, Any]]:
+        """VOCAL 타입 세션의 평균 Praat 결과 조회
+        
+        평균 계산 규칙:
+        - n = total_items / 5 (프론트에서 "아~" 발음 반복 횟수)
+        - jitter, shimmer: 처음 n개 아이템 (index 0 ~ n-1)의 평균
+        - 나머지 지표: 전체 아이템의 평균
+        
+        예시: total_items=15면 n=3
+        - jitter, shimmer: 아이템 0, 1, 2의 평균
+        - 나머지: 전체 15개의 평균
+        
+        Returns:
+            세션 정보와 평균 Praat 결과를 포함한 딕셔너리
+        """
+        # 세션 조회 및 소유권 확인
+        session = await self.get_training_session(session_id, user_id)
+        if not session:
+            return None
+        
+        # VOCAL 타입 확인
+        if session.type != TrainingType.VOCAL:
+            raise ValueError("이 API는 VOCAL 타입 세션에서만 사용할 수 있습니다.")
+        
+        # 아이템별 Praat 결과 조회하여 직접 평균 계산
+        items_with_praat = await self.session_praat_repo.get_session_items_with_praat(session_id)
+        
+        # Praat 데이터가 있는 아이템만 필터링
+        praat_list = [(item, praat) for item, praat in items_with_praat if praat is not None]
+        
+        # 실제 아이템 수 기준으로 n 계산 (total_items가 아닌 실제 제출된 아이템 수)
+        actual_items_count = len(praat_list)
+        
+        if actual_items_count == 0:
+            raise ValueError("Praat 데이터가 있는 아이템이 없습니다.")
+        
+        if actual_items_count % 5 != 0:
+            raise ValueError(f"제출된 아이템 수({actual_items_count})가 5의 배수가 아닙니다.")
+        
+        n = actual_items_count // 5
+        
+        # 평균 계산 헬퍼 함수
+        def calc_avg(values: List[Optional[float]]) -> Optional[float]:
+            """None이 아닌 값들의 평균 계산"""
+            valid_values = [v for v in values if v is not None]
+            if not valid_values:
+                return None
+            return sum(valid_values) / len(valid_values)
+        
+        # jitter, shimmer: 처음 n개 아이템 (index 0 ~ n-1)의 평균
+        first_n_items = [praat for item, praat in praat_list if item.item_index < n]
+        avg_jitter_local = calc_avg([p.jitter_local for p in first_n_items])
+        avg_shimmer_local = calc_avg([p.shimmer_local for p in first_n_items])
+        
+        # 나머지: 전체 아이템의 평균
+        all_items = [praat for _, praat in praat_list]
+        avg_nhr = calc_avg([p.nhr for p in all_items])
+        avg_hnr = calc_avg([p.hnr for p in all_items])
+        avg_lh_ratio_mean_db = calc_avg([p.lh_ratio_mean_db for p in all_items])
+        avg_lh_ratio_sd_db = calc_avg([p.lh_ratio_sd_db for p in all_items])
+        avg_max_f0 = calc_avg([p.max_f0 for p in all_items])
+        avg_min_f0 = calc_avg([p.min_f0 for p in all_items])
+        avg_intensity_mean = calc_avg([p.intensity_mean for p in all_items])
+        avg_f0 = calc_avg([p.f0 for p in all_items])
+        avg_f1 = calc_avg([p.f1 for p in all_items])
+        avg_f2 = calc_avg([p.f2 for p in all_items])
+        
+        # 결과 객체 생성
+        from ..models.session_praat_result import SessionPraatResult
+        avg_result = SessionPraatResult(
+            training_session_id=session_id,
+            avg_jitter_local=avg_jitter_local,
+            avg_shimmer_local=avg_shimmer_local,
+            avg_nhr=avg_nhr,
+            avg_hnr=avg_hnr,
+            avg_lh_ratio_mean_db=avg_lh_ratio_mean_db,
+            avg_lh_ratio_sd_db=avg_lh_ratio_sd_db,
+            avg_max_f0=avg_max_f0,
+            avg_min_f0=avg_min_f0,
+            avg_intensity_mean=avg_intensity_mean,
+            avg_f0=avg_f0,
+            avg_f1=avg_f1,
+            avg_f2=avg_f2
+        )
+        
+        return {
+            "session_id": session.id,
+            "session_name": session.session_name,
+            "total_items": session.total_items,
+            "completed_items": session.completed_items,
+            "average_results": avg_result
+        }
+    
+    async def get_vocal_results_detail(
+        self,
+        session_id: int,
+        user_id: int
+    ) -> Optional[Dict[str, Any]]:
+        """VOCAL 타입 세션의 아이템별 상세 Praat 결과 조회
+        
+        Returns:
+            세션 정보와 각 아이템별 Praat 결과를 포함한 딕셔너리
+        """
+        # 세션 조회 및 소유권 확인
+        session = await self.get_training_session(session_id, user_id)
+        if not session:
+            return None
+        
+        # VOCAL 타입 확인
+        if session.type != TrainingType.VOCAL:
+            raise ValueError("이 API는 VOCAL 타입 세션에서만 사용할 수 있습니다.")
+        
+        # 아이템별 Praat 결과 조회
+        items_with_praat = await self.session_praat_repo.get_session_items_with_praat(session_id)
+        
+        # 응답 형식으로 변환
+        items_detail = []
+        for item, praat_feature in items_with_praat:
+            items_detail.append({
+                "item_index": item.item_index,
+                "item_id": item.id,
+                "praat_features": praat_feature
+            })
+        
+        return {
+            "session_id": session.id,
+            "session_name": session.session_name,
+            "total_items": session.total_items,
+            "completed_items": session.completed_items,
+            "items": items_detail
         }

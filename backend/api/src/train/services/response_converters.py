@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..schemas.training_sessions import TrainingSessionResponse
 from ..schemas.training_items import CurrentItemResponse, TrainingItemResponse
 from ..schemas.media import MediaResponse
-from ..schemas.praat import PraatFeaturesResponse
+from ..schemas.praat import PraatFeaturesResponse, SessionPraatResultResponse
 from ..services.training_sessions import TrainingSessionService
 from ..services.gcs_service import GCSService
 from ..services.media import MediaService
@@ -160,7 +160,66 @@ async def convert_session_to_response(
     gcs_service: GCSService,
     username: str
 ) -> TrainingSessionResponse:
-    """TrainingSession 모델을 TrainingSessionResponse로 변환 (병렬 URL 생성 최적화)"""
+    """TrainingSession 모델을 TrainingSessionResponse로 변환 (session_praat_result 포함, 안전 처리)"""
+    from sqlmodel import select
+    from ..models.session_praat_result import SessionPraatResult
+    from sqlalchemy import exc as sa_exc
+    import logging
+    
+    # 기본 null 객체 정의
+    empty_praat_result = SessionPraatResultResponse(
+        avg_jitter_local=None,
+        avg_shimmer_local=None,
+        avg_hnr=None,
+        avg_nhr=None,
+        avg_lh_ratio_mean_db=None,
+        avg_lh_ratio_sd_db=None,
+        avg_max_f0=None,
+        avg_min_f0=None,
+        avg_intensity_mean=None,
+        avg_f0=None,
+        avg_f1=None,
+        avg_f2=None,
+        created_at=None,
+        updated_at=None
+    )
+    
+    session_praat_result = empty_praat_result
+    
+    try:
+        praat_stmt = select(SessionPraatResult).where(
+            SessionPraatResult.training_session_id == session.id
+        )
+        praat_result = await db.execute(praat_stmt)
+        praat_data = praat_result.scalar_one_or_none()
+        
+        if praat_data:
+            session_praat_result = SessionPraatResultResponse(
+                avg_jitter_local=praat_data.avg_jitter_local,
+                avg_shimmer_local=praat_data.avg_shimmer_local,
+                avg_hnr=praat_data.avg_hnr,
+                avg_nhr=praat_data.avg_nhr,
+                avg_lh_ratio_mean_db=praat_data.avg_lh_ratio_mean_db,
+                avg_lh_ratio_sd_db=praat_data.avg_lh_ratio_sd_db,
+                avg_max_f0=praat_data.avg_max_f0,
+                avg_min_f0=praat_data.avg_min_f0,
+                avg_intensity_mean=praat_data.avg_intensity_mean,
+                avg_f0=praat_data.avg_f0,
+                avg_f1=praat_data.avg_f1,
+                avg_f2=praat_data.avg_f2,
+                created_at=praat_data.created_at,
+                updated_at=praat_data.updated_at
+            )
+    except (sa_exc.SQLAlchemyError, Exception) as e:
+        # 🔥 모든 DB 예외를 캐치 (테이블 없음 / 컬럼 불일치 / 기타 전부)
+        logging.warning(f"[convert_session_to_response] Session {session.id} Praat 조회 실패: {type(e).__name__} - {e}")
+        # rollback 금지: 예외를 처리했으므로 세션은 유지됨
+        try:
+            await db.rollback()  # 혹시 트랜잭션이 열려있다면 여기서 수동 정리
+        except Exception:
+            pass  # rollback 실패해도 무시 (이미 예외 처리 중)
+        session_praat_result = empty_praat_result
+    
     # Composited media를 일괄 조회하기 위한 object_key 리스트 생성
     composited_object_keys = [
         f"results/{username}/{session.id}/result_item_{item.id}.mp4"
@@ -171,7 +230,6 @@ async def convert_session_to_response(
     media_service = MediaService(db)
     composited_media_map = {}
     if composited_object_keys:
-        from sqlmodel import select
         from ..models.media import MediaFile
         stmt = select(MediaFile).where(MediaFile.object_key.in_(composited_object_keys))
         result = await db.execute(stmt)
@@ -244,6 +302,7 @@ async def convert_session_to_response(
         completed_items=session.completed_items,
         current_item_index=session.current_item_index,
         progress_percentage=session.progress_percentage,
+        session_praat_result=session_praat_result,
         session_metadata=session.session_metadata,
         created_at=session.created_at,
         updated_at=session.updated_at,

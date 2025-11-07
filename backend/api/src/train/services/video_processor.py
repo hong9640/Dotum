@@ -14,7 +14,7 @@ class VideoProcessor:
     """FFmpeg를 사용한 동영상 처리 서비스"""
     
     def __init__(self):
-        self.gcs_client = storage.Client(project=settings.GCS_PROJECT_ID)
+        pass  # GCS 클라이언트 의존성 제거
     
     async def extract_metadata(self, file_path: str) -> Dict[str, Any]:
         """동영상 메타데이터 추출"""
@@ -98,42 +98,34 @@ class VideoProcessor:
         except Exception as e:
             raise Exception(f"Thumbnail generation failed: {str(e)}")
     
-    async def process_uploaded_video(
-        self, 
-        gcs_bucket: str, 
-        gcs_blob_name: str
-    ) -> Dict[str, Any]:
-        """업로드된 동영상 처리"""
-        try:
-            # 임시 디렉토리 생성
-            with tempfile.TemporaryDirectory() as temp_dir:
-                # GCS에서 파일 다운로드
-                bucket = self.gcs_client.bucket(gcs_bucket)
-                blob = bucket.blob(gcs_blob_name)
-                
-                input_path = os.path.join(temp_dir, "input.mp4")
-                blob.download_to_filename(input_path)
-                
-                # 메타데이터 추출
-                metadata = await self.extract_metadata(input_path)
-                
-                # 썸네일 생성
-                thumbnail_path = os.path.join(temp_dir, "thumbnail.jpg")
-                await self.generate_thumbnail(input_path, thumbnail_path)
-                
-                # 썸네일을 GCS에 업로드
-                thumbnail_blob_name = gcs_blob_name.replace('.mp4', '_thumb.jpg')
-                thumbnail_blob = bucket.blob(thumbnail_blob_name)
-                thumbnail_blob.upload_from_filename(thumbnail_path)
-                
-                return {
-                    'metadata': metadata,
-                    'thumbnail_url': f"gs://{gcs_bucket}/{thumbnail_blob_name}"
-                }
-                
-        except Exception as e:
-            raise Exception(f"Video processing failed: {str(e)}")
-    
+    # 해당 함수 사용 안함. 만약을 위해 주석처리
+    # async def process_uploaded_video(
+    #     self,
+    #     input_video_path: str
+    # ) -> Dict[str, Any]:
+    #     """
+    #     로컬 동영상 파일 처리 (메타데이터, 썸네일 생성).
+    #     음성 추출이 필요 없는 경우 사용합니다.
+    #     """
+    #     # 임시 디렉토리 생성
+    #     with tempfile.TemporaryDirectory() as temp_dir:
+    #         # 메타데이터 추출
+    #         metadata = {}
+    #         try:
+    #             metadata = await self.extract_metadata(input_video_path)
+    #         except Exception as e:
+    #             print(f"[VideoProcessor] 메타데이터 추출 실패 (무시하고 계속): {str(e)}")
+
+    #         # 썸네일 생성
+    #         thumbnail_path = os.path.join(temp_dir, "thumbnail.jpg")
+    #         try:
+    #             await self.generate_thumbnail(input_video_path, thumbnail_path)
+    #         except Exception as e:
+    #             print(f"[VideoProcessor] 썸네일 생성 실패 (무시하고 계속): {str(e)}")
+    #             thumbnail_path = None
+
+    #         return {'metadata': metadata, 'thumbnail_path': thumbnail_path}
+
     async def extract_stereo_audio(
         self, 
         input_path: str, 
@@ -175,95 +167,53 @@ class VideoProcessor:
     
     async def process_uploaded_video_with_audio(
         self, 
-        gcs_bucket: str, 
-        gcs_blob_name: str
+        input_video_path: str
     ) -> Dict[str, Any]:
-        """업로드된 동영상 처리 (메타데이터, 썸네일, 음성 추출)"""
-        try:
-            # 임시 디렉토리 생성
-            with tempfile.TemporaryDirectory() as temp_dir:
-                # GCS에서 파일 다운로드
-                bucket = self.gcs_client.bucket(gcs_bucket)
-                blob = bucket.blob(gcs_blob_name)
-                
-                input_path = os.path.join(temp_dir, "input.mp4")
-                blob.download_to_filename(input_path)
-                
-                # 메타데이터 추출 (선택적 - 실패해도 계속 진행)
-                metadata = {}
-                try:
-                    metadata = await self.extract_metadata(input_path)
-                    print(f"[WAV] 메타데이터 추출 완료")
-                except Exception as e:
-                    print(f"[WAV] 메타데이터 추출 실패 (무시하고 계속): {str(e)}")
-                
-                # 썸네일 생성 (선택적 - 실패해도 계속 진행)
-                thumbnail_path = os.path.join(temp_dir, "thumbnail.jpg")
-                thumbnail_success = False
-                try:
-                    await self.generate_thumbnail(input_path, thumbnail_path)
-                    thumbnail_success = True
-                    print(f"[WAV] 썸네일 생성 완료")
-                except Exception as e:
-                    print(f"[WAV] 썸네일 생성 실패 (무시하고 계속): {str(e)}")
-                
-                # 음성 추출 (필수)
-                audio_path = os.path.join(temp_dir, "audio.wav")
-                print(f"[WAV] 음성 추출 시작: {gcs_blob_name}")
-                await self.extract_stereo_audio(input_path, audio_path)
-                
-                # WAV 파일 생성 확인
-                if os.path.exists(audio_path):
-                    audio_size = os.path.getsize(audio_path)
-                    print(f"[WAV] 음성 파일 생성 완료: {audio_size:,} bytes")
-                else:
-                    print(f"[WAV] 에러: 음성 파일이 생성되지 않음")
-                    raise Exception(f"WAV 파일 생성 실패: {audio_path}")
-                
-                # praat 추출
-                praat_results = None  # 결과 초기화
-                try:
-                    print(f"[WAV] Praat 분석 시작")
-                    # 1. 로컬에 생성된 .wav 파일을 바이트로 읽기
-                    async with aiofiles.open(audio_path, 'rb') as f:
-                        wav_bytes = await f.read()
-                    # 2. 읽은 파일을 praat 추출
-                    praat_results = await extract_all_features(wav_bytes) 
-                    print(f"[WAV] Praat 분석 완료")
-                    
-                except Exception as e:
-                    print(f"[WAV] Praat analysis failed: {str(e)}")
-                    # Praat 분석이 실패해도 나머지 작업은 계속 진행
+        """로컬 동영상 파일 처리 (메타데이터, 썸네일, 음성 추출)"""
+        # 임시 디렉토리 생성
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # 메타데이터 추출 (선택적 - 실패해도 계속 진행)
+            metadata = {}
+            try:
+                metadata = await self.extract_metadata(input_video_path)
+            except Exception as e:
+                print(f"[VideoProcessor] 메타데이터 추출 실패 (무시하고 계속): {str(e)}")
+            
+            # 썸네일 생성 (선택적 - 실패해도 계속 진행)
+            # 썸네일은 GCS 업로드 책임이 호출자에게 있으므로 로컬 경로 반환
+            thumbnail_path = os.path.join(temp_dir, "thumbnail.jpg")
+            try:
+                await self.generate_thumbnail(input_video_path, thumbnail_path)
+            except Exception as e:
+                print(f"[VideoProcessor] 썸네일 생성 실패 (무시하고 계속): {str(e)}")
+                thumbnail_path = None # 실패 시 경로를 None으로 설정
+            
+            # 음성 추출 (필수)
+            # 생성된 임시 오디오 파일은 호출자가 삭제해야 하므로 delete=False로 설정
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_audio_file:
+                audio_path = temp_audio_file.name
 
-                # 썸네일을 GCS에 업로드 (성공한 경우에만)
-                thumbnail_blob_name = None
-                if thumbnail_success:
-                    try:
-                        thumbnail_blob_name = gcs_blob_name.replace('.mp4', '_thumb.jpg')
-                        thumbnail_blob = bucket.blob(thumbnail_blob_name)
-                        thumbnail_blob.upload_from_filename(thumbnail_path)
-                        print(f"[WAV] 썸네일 업로드 완료")
-                    except Exception as e:
-                        print(f"[WAV] 썸네일 업로드 실패 (무시하고 계속): {str(e)}")
-                        thumbnail_blob_name = None
-                
-                # 음성 파일을 GCS에 업로드 (필수)
-                audio_blob_name = gcs_blob_name.replace('.mp4', '.wav')
-                audio_blob = bucket.blob(audio_blob_name)
-                print(f"[WAV] GCS 업로드 시작: {audio_blob_name}")
-                audio_blob.upload_from_filename(audio_path)
-                print(f"[WAV] GCS 업로드 완료: gs://{gcs_bucket}/{audio_blob_name}")
-                
-                return {
-                    'metadata': metadata,
-                    'thumbnail_url': f"gs://{gcs_bucket}/{thumbnail_blob_name}" if thumbnail_blob_name else None,
-                    'audio_url': f"gs://{gcs_bucket}/{audio_blob_name}",
-                    'audio_blob_name': audio_blob_name,
-                    'praat_features': praat_results
-                }
-                
-        except Exception as e:
-            raise Exception(f"Video processing with audio extraction failed: {str(e)}")
+            await self.extract_stereo_audio(input_video_path, audio_path)
+            
+            # WAV 파일 생성 확인
+            if not os.path.exists(audio_path) or os.path.getsize(audio_path) == 0:
+                raise Exception(f"음성 파일 생성에 실패했거나 파일 크기가 0입니다: {audio_path}")
+            
+            # praat 추출
+            praat_results = None
+            try:
+                async with aiofiles.open(audio_path, 'rb') as f:
+                    wav_bytes = await f.read()
+                praat_results = await extract_all_features(wav_bytes)
+            except Exception as e:
+                print(f"[VideoProcessor] Praat 분석 실패 (무시하고 계속): {str(e)}")
+
+            return {
+                'metadata': metadata,
+                'thumbnail_path': thumbnail_path if thumbnail_path and os.path.exists(thumbnail_path) else None,
+                'audio_path': audio_path,
+                'praat_features': praat_results
+            }
 
     def check_ffmpeg_availability(self) -> bool:
         """FFmpeg 사용 가능 여부 확인"""
