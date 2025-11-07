@@ -29,12 +29,9 @@ const HomePage: React.FC = () => {
     navigate('/training-history');
   };
 
-  const handleMaxVoiceTraining = async () => {
-    try {
-      await createVocalSession(15); // 15개 아이템
-    } catch (error) {
-      console.error('발성 훈련 세션 생성 실패:', error);
-    }
+  const handleMaxVoiceTraining = () => {
+    // 발성 훈련 페이지로 이동
+    navigate('/voice-training');
   };
 
   return (
