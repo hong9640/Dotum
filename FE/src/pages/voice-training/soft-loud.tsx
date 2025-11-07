@@ -20,16 +20,16 @@ const SoftLoudPage: React.FC = () => {
   const attempt = parseInt(searchParams.get('attempt') || '1', 10);
   const sessionIdParam = searchParams.get('sessionId');
   
-  const [blob, setBlob] = useState<Blob | null>(null);
-  const [url, setUrl] = useState<string>('');
+  const [_blob, setBlob] = useState<Blob | null>(null);
+  const [_url, setUrl] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [sessionId, setSessionId] = useState<number | null>(
+  const [sessionId, _setSessionId] = useState<number | null>(
     sessionIdParam ? parseInt(sessionIdParam) : null
   );
-  const [session, setSession] = useState<CreateTrainingSessionResponse | null>(null);
+  const [_session, setSession] = useState<CreateTrainingSessionResponse | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
   
-  const { supported, ready, speak } = useTTS('ko-KR');
+  const { supported: _supported, ready: _ready, speak } = useTTS('ko-KR');
 
   useEffect(() => {
     const loadSession = async () => {
@@ -133,13 +133,6 @@ const SoftLoudPage: React.FC = () => {
     }
   };
 
-  const handlePrev = () => {
-    if (attempt > 1) {
-      navigate(`/voice-training/soft-loud?attempt=${attempt - 1}&sessionId=${sessionId}`);
-    } else {
-      navigate(`/voice-training/loud-soft?attempt=3&sessionId=${sessionId}`);
-    }
-  };
 
   return (
     <div className="w-full min-h-[calc(100vh-96px)] p-4 sm:p-8">

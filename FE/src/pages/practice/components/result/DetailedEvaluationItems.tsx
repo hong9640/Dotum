@@ -1,13 +1,12 @@
 import React, { useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AudioWaveform, Activity, Radio, Heart, ListChecks, ArrowRight } from "lucide-react";
-import DetailedEvaluationItemCard, { type DetailedEvaluationItem } from "./DetailedEvaluationItemCard";
+import DetailedEvaluationItemCard, { type DetailedEvaluationItem, type EvaluationStatus } from "./DetailedEvaluationItemCard";
 import { Button } from "@/components/ui/button";
 import type { PraatMetrics } from "@/api/training-session/praat";
 
 interface DetailedEvaluationItemsProps {
   praatData?: PraatMetrics | null;
-  praatLoading?: boolean;
 }
 
 /**
@@ -47,9 +46,39 @@ export function calculateNFCD(
   return nfcd;
 }
 
+/**
+ * 상태 평가 함수들
+ */
+const evaluateNFCD = (value: number | null | undefined): EvaluationStatus => {
+  if (value == null || !Number.isFinite(value)) return "주의";
+  if (value < 150) return "주의";
+  if (value >= 150 && value <= 250) return "좋음";
+  return "개선 필요";
+};
+
+const evaluateCPP = (value: number | null | undefined): EvaluationStatus => {
+  if (value == null || !Number.isFinite(value)) return "주의";
+  if (value >= 6) return "좋음";
+  if (value >= 4 && value < 6) return "주의";
+  return "개선 필요";
+};
+
+const evaluateHNR = (value: number | null | undefined): EvaluationStatus => {
+  if (value == null || !Number.isFinite(value)) return "주의";
+  if (value >= 15) return "좋음";
+  if (value >= 10 && value < 15) return "주의";
+  return "개선 필요";
+};
+
+const evaluateCSID = (value: number | null | undefined): EvaluationStatus => {
+  if (value == null || !Number.isFinite(value)) return "주의";
+  if (value < 20) return "좋음";
+  if (value >= 20 && value <= 30) return "주의";
+  return "개선 필요";
+};
+
 const DetailedEvaluationItems: React.FC<DetailedEvaluationItemsProps> = ({
   praatData,
-  praatLoading = false,
 }) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -73,53 +102,48 @@ const DetailedEvaluationItems: React.FC<DetailedEvaluationItemsProps> = ({
     return null;
   }, [praatData]);
 
-  // Praat 값에서 점수 계산
+  // Praat 값에서 상태 평가
   const evaluationData = useMemo<DetailedEvaluationItem[]>(() => {
     const items: DetailedEvaluationItem[] = [];
 
     // 모음 왜곡도 (NFCD 사용)
-    // NFCD는 Hz 단위이므로 반올림하여 표시
-    const nfcdScore = nfcd != null ? Math.round(nfcd) : undefined;
+    const nfcdStatus = evaluateNFCD(nfcd);
     items.push({
       id: "vowel_distortion",
       title: "모음 왜곡도",
-      score: nfcdScore ?? (praatLoading ? 0 : 50), // 로딩 중이 아니면 기본값 50
+      status: nfcdStatus,
       icon: AudioWaveform,
-      colorVariant: "green",
     });
 
     // 소리의 안정도 (CPP 사용)
-    const cppScore = praatData?.cpp != null ? Math.round(praatData.cpp) : undefined;
+    const cppStatus = evaluateCPP(praatData?.cpp);
     items.push({
       id: "cpp",
       title: "소리의 안정도",
-      score: cppScore ?? (praatLoading ? 0 : 90),
+      status: cppStatus,
       icon: Activity,
-      colorVariant: "blue",
     });
 
     // 음성 맑음도 (HNR 사용)
-    const hnrScore = praatData?.hnr != null ? Math.round(praatData.hnr) : undefined;
+    const hnrStatus = evaluateHNR(praatData?.hnr);
     items.push({
       id: "hnr",
       title: "음성 맑음도",
-      score: hnrScore ?? (praatLoading ? 0 : 40),
+      status: hnrStatus,
       icon: Radio,
-      colorVariant: "amber",
     });
 
     // 음성 건강지수 (CSID 사용)
-    const csidScore = praatData?.csid != null ? Math.round(praatData.csid) : undefined;
+    const csidStatus = evaluateCSID(praatData?.csid);
     items.push({
       id: "csid",
       title: "음성 건강지수",
-      score: csidScore ?? (praatLoading ? 0 : 34),
+      status: csidStatus,
       icon: Heart,
-      colorVariant: "amber",
     });
 
     return items;
-  }, [praatData, nfcd, praatLoading]);
+  }, [praatData, nfcd]);
 
   // 자세히 보기 버튼 클릭 핸들러
   const handleDetailClick = () => {
