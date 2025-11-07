@@ -899,10 +899,10 @@ async def read_praat_analysis(
     "/{session_id}/vocal-results",
     response_model=VocalTrainingResultsSummary,
     summary="VOCAL 훈련 결과 요약 조회 (평균)",
-    description="VOCAL 타입 훈련 세션의 모든 아이템 지표를 평균 내어 반환합니다. 세션이 완료되어야 평균 결과가 계산됩니다.",
+    description="VOCAL 타입 훈련 세션의 평균 Praat 지표를 반환합니다. 세션이 완료되면 저장된 평균값을 반환하고, 진행 중이면 실시간 계산 결과를 반환합니다.",
     responses={
         200: {"description": "조회 성공"},
-        400: {"model": BadRequestErrorResponse, "description": "VOCAL 타입이 아님"},
+        400: {"model": BadRequestErrorResponse, "description": "VOCAL 타입이 아님 또는 데이터 부족"},
         401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"},
         404: {"model": NotFoundErrorResponse, "description": "세션을 찾을 수 없음"}
     }
@@ -912,8 +912,40 @@ async def get_vocal_training_results_summary(
     current_user: User = Depends(get_current_user),
     service: TrainingSessionService = Depends(get_training_service)
 ):
-    """VOCAL 타입 훈련 세션의 평균 Praat 결과 조회"""
+    """VOCAL 타입 훈련 세션의 평균 Praat 결과 조회
+    
+    - 완료된 세션: DB에 저장된 평균 결과 반환
+    - 진행 중인 세션: 현재까지 제출된 아이템으로 실시간 평균 계산
+    """
     try:
+        # 1. 세션 조회 및 권한 확인
+        session = await service.get_training_session(session_id, current_user.id)
+        if not session:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="훈련 세션을 찾을 수 없습니다."
+            )
+        
+        # 2. VOCAL 타입 확인
+        if session.type != TrainingType.VOCAL:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="이 API는 VOCAL 타입 세션에서만 사용할 수 있습니다."
+            )
+        
+        # 3. 완료된 세션이면 DB에 저장된 평균 결과 조회
+        if session.status == TrainingSessionStatus.COMPLETED:
+            db_result = await service.session_praat_repo.get_by_session_id(session_id)
+            if db_result:
+                return VocalTrainingResultsSummary(
+                    session_id=session.id,
+                    session_name=session.session_name,
+                    total_items=session.total_items,
+                    completed_items=session.completed_items,
+                    average_results=db_result
+                )
+        
+        # 4. 진행 중이거나 DB에 저장된 결과가 없으면 실시간 계산
         result = await service.get_vocal_results_summary(session_id, current_user.id)
         if not result:
             raise HTTPException(
