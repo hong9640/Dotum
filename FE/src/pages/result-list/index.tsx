@@ -9,19 +9,15 @@ import { useTrainingSession } from '@/hooks/training-session';
 import { retryTrainingSession } from '@/api/training-session/sessionRetry';
 import 도드미치료사 from "@/assets/도드미_치료사.png";
 
-// 날짜 포맷팅 함수
+// 날짜 포맷팅 함수 (시간 제외)
 const formatDate = (dateString: string): string => {
   try {
     const date = new Date(dateString);
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
-    const dateHours = date.getHours();
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const ampm = dateHours < 12 ? '오전' : '오후';
-    const displayHours = dateHours % 12 || 12;
     
-    return `${year}년 ${month}월 ${day}일 ${ampm} ${displayHours}:${minutes} 완료`;
+    return `${year}년 ${month}월 ${day}일 완료`;
   } catch (error) {
     console.error('날짜 포맷팅 실패:', error);
     return '날짜 정보 없음';
