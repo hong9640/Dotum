@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import WaveRecorder from './components/WaveRecorder';
@@ -44,6 +44,15 @@ const CrescendoPage: React.FC = () => {
 
     loadSession();
   }, [sessionId]);
+
+  // attempt가 변경될 때 리셋 트리거 증가 (첫 마운트 제외)
+  const prevAttemptRef = React.useRef(attempt);
+  useEffect(() => {
+    if (prevAttemptRef.current !== attempt && prevAttemptRef.current > 0) {
+      setResetTrigger(prev => prev + 1);
+    }
+    prevAttemptRef.current = attempt;
+  }, [attempt]);
 
   const handleRecordEnd = (b: Blob, u: string) => {
     setBlob(b);
@@ -111,7 +120,9 @@ const CrescendoPage: React.FC = () => {
           <CardContent className="p-6 sm:p-8">
             <PromptCardCrescendo 
               main="아아아아아" 
-              subtitle={`크레셴도 훈련 (점강) - ${attempt}/3회`}
+              subtitle="크레셴도 훈련 (점강)"
+              attempt={attempt}
+              totalAttempts={3}
             />
 
             <div className="mb-6">

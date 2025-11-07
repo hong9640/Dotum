@@ -3,13 +3,18 @@ import React from 'react';
 interface PromptCardSoftLoudProps {
   main: string;
   subtitle: string;
+  attempt: number;
+  totalAttempts: number;
 }
 
-const PromptCardSoftLoud: React.FC<PromptCardSoftLoudProps> = ({ main, subtitle }) => {
+const PromptCardSoftLoud: React.FC<PromptCardSoftLoudProps> = ({ main, subtitle, attempt, totalAttempts }) => {
   const sizes = [32, 56, 80, 88, 80];
   
   return (
     <div className="p-8 sm:p-10 bg-gradient-to-br from-pink-50 to-pink-100 rounded-2xl border-3 border-pink-300 shadow-sm mb-8 text-center">
+      <div className="text-2xl sm:text-3xl font-bold text-pink-800 mb-4">
+        {attempt}/{totalAttempts}
+      </div>
       <div className="flex justify-center items-end gap-1 mb-4">
         {[...main].map((char, i) => (
           <span

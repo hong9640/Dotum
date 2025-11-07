@@ -66,6 +66,15 @@ const MPTPage: React.FC = () => {
     initSession();
   }, [attempt, sessionId]);
 
+  // attempt가 변경될 때 리셋 트리거 증가 (첫 마운트 제외)
+  const prevAttemptRef = React.useRef(attempt);
+  useEffect(() => {
+    if (prevAttemptRef.current !== attempt && prevAttemptRef.current > 0) {
+      setResetTrigger(prev => prev + 1);
+    }
+    prevAttemptRef.current = attempt;
+  }, [attempt]);
+
   const handleRecordEnd = (b: Blob, u: string) => {
     setBlob(b);
     setUrl(u);
@@ -140,7 +149,9 @@ const MPTPage: React.FC = () => {
             {/* 프롬프트 카드 */}
             <PromptCardMPT 
               main="아" 
-              subtitle={`최대 발성 지속 시간 훈련 (MPT) - ${attempt}/3회`}
+              subtitle="최대 발성 지속 시간 훈련 (MPT)"
+              attempt={attempt}
+              totalAttempts={3}
             />
 
             {/* 녹음 영역 */}

@@ -3,11 +3,16 @@ import React from 'react';
 interface PromptCardMPTProps {
   main: string;
   subtitle: string;
+  attempt: number;
+  totalAttempts: number;
 }
 
-const PromptCardMPT: React.FC<PromptCardMPTProps> = ({ main, subtitle }) => {
+const PromptCardMPT: React.FC<PromptCardMPTProps> = ({ main, subtitle, attempt, totalAttempts }) => {
   return (
     <div className="p-8 sm:p-10 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl border-3 border-blue-300 shadow-sm mb-8 text-center">
+      <div className="text-2xl sm:text-3xl font-bold text-blue-800 mb-4">
+        {attempt}/{totalAttempts}
+      </div>
       <h1 className="text-6xl sm:text-7xl font-extrabold text-blue-900 mb-4">
         {main}——
       </h1>

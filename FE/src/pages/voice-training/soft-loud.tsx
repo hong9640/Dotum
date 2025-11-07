@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import WaveRecorder from './components/WaveRecorder';
@@ -45,6 +45,15 @@ const SoftLoudPage: React.FC = () => {
 
     loadSession();
   }, [sessionId]);
+
+  // attempt가 변경될 때 리셋 트리거 증가 (첫 마운트 제외)
+  const prevAttemptRef = React.useRef(attempt);
+  useEffect(() => {
+    if (prevAttemptRef.current !== attempt && prevAttemptRef.current > 0) {
+      setResetTrigger(prev => prev + 1);
+    }
+    prevAttemptRef.current = attempt;
+  }, [attempt]);
 
   const handleRecordEnd = (b: Blob, u: string) => {
     setBlob(b);
@@ -122,7 +131,9 @@ const SoftLoudPage: React.FC = () => {
           <CardContent className="p-6 sm:p-8">
             <PromptCardSoftLoud 
               main="아아아아아" 
-              subtitle={`연속 강약 조절 훈련 - ${attempt}/3회`}
+              subtitle="연속 강약 조절 훈련"
+              attempt={attempt}
+              totalAttempts={3}
             />
 
             <div className="mb-6">

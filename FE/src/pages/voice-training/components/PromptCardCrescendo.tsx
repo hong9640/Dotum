@@ -3,11 +3,16 @@ import React from 'react';
 interface PromptCardCrescendoProps {
   main: string;
   subtitle: string;
+  attempt: number;
+  totalAttempts: number;
 }
 
-const PromptCardCrescendo: React.FC<PromptCardCrescendoProps> = ({ main, subtitle }) => {
+const PromptCardCrescendo: React.FC<PromptCardCrescendoProps> = ({ main, subtitle, attempt, totalAttempts }) => {
   return (
     <div className="p-8 sm:p-10 bg-gradient-to-br from-teal-50 to-teal-100 rounded-2xl border-3 border-teal-300 shadow-sm mb-8 text-center">
+      <div className="text-2xl sm:text-3xl font-bold text-teal-800 mb-4">
+        {attempt}/{totalAttempts}
+      </div>
       <div className="flex justify-center items-end gap-1 mb-4">
         {[...main].map((char, i) => (
           <span

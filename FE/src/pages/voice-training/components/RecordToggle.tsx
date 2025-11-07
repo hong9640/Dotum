@@ -12,11 +12,11 @@ const RecordToggle: React.FC<RecordToggleProps> = ({ isRecording, onToggle, disa
   return (
     <>
       {!isRecording ? (
-        <Button
-          size="lg"
+        <Button 
+          size="lg" 
+          className="px-8 py-6 text-xl bg-red-500 hover:bg-red-600 flex items-center gap-3" 
           onClick={onToggle}
           disabled={disabled}
-          className="px-8 py-6 text-xl bg-red-500 hover:bg-red-600 flex items-center gap-3"
         >
           <div className="relative">
             <div className="size-6 border-2 border-white rounded-full"></div>
@@ -25,11 +25,11 @@ const RecordToggle: React.FC<RecordToggleProps> = ({ isRecording, onToggle, disa
           녹음 시작
         </Button>
       ) : (
-        <Button
-          size="lg"
+        <Button 
+          size="lg" 
+          className="px-8 py-6 text-xl bg-slate-800 hover:bg-slate-900 flex items-center gap-3" 
           onClick={onToggle}
           disabled={disabled}
-          className="px-8 py-6 text-xl bg-slate-800 hover:bg-slate-900 flex items-center gap-3"
         >
           <Square className="size-6 text-white" strokeWidth={2} />
           녹음 종료

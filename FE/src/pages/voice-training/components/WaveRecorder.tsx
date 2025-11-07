@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { RotateCcw, Upload } from 'lucide-react';
 import { useAudioRecorder } from '@/hooks/useAudioRecorder';
 import RecordToggle from './RecordToggle';
-import StatusBadge from './StatusBadge';
 import AudioPlayer from './AudioPlayer';
 import AudioLevelGraph, { type AudioLevelGraphRef } from './AudioLevelGraph';
 
@@ -22,11 +21,13 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
 }) => {
   const { isRecording, audioBlob, audioUrl, startRecording, stopRecording, reset, analyser } = useAudioRecorder();
   const graphRef = useRef<AudioLevelGraphRef>(null);
+  const prevResetTriggerRef = useRef(resetTrigger);
   
-  // resetTrigger가 변경되면 리셋
+  // resetTrigger가 변경되면 리셋 (이전 값과 다를 때만)
   React.useEffect(() => {
-    if (resetTrigger > 0) {
+    if (resetTrigger > 0 && resetTrigger !== prevResetTriggerRef.current) {
       reset();
+      prevResetTriggerRef.current = resetTrigger;
     }
   }, [resetTrigger, reset]);
 
@@ -76,8 +77,6 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
       />
 
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-        <StatusBadge label={isRecording ? "녹음 중" : "대기 중"} active={isRecording} />
-        
         {!audioUrl ? (
           <RecordToggle isRecording={isRecording} onToggle={handleToggle} />
         ) : (
