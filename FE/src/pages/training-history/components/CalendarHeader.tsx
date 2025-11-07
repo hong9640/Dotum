@@ -41,7 +41,7 @@ function CalendarHeader({
             <DropdownMenuTrigger asChild>
               <Button 
                 variant="outline" 
-                className="rounded-xl h-12 px-4 text-2xl font-semibold flex items-center gap-2"
+                className="rounded-xl h-12 px-4 text-xl font-semibold flex items-center gap-2"
               >
                 {year}년
                 <ChevronDown className="h-5 w-5" />
@@ -63,7 +63,7 @@ function CalendarHeader({
           </DropdownMenu>
 
           {/* 월 표기 */}
-          <div className="text-2xl md:text-3xl font-semibold text-gray-900">
+          <div className="text-xl md:text-2xl font-semibold text-gray-900">
             {monthLabel}
           </div>
         </div>

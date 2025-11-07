@@ -7,7 +7,7 @@ from api.core.config import settings
 # 성능 최적화된 데이터베이스 엔진 설정
 engine = create_async_engine(
     settings.DB_URL,
-    # SQL 쿼리 로깅 (DEBUG 모드에서만 활성화)
+    # SQL 쿼리 로깅 비활성화
     echo=False,
     future=True,
     

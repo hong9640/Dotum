@@ -5,21 +5,32 @@ import FeedbackCard from "./FeedbackCard";
 import ActionButtons from "./ActionButtons";
 import { usePracticeStore } from "@/stores/practiceStore";
 import { getTrainingSession, completeTrainingSession, type CreateTrainingSessionResponse } from "@/api/training-session";
+import type { PraatMetrics } from "@/api/training-session/praat";
 
 interface ResultComponentProps {
   userVideoUrl?: string;
+  compositedVideoUrl?: string;
+  isLoadingCompositedVideo?: boolean;
+  compositedVideoError?: string | null;
   onNext?: () => void;
   hasNext?: boolean;
   onBack?: () => void; // result-detail 페이지용 돌아가기 핸들러
   onRetake?: () => void; // 다시 녹화 핸들러
+  praatData?: PraatMetrics | null;
+  praatLoading?: boolean;
 }
 
 const ResultComponent: React.FC<ResultComponentProps> = ({
   userVideoUrl,
+  compositedVideoUrl,
+  isLoadingCompositedVideo = false,
+  compositedVideoError,
   onNext,
   hasNext,
   onBack,
   onRetake,
+  praatData,
+  praatLoading = false,
 }) => {
   const navigate = useNavigate();
   const { sessionId } = usePracticeStore();
@@ -65,7 +76,7 @@ const ResultComponent: React.FC<ResultComponentProps> = ({
         });
         
         // 같지 않으면 alert 표시 후 함수 종료
-        const trainingType = sessionData.type === 'word' ? '단어' : '문장';
+        const trainingType = sessionData.type === 'word' ? '단어' : sessionData.type === 'sentence' ? '문장' : '발성';
         alert(`아직 제출하지 않은 ${trainingType} 훈련이 있습니다.`);
         return;
       }
@@ -85,7 +96,7 @@ const ResultComponent: React.FC<ResultComponentProps> = ({
       // 에러 상태에 따른 처리
       if (error.status === 400) {
         // 400: 아직 모든 아이템이 완료되지 않음
-        const trainingType = sessionData?.type === 'word' ? '단어' : '문장';
+        const trainingType = sessionData?.type === 'word' ? '단어' : sessionData?.type === 'sentence' ? '문장' : '발성';
         alert(`아직 제출하지 않은 ${trainingType} 훈련이 있습니다.`);
       } else if (error.status === 401) {
         // 401: 인증 필요
@@ -110,8 +121,22 @@ const ResultComponent: React.FC<ResultComponentProps> = ({
 
   return (
     <>
-      <ResultVideoDisplay userVideoUrl={userVideoUrl} />
-      <FeedbackCard />
+      {/* result-detail 페이지에서는 동영상 부분 주석처리 */}
+      {!onBack && (
+        <ResultVideoDisplay 
+          userVideoUrl={userVideoUrl}
+          compositedVideoUrl={compositedVideoUrl}
+          isLoadingCompositedVideo={isLoadingCompositedVideo}
+          compositedVideoError={compositedVideoError}
+        />
+      )}
+      {/* <ResultVideoDisplay 
+        userVideoUrl={userVideoUrl}
+        compositedVideoUrl={compositedVideoUrl}
+        isLoadingCompositedVideo={isLoadingCompositedVideo}
+        compositedVideoError={compositedVideoError}
+      /> */}
+      <FeedbackCard hideSections={!!onBack} praatData={praatData} praatLoading={praatLoading} />
       <ActionButtons
         onRetake={onBack ? undefined : handleRetake}
         onViewAllResults={onBack ? undefined : handleViewAllResults}

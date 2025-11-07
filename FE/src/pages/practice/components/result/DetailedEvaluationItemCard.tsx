@@ -1,28 +1,32 @@
 import React from "react";
 
+export type EvaluationStatus = "좋음" | "주의" | "개선 필요";
+
 export type DetailedEvaluationItem = {
   id: string;
   title: string;
-  score: number;
+  status: EvaluationStatus;
   icon: React.ElementType;
-  colorVariant: "green" | "blue" | "amber";
 };
 
-const colorStyles = {
-  green: {
+const statusStyles = {
+  "좋음": {
     gradient: "from-green-50 to-green-100",
     border: "border-green-200",
-    text: "text-green-600",
+    text: "text-green-700",
+    icon: "text-green-600",
   },
-  blue: {
-    gradient: "from-blue-50 to-blue-100",
-    border: "border-blue-200",
-    text: "text-blue-600",
+  "주의": {
+    gradient: "from-yellow-50 to-yellow-100",
+    border: "border-yellow-200",
+    text: "text-yellow-700",
+    icon: "text-yellow-600",
   },
-  amber: {
-    gradient: "from-orange-50 to-orange-100",
-    border: "border-amber-200",
-    text: "text-amber-600",
+  "개선 필요": {
+    gradient: "from-red-50 to-red-100",
+    border: "border-red-200",
+    text: "text-red-700",
+    icon: "text-red-600",
   },
 };
 
@@ -31,20 +35,28 @@ type Props = {
 };
 
 const DetailedEvaluationItemCard: React.FC<Props> = ({ item }) => {
-  const { title, score, icon: Icon, colorVariant } = item;
-  const styles = colorStyles[colorVariant as keyof typeof colorStyles];
+  const { title, status, icon: Icon } = item;
+  const styles = statusStyles[status];
 
   return (
-    <div className={`w-full rounded-2xl border bg-gradient-to-r p-5 shadow-sm ${styles.gradient} ${styles.border}`}>
-      <div className="flex flex-row items-center justify-between space-y-0">
-        <div className="flex items-center gap-3">
-          <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${styles.text}`}>
-            <Icon className="h-7 w-7" />
+    <div className={`w-full max-w-[510px] h-24 p-6 bg-gradient-to-r rounded-2xl border-2 ${styles.gradient} ${styles.border} flex flex-col justify-start items-start`}>
+      <div className="self-stretch h-12 flex justify-between items-center">
+        <div className="flex justify-start items-center gap-3">
+          <div className="pr-3 flex justify-start items-start">
+            <div className="w-8 h-8 flex justify-center items-center">
+              <Icon className={`w-8 h-8 ${styles.icon}`} strokeWidth={2.5} />
+            </div>
           </div>
-          <h2 className="text-xl font-semibold text-slate-700 sm:text-2xl">{title}</h2>
+          <div className="flex justify-start items-center">
+            <div className="text-slate-700 text-2xl md:text-3xl font-semibold leading-9">
+              {title}
+            </div>
+          </div>
         </div>
-        <div className="rounded-full bg-white/50 px-4 py-1.5">
-          <span className={`text-lg font-bold sm:text-xl ${styles.text}`}>{score}점</span>
+        <div className="px-4 py-2 bg-white/50 rounded-full flex justify-start items-center">
+          <div className={`${styles.text} text-2xl md:text-3xl font-bold leading-9`}>
+            {status}
+          </div>
         </div>
       </div>
     </div>

@@ -37,6 +37,13 @@ const LargeVideoPlayer: React.FC<LargeVideoPlayerProps> = ({
     }
   };
 
+  const handleReplay = () => {
+    if (!videoRef.current) return;
+    videoRef.current.pause();
+    videoRef.current.currentTime = 0;
+    videoRef.current.play();
+  };
+
   // videoSrc 변경 시 비디오를 새로 로드하여 반영
   useEffect(() => {
     if (videoRef.current) {
@@ -62,20 +69,16 @@ const LargeVideoPlayer: React.FC<LargeVideoPlayerProps> = ({
         </DialogClose>
       </CardHeader>
       <CardContent className="p-0 pb-4">
-        {/* <div className="w-full h-[300px] sm:h-[400px] md:h-[459px] bg-gray-100 rounded-xl overflow-hidden relative"> */}
+        {/* 비디오만 반전하기 위해 video 엘리먼트에만 직접 적용 */}
         <div className="w-full h-[300px] sm:h-[400px] md:h-[455px] bg-gray-100 rounded-xl overflow-hidden relative">
           <video
             ref={videoRef}
             className="w-full h-full object-cover"
             style={flipHorizontal ? { transform: 'scaleX(-1)' } : undefined}
             src={videoSrc}
-            poster={
-              posterSrc ||
-              "https://placehold.co/867x549/e2e8f0/64748b?text=Large+Video"
-            }
+            poster={videoSrc ? undefined : (posterSrc || "https://placehold.co/867x549/e2e8f0/64748b?text=Large+Video")}
             preload="metadata"
             playsInline
-            muted
             onPlay={() => setIsPlaying(true)}
             onPause={() => setIsPlaying(false)}
             onEnded={() => setIsPlaying(false)}
@@ -100,6 +103,7 @@ const LargeVideoPlayer: React.FC<LargeVideoPlayerProps> = ({
         <Button
           variant="ghost"
           size="icon"
+          onClick={handleReplay}
           className="text-slate-600 w-8 h-8"
         >
           <Repeat className="w-full h-full" strokeWidth={2.5} />

@@ -3,6 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import ResultHeader from '@/pages/result-list/components/ResultHeader';
 import ResultComponent from '@/pages/practice/components/result/ResultComponent';
 import { getSessionItemByIndex, getSessionItemErrorMessage, type SessionItemResponse } from '@/api/training-session/sessionItemSearch';
+import { useCompositedVideoPolling } from '@/hooks/useCompositedVideoPolling';
+import { usePraat } from '@/hooks/usePraat';
+import type { PraatMetrics } from '@/api/training-session/praat';
 
 const ResultDetailPage: React.FC = () => {
   const navigate = useNavigate();
@@ -10,10 +13,15 @@ const ResultDetailPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [itemData, setItemData] = useState<SessionItemResponse | null>(null);
+  const [compositedVideoUrl, setCompositedVideoUrl] = useState<string | undefined>(undefined);
+  const [compositedVideoError, setCompositedVideoError] = useState<string | null>(null);
+  const [isLoadingCompositedVideo, setIsLoadingCompositedVideo] = useState(false);
+  const [praatData, setPraatData] = useState<PraatMetrics | null>(null);
+
 
   // URL 파라미터에서 sessionId, type, itemIndex, date 가져오기
   const sessionIdParam = searchParams.get('sessionId');
-  const typeParam = searchParams.get('type') as 'word' | 'sentence' | null;
+  const typeParam = searchParams.get('type') as 'word' | 'sentence' | 'vocal' | null;
   const itemIndexParam = searchParams.get('itemIndex');
   const dateParam = searchParams.get('date'); // training-history에서 온 경우 날짜 파라미터
 
@@ -47,6 +55,27 @@ const ResultDetailPage: React.FC = () => {
         console.log('세션 아이템 상세 조회 성공:', itemDetailData);
         
         setItemData(itemDetailData);
+        
+        // composited_video_url이 있고 null이 아니면 바로 설정
+        // 필드가 없거나(null 또는 undefined) null이면 초기화
+        if (itemDetailData.composited_video_url != null) {
+          setCompositedVideoUrl(itemDetailData.composited_video_url);
+          setCompositedVideoError(null);
+          setIsLoadingCompositedVideo(false);
+        } else {
+          // 없거나 null이면 초기화
+          setCompositedVideoUrl(undefined);
+          setCompositedVideoError(null);
+          // is_completed가 true이고 composited_video_url이 없으면 폴링 시작
+          if (itemDetailData.is_completed && !itemDetailData.composited_video_url) {
+            console.log('🚀 직접 폴링 시작 (result-detail):', {
+              item_id: itemDetailData.item_id,
+              sessionId,
+            });
+            setIsLoadingCompositedVideo(true);
+          }
+        }
+        
         setIsLoading(false);
       } catch (err: any) {
         console.error('세션 아이템 상세 조회 실패:', err);
@@ -59,6 +88,71 @@ const ResultDetailPage: React.FC = () => {
 
     loadItemDetail();
   }, [sessionIdParam, typeParam, itemIndexParam]);
+
+  // 폴링 조건 계산
+  const sessionIdNum = sessionIdParam ? Number(sessionIdParam) : undefined;
+  const pollingEnabled = Boolean(
+    itemData?.is_completed &&
+    sessionIdParam &&
+    !isNaN(sessionIdNum || NaN) &&
+    itemData?.item_id &&
+    !compositedVideoUrl && // 이미 받은 로컬 URL 없음
+    !itemData?.composited_video_url // 서버에도 없음
+  );
+
+  // 공통 폴링 훅 사용
+  const { url: polledUrl, loading: polledLoading, error: polledError } = useCompositedVideoPolling(
+    sessionIdNum,
+    itemData?.item_id,
+    {
+      enabled: pollingEnabled,
+      maxTries: 10,
+      baseIntervalMs: 10_000,
+      backoff: false, // 기본적으로 고정 간격 사용 (필요시 true로 변경)
+    }
+  );
+
+  // 폴링 결과를 로컬 상태에 반영
+  useEffect(() => {
+    if (polledUrl) {
+      setCompositedVideoUrl(polledUrl);
+      setIsLoadingCompositedVideo(false);
+      setCompositedVideoError(null);
+      // itemData에도 반영하여 중복 폴링 방지
+      setItemData((prev) =>
+        prev ? { ...prev, composited_video_url: polledUrl } : prev
+      );
+    }
+  }, [polledUrl]);
+
+  useEffect(() => {
+    setIsLoadingCompositedVideo(pollingEnabled && polledLoading);
+  }, [pollingEnabled, polledLoading]);
+
+  useEffect(() => {
+    if (polledError) {
+      setCompositedVideoError(polledError);
+    }
+  }, [polledError]);
+
+  // Praat 분석 결과 조회 (폴링 포함)
+  // result-detail 페이지에서도 세부 평가 항목 점수를 표시하기 위해 필요
+  const { data: praatDataFromHook, loading: praatLoading, processing: praatProcessing } = usePraat(
+    sessionIdNum,
+    itemData?.item_id,
+    {
+      pollIntervalMs: 2500,
+      maxPollMs: 60000,
+      enabled: !!sessionIdNum && !!itemData?.item_id && !isLoading,
+    }
+  );
+
+  // Praat 데이터 상태 업데이트
+  useEffect(() => {
+    if (praatDataFromHook) {
+      setPraatData(praatDataFromHook);
+    }
+  }, [praatDataFromHook]);
 
   // 이전 페이지(result-list)로 돌아가기
   const handleBack = () => {
@@ -77,7 +171,7 @@ const ResultDetailPage: React.FC = () => {
   // 로딩 상태
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-lg text-gray-600">결과 데이터를 불러오는 중...</p>
@@ -89,7 +183,7 @@ const ResultDetailPage: React.FC = () => {
   // 에러 상태
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-6">
           <div className="text-6xl mb-4">⚠️</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">오류 발생</h2>
@@ -108,7 +202,7 @@ const ResultDetailPage: React.FC = () => {
   // 데이터가 없는 경우
   if (!itemData) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-6">
           <div className="text-6xl mb-4">📊</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">데이터가 없습니다</h2>
@@ -130,7 +224,7 @@ const ResultDetailPage: React.FC = () => {
   const headerTitle = itemData.word || itemData.sentence || '';
 
   return (
-    <div className="self-stretch pt-7 pb-10 flex flex-col justify-start items-center bg-slate-50 min-h-screen">
+    <div className="self-stretch pt-7 pb-10 flex flex-col justify-start items-center bg-white min-h-screen">
       {/* 헤더 */}
       <ResultHeader
         type={typeParam || 'word'}
@@ -144,7 +238,12 @@ const ResultDetailPage: React.FC = () => {
         {/* 결과 컴포넌트 (비디오 표시 + 피드백 카드) */}
         <ResultComponent
           userVideoUrl={itemData.video_url || undefined}
+          compositedVideoUrl={compositedVideoUrl}
+          isLoadingCompositedVideo={isLoadingCompositedVideo}
+          compositedVideoError={compositedVideoError}
           onBack={handleBack}
+          praatData={praatData}
+          praatLoading={praatLoading || praatProcessing}
         />
       </div>
     </div>

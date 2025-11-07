@@ -27,6 +27,13 @@ pipeline {
                     
                     // 호스트의 .env 파일을 workspace로 복사
                     sh '''
+                        # 기존 .env 파일이 있다면 삭제
+                        if [ -f .env ]; then
+                            rm .env
+                            echo "🗑️ 기존 .env 파일 삭제"
+                        fi
+                        
+                        # 호스트의 최신 .env 파일 복사
                         if [ -f /home/ubuntu/.env ]; then
                             cp /home/ubuntu/.env .env
                             echo "✅ .env 파일 복사 완료"
@@ -73,7 +80,7 @@ pipeline {
                         env.FRONTEND_CHANGED = 'true'
                     }
                     
-                    if (changedFiles.contains('docker-compose.yml') || changedFiles.contains('Jenkinsfile')) {
+                    if (changedFiles.contains('docker-compose.yml') || changedFiles.contains('Jenkinsfile') || changedFiles.contains('.env')) {
                         env.FULL_DEPLOY = 'true'
                     }
                     
@@ -95,6 +102,13 @@ pipeline {
                     withCredentials([file(credentialsId: 'gcp-service-account-key', variable: 'GOOGLE_CREDENTIALS')]) {
                         sh """
                             cd ${WORKSPACE}
+                            
+                            echo "📄 .env 파일 확인..."
+                            if [ ! -f .env ]; then
+                                echo "⚠️ .env 파일 없음 - 다시 복사"
+                                cp /home/ubuntu/.env .env
+                            fi
+                            echo "✅ .env 파일 존재 확인"
 
                             echo "🔐 GCP 서비스 계정 키 복사"
                             mkdir -p backend/credentials
@@ -168,6 +182,18 @@ stage('Deploy') {
             sh """
                 cd ${WORKSPACE}
                 
+                echo "📄 .env 파일 확인..."
+                if [ -f .env ]; then
+                    echo "✅ .env 파일 존재"
+                    echo "📝 ML_SERVER_URL 값:"
+                    grep "ML_SERVER_URL" .env || echo "ML_SERVER_URL 없음"
+                    echo "📝 ELEVENLABS_API_KEY 값:"
+                    grep "ELEVENLABS_API_KEY" .env || echo "ELEVENLABS_API_KEY 없음"
+                else
+                    echo "❌ .env 파일 없음 - 다시 복사"
+                    cp /home/ubuntu/.env .env
+                fi
+                
                 echo "🔍 기존 컨테이너 상태 확인..."
                 docker-compose -p dotum ps || true
                 
@@ -200,17 +226,17 @@ stage('Deploy') {
                 echo "⏳ 대기 중..."
                 sleep 1
                 
-                echo "🚀 backend, frontend 시작..."
-                docker-compose -p dotum up -d --no-deps backend frontend
+                echo "🚀 backend, frontend 시작 (환경변수 갱신을 위해 강제 재생성)..."
+                docker-compose -p dotum up -d --no-deps --force-recreate backend frontend
                 
                 echo "⏳ 컨테이너 시작 대기..."
                 sleep 2
                 
+                echo "🔍 Backend 컨테이너 환경변수 확인:"
+                docker exec dotum-backend printenv | grep -E "ML_SERVER_URL|ELEVENLABS_API_KEY" || echo "환경변수 확인 실패"
+                
                 echo "✅ 배포된 컨테이너 상태:"
                 docker-compose -p dotum ps
-                
-                echo "🔍 Backend 컨테이너 로그 확인:"
-                docker-compose -p dotum logs --tail=20 backend 2>/dev/null || true
                 
                 # 컨테이너 상태 저장
                 echo "💾 컨테이너 상태 저장 중..."

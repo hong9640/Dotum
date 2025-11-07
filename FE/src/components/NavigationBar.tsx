@@ -1,6 +1,8 @@
 import React from 'react';
 import { LogOut, LogIn } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { useTrainingSession } from '@/hooks/training-session';
 
 interface NavigationBarProps {
   isLoggedIn: boolean;
@@ -8,51 +10,148 @@ interface NavigationBarProps {
 }
 
 const NavigationBar: React.FC<NavigationBarProps> = ({ isLoggedIn, onLogout }) => {
+  const navigate = useNavigate();
+  const { createWordSession, createSentenceSession, isLoading } = useTrainingSession();
+
+  // 로그인이 필요한 경우 알림
+  const handleAuthRequired = () => {
+    toast.error("로그인이 필요합니다. 먼저 로그인해주세요.");
+    // 로그인 페이지로 이동
+    navigate('/login');
+  };
+
+  const handleWordTraining = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    console.log('🚀 단어 훈련 시작 버튼 클릭');
+    
+    // 인증 상태 확인 (prop으로 전달받은 실제 인증 상태 사용)
+    if (!isLoggedIn) {
+      console.error('❌ 로그인이 필요합니다.');
+      handleAuthRequired();
+      return;
+    }
+    
+    // 확인 다이얼로그 표시
+    const confirmed = window.confirm('단어 연습을 시작할까요?');
+    if (!confirmed) {
+      console.log('❌ 사용자가 취소했습니다.');
+      return;
+    }
+    
+    try {
+      await createWordSession(2); // 2개 단어 -> 이후에 훈련 당 아이템 개수는 조정할 예정
+    } catch (error) {
+      // 에러는 훅에서 처리됨
+      console.error('단어 훈련 세션 생성 실패:', error);
+    }
+  };
+
+  const handleSentenceTraining = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    console.log('🚀 문장 훈련 시작 버튼 클릭');
+    
+    // 인증 상태 확인 (prop으로 전달받은 실제 인증 상태 사용)
+    if (!isLoggedIn) {
+      console.error('❌ 로그인이 필요합니다.');
+      handleAuthRequired();
+      return;
+    }
+    
+    // 확인 다이얼로그 표시
+    const confirmed = window.confirm('문장 연습을 시작할까요?');
+    if (!confirmed) {
+      console.log('❌ 사용자가 취소했습니다.');
+      return;
+    }
+    
+    try {
+      await createSentenceSession(2); // 2개 문장
+    } catch (error) {
+      // 에러는 훅에서 처리됨
+      console.error('문장 훈련 세션 생성 실패:', error);
+    }
+  };
+
+  const handleMaxVoiceTraining = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    console.log('🚀 발성 훈련 시작 버튼 클릭');
+    
+    // 인증 상태 확인
+    if (!isLoggedIn) {
+      console.error('❌ 로그인이 필요합니다.');
+      handleAuthRequired();
+      return;
+    }
+    
+    // 발성 훈련 페이지로 이동
+    navigate('/voice-training');
+  };
 
   return (
     <nav className="w-full bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border-b border-gray-200">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-24 items-center justify-between">
+        <div className="flex h-16 sm:h-24 items-center justify-between">
           {/* 로고 섹션 */}
           <div className="flex-shrink-0">
             <a href="/" className="flex items-center">
-              <span className="text-4xl font-normal text-green-700 font-adlam leading-10">
-                Dodeum
+              {/* <span className="mr-1 text-3xl font-semibold text-slate-700 leading-10">
+                🌿
+              </span> */}
+              <span className="mr-1.5 text-2xl sm:text-3xl font-semibold text-slate-700 leading-10">
+                🌱
+              </span>
+              <span className="text-3xl sm:text-4xl font-semibold text-slate-700 leading-10">
+                돋음
               </span>
             </a>
           </div>
 
           {/* 네비게이션 메뉴 섹션 */}
-          <div className="flex items-center space-x-4 md:space-x-6">
-            <Link
-              to="/practice"
-              className="px-3 py-2 text-xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 md:text-3xl"
+          <div className="flex items-center space-x-3 md:space-x-6">
+            <a
+              href="/voice-training"
+              onClick={handleMaxVoiceTraining}
+              className={`hidden sm:block px-3 py-2 text-2xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 [@media(min-width:850px)]:text-3xl ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             >
-              발음 훈련
-            </Link>
+              발성 연습
+            </a>
+            <a
+              href="/practice"
+              onClick={handleWordTraining}
+              className={`hidden sm:block px-3 py-2 text-2xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 [@media(min-width:850px)]:text-3xl ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              단어 연습
+            </a>
+            <a
+              href="/practice"
+              onClick={handleSentenceTraining}
+              className={`hidden sm:block px-3 py-2 text-2xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 [@media(min-width:850px)]:text-3xl ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              문장 연습
+            </a>
             <Link
               to="/training-history"
-              className="px-3 py-2 text-xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 md:text-3xl"
+              className="hidden sm:block px-3 py-2 text-2xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 [@media(min-width:850px)]:text-3xl"
             >
-              훈련기록
+              훈련 기록
             </Link>
             {/* 로그인 상태에 따른 버튼 렌더링 */}
             {isLoggedIn ? (
               <button
                 type="button"
                 onClick={onLogout}
-                className="flex items-center gap-2 px-3 py-2 text-xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 md:text-3xl"
+                className="flex items-center gap-2 px-3 py-2 text-2xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 [@media(min-width:850px)]:text-3xl"
               >
-                <LogOut className="h-7 w-7 md:h-8 md:w-8" strokeWidth={2.5} />
-                <span>로그아웃</span>
+                <LogOut className="h-7 w-7 [@media(min-width:850px)]:h-8 [@media(min-width:850px)]:w-8" strokeWidth={2.5} />
+                <span className="hidden md:flex">로그아웃</span>
               </button>
             ) : (
               <Link
                 to="/login"
-                className="flex items-center gap-2 px-3 py-2 text-xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 md:text-3xl"
+                className="flex items-center gap-2 px-3 py-2 text-xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 [@media(min-width:850px)]:text-3xl"
               >
-                <LogIn className="h-7 w-7 md:h-8 md:w-8" strokeWidth={2.5} />
-                <span>로그인</span>
+                <LogIn className="h-7 w-7 [@media(min-width:850px)]:h-8 [@media(min-width:850px)]:w-8" strokeWidth={2.5} />
+                <span className="hidden md:flex">로그인</span>
               </Link>
             )}
           </div>

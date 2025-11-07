@@ -25,7 +25,9 @@ export interface SessionItemResponse {
   sentence?: string | null;
   is_completed?: boolean;
   video_url?: string | null;
+  composited_video_url?: string | null;
   media_file_id?: number | null;
+  composited_media_file_id?: number | null;
   has_next?: boolean;
   praat?: PraatResult | null;
 }

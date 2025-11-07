@@ -1,82 +1,42 @@
 import React from 'react';
-import { BookOpen, ClipboardList, Languages } from 'lucide-react';
+import { BookOpen, ClipboardList, Languages, Smile } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
 import 도드미안경 from '@/assets/도드미_안경.png';
 import { useTrainingSession } from '@/hooks/training-session';
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
-  const { createWordSession, createSentenceSession, isLoading, apiError } = useTrainingSession();
-
-  // 인증 상태 확인 (localStorage auth 플래그 기준)
-  const checkAuthStatus = () => {
-    const isAuthenticated = localStorage.getItem('auth') === 'true';
-    console.log('🔍 인증 상태 확인(auth 플래그):', isAuthenticated ? '인증됨' : '인증 안됨');
-    return isAuthenticated;
-  };
-
-  // 로그인이 필요한 경우 알림
-  const handleAuthRequired = () => {
-    toast.error("로그인이 필요합니다. 먼저 로그인해주세요.");
-    // 로그인 페이지로 이동
-    navigate('/login');
-  };
+  const { createWordSession, createSentenceSession, createVocalSession: _createVocalSession, isLoading, apiError } = useTrainingSession();
 
   const handleWordTraining = async () => {
-    console.log('🚀 단어 훈련 시작 버튼 클릭');
-    
-    // 인증 상태 확인
-    if (!checkAuthStatus()) {
-      console.error('❌ 토큰이 없습니다. 로그인이 필요합니다.');
-      handleAuthRequired();
-      return;
-    }
-    
     try {
       await createWordSession(2); // 2개 단어
     } catch (error) {
-      // 에러는 훅에서 처리됨
       console.error('단어 훈련 세션 생성 실패:', error);
     }
   };
 
   const handleSentenceTraining = async () => {
-    console.log('🚀 문장 훈련 시작 버튼 클릭');
-    
-    // 인증 상태 확인
-    if (!checkAuthStatus()) {
-      console.error('❌ 토큰이 없습니다. 로그인이 필요합니다.');
-      handleAuthRequired();
-      return;
-    }
-    
     try {
       await createSentenceSession(2); // 2개 문장
     } catch (error) {
-      // 에러는 훅에서 처리됨
       console.error('문장 훈련 세션 생성 실패:', error);
     }
   };
 
   const handleTrainingHistory = () => {
-    console.log('🚀 훈련 기록 버튼 클릭');
-    
-    // 인증 상태 확인
-    if (!checkAuthStatus()) {
-      console.error('❌ 토큰이 없습니다. 로그인이 필요합니다.');
-      handleAuthRequired();
-      return;
-    }
-    
-    // 로그인된 경우에만 훈련 기록 페이지로 이동
     navigate('/training-history');
   };
 
+  const handleMaxVoiceTraining = () => {
+    // 발성 훈련 페이지로 이동
+    navigate('/voice-training');
+  };
+
   return (
-    <div className="w-full min-h-screen p-[49px] flex justify-center items-center">
-      <div className="w-full max-w-7xl p-12 rounded-2xl flex flex-col lg:flex-row justify-center items-center gap-8 mx-1.5">
+    <div className="w-full h-full min-h-100vh p-[49px] flex justify-center items-center">
+      <div className="w-full max-w-7xl pt-0 sm:pt-12 pb-12 px-12 rounded-2xl flex flex-col lg:flex-row justify-center items-center sm:gap-7 gap-4 mx-1.5">
         {/* 에러 메시지 표시 */}
         {apiError && (
           <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50">
@@ -85,7 +45,7 @@ const HomePage: React.FC = () => {
         )}
         {/* 왼쪽 섹션 - 캐릭터 및 텍스트 */}
         <div className="w-full lg:w-auto pb-3 lg:pb-8 flex justify-center items-start">
-          <div className="flex flex-col justify-start items-center gap-2.5">
+          <div className="flex flex-col justify-start items-center gap-0.5 sm:gap-2.5">
             {/* 이미지 영역 */}
             <div className="pb-6 flex justify-center items-start">
               <img
@@ -96,13 +56,13 @@ const HomePage: React.FC = () => {
             </div>
             {/* 메인 헤딩 */}
             <div className="pb-2 flex justify-center items-start">
-              <h1 className="text-center text-slate-800 text-4xl lg:text-5xl font-extrabold font-['Pretendard'] leading-tight">
+              <h1 className="text-center text-slate-800 text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-tight">
                 발음 교정 서비스
               </h1>
             </div>
             {/* 서브 헤딩 */}
             <div className="flex justify-center items-start">
-              <p className="text-center text-slate-600 text-xl lg:text-2xl font-semibold font-['Pretendard'] leading-8 whitespace-nowrap">
+              <p className="text-center text-slate-600 text-lg sm:text-xl lg:text-2xl font-semibold leading-8 whitespace-nowrap">
                 정상 발화 영상과 비교하며 발음을 교정해보세요.
               </p>
             </div>
@@ -111,15 +71,29 @@ const HomePage: React.FC = () => {
 
         {/* 오른쪽 섹션 - 버튼들 */}
         <div className="w-full lg:w-auto flex flex-col justify-start items-center gap-3.5">
+          {/* 발성 연습 시작 버튼 */}
+          <Button
+            size="lg"
+            onClick={handleMaxVoiceTraining}
+            disabled={isLoading}
+            className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-lime-300 rounded-xl flex justify-center items-center gap-3 hover:bg-lime-400 disabled:opacity-50"
+          >
+            <Smile size={32} className="size-7 lg:size-9 text-white" strokeWidth={2.5} />
+            <span className="text-center text-white text-2xl lg:text-3xl font-semibold leading-9">
+              {isLoading ? "세션 생성 중..." : "발성 연습 시작"}
+            </span>
+          </Button>
+
           {/* 단어 연습 시작 버튼 */}
           <Button
             size="lg"
             onClick={handleWordTraining}
             disabled={isLoading}
-            className="w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-green-500 rounded-xl flex justify-center items-center gap-3 hover:bg-green-600 disabled:opacity-50"
+            className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-green-500 rounded-xl flex justify-center items-center gap-3 hover:bg-green-600 disabled:opacity-50"
           >
-            <Languages size={32} className="text-white" strokeWidth={2.5} />
-            <span className="text-center text-white text-2xl lg:text-3xl font-semibold font-['Pretendard'] leading-9">
+            <Languages size={32} className="size-7 lg:size-9 text-white" strokeWidth={2.5} />
+            {/* <Languages size={32} className="hidden sm:block text-white" strokeWidth={2.5} /> */}
+            <span className="text-center text-white text-2xl lg:text-3xl font-semibold leading-9">
               {isLoading ? "세션 생성 중..." : "단어 연습 시작"}
             </span>
           </Button>
@@ -129,10 +103,10 @@ const HomePage: React.FC = () => {
             size="lg"
             onClick={handleSentenceTraining}
             disabled={isLoading}
-            className="w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-cyan-500 rounded-xl flex justify-center items-center gap-3 hover:bg-cyan-600 disabled:opacity-50"
+            className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-cyan-500 rounded-xl flex justify-center items-center gap-3 hover:bg-cyan-600 disabled:opacity-50"
           >
-            <BookOpen size={32} className="text-white" strokeWidth={2.5} />
-            <span className="text-center text-white text-2xl lg:text-3xl font-semibold font-['Pretendard'] leading-9">
+            <BookOpen size={32} className="size-7 lg:size-9 text-white" strokeWidth={2.5} />
+            <span className="text-center text-white text-2xl lg:text-3xl font-semibold leading-9">
               {isLoading ? "세션 생성 중..." : "문장 연습 시작"}
             </span>
           </Button>
@@ -142,10 +116,10 @@ const HomePage: React.FC = () => {
             variant="outline"
             size="lg"
             onClick={handleTrainingHistory}
-            className="w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-white rounded-xl outline outline-2 outline-slate-200 flex justify-center items-center gap-3 hover:bg-gray-100"
+            className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-white rounded-xl outline outline-2 outline-slate-200 flex justify-center items-center gap-3 hover:bg-gray-100"
           >
-            <ClipboardList size={32} className="text-slate-800" strokeWidth={2.5} />
-            <span className="text-center text-slate-800 text-2xl lg:text-3xl font-semibold font-['Pretendard'] leading-9">
+            <ClipboardList size={32} className="size-7 lg:size-9 text-slate-800" strokeWidth={2.5} />
+            <span className="text-center text-slate-800 text-2xl lg:text-3xl font-semibold leading-9">
               훈련 기록
             </span>
           </Button>

@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { 
   createWordTrainingSession, 
   createSentenceTrainingSession,
+  createVocalTrainingSession,
   getTrainingSessionErrorMessage,
   type CreateTrainingSessionResponse 
 } from "@/api/training-session";
@@ -37,6 +38,13 @@ export const useTrainingSession = ({ onSessionCreated }: UseTrainingSessionProps
       
       return session;
     } catch (error: any) {
+      // 401 에러 처리 - 로그인 필요
+      if (error.response?.status === 401) {
+        alert("로그인이 필요합니다.\n로그인 페이지로 이동합니다.");
+        navigate('/login');
+        return;
+      }
+
       const errorMessage = error.response?.data?.error?.code 
         ? getTrainingSessionErrorMessage(error.response.data.error.code, error.response.data.error.message)
         : "네트워크 오류가 발생했습니다. 다시 시도해주세요.";
@@ -69,6 +77,49 @@ export const useTrainingSession = ({ onSessionCreated }: UseTrainingSessionProps
       
       return session;
     } catch (error: any) {
+      // 401 에러 처리 - 로그인 필요
+      if (error.response?.status === 401) {
+        alert("로그인이 필요합니다.\n로그인 페이지로 이동합니다.");
+        navigate('/login');
+        return;
+      }
+
+      const errorMessage = error.response?.data?.error?.code 
+        ? getTrainingSessionErrorMessage(error.response.data.error.code, error.response.data.error.message)
+        : "네트워크 오류가 발생했습니다. 다시 시도해주세요.";
+      
+      setApiError(errorMessage);
+      toast.error(errorMessage);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * 발성 훈련 세션 생성
+   * @param itemCount 아이템 개수 (기본값: 15)
+   * @param sessionName 세션 이름 (선택사항)
+   */
+  const createVocalSession = async (itemCount: number = 15, sessionName?: string) => {
+    setIsLoading(true);
+    setApiError(null);
+
+    try {
+      const session = await createVocalTrainingSession(itemCount, sessionName);
+      
+      toast.success("발성 훈련 세션이 생성되었습니다!");
+      onSessionCreated?.(session);
+      
+      return session;
+    } catch (error: any) {
+      // 401 에러 처리 - 로그인 필요
+      if (error.response?.status === 401) {
+        alert("로그인이 필요합니다.\n로그인 페이지로 이동합니다.");
+        navigate('/login');
+        return;
+      }
+
       const errorMessage = error.response?.data?.error?.code 
         ? getTrainingSessionErrorMessage(error.response.data.error.code, error.response.data.error.message)
         : "네트워크 오류가 발생했습니다. 다시 시도해주세요.";
@@ -96,6 +147,7 @@ export const useTrainingSession = ({ onSessionCreated }: UseTrainingSessionProps
     // 액션
     createWordSession,
     createSentenceSession,
+    createVocalSession,
     clearError,
   };
 };
