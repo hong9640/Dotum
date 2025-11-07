@@ -89,33 +89,61 @@ const WordSetResults: React.FC = () => {
         const formatted = formatDate(sessionDetailData.training_date);
         setFormattedDate(formatted);
         
-        // training_items에서 완료된 아이템만 필터링하여 WordResult로 변환
-        const completedItems = sessionDetailData.training_items?.filter(
-          (item) => item.is_completed
-        ) ?? [];
+        // 발성 연습 여부 확인 (type이 'vocal'인 경우)
+        // sessionTypeLower 또는 typeParam을 확인하여 발성 연습 여부 판단
+        const isVoice = sessionTypeLower === 'vocal' || (typeParam && typeParam.toLowerCase() === 'vocal');
+        setIsVoiceTraining(isVoice);
         
-        // item_index 기준으로 오름차순 정렬 (1번부터 위에서 아래로)
-        const sortedCompletedItems = [...completedItems].sort((a, b) => 
-          (a.item_index || 0) - (b.item_index || 0)
-        );
-        
-        const wordResults: WordResult[] = sortedCompletedItems.map((item) => {
-          // word 또는 sentence 필드에서 텍스트 가져오기
-          const text = item.word || item.sentence || '';
-          
-          return {
-            id: item.item_index + 1, // 1부터 시작하는 ID
-            word: text,
-            feedback: item.feedback || '피드백 정보가 없습니다.',
-            score: item.score ?? 0, // score가 null이면 0으로 설정
-          };
+        console.log('발성 연습 여부 확인:', {
+          sessionTypeLower,
+          typeParam,
+          sessionDetailDataType: sessionDetailData.type,
+          isVoice
         });
         
-        setResultsData(wordResults);
+        let wordResults: WordResult[];
         
-        // 발성 연습 여부 확인 (type이 'vocal'인 경우)
-        const isVoice = (sessionDetailData.type as string) === 'vocal';
-        setIsVoiceTraining(isVoice);
+        if (isVoice) {
+          // 발성 연습일 때: 5개의 훈련명을 고정으로 표시
+          const vocalTrainingNames = [
+            '최대 발성 지속 시간 훈련 (MPT)',
+            '크레셴도 훈련 (점강)',
+            '데크레셴도 훈련 (점약)',
+            '순간 강약 전환 훈련',
+            '연속 강약 조절 훈련'
+          ];
+          
+          wordResults = vocalTrainingNames.map((trainingName, index) => ({
+            id: index + 1,
+            word: trainingName,
+            feedback: '피드백 정보가 없습니다.',
+            score: 0,
+          }));
+        } else {
+          // 일반 연습(단어/문장): 실제 training_items에서 완료된 아이템만 필터링하여 WordResult로 변환
+          const completedItems = sessionDetailData.training_items?.filter(
+            (item) => item.is_completed
+          ) ?? [];
+          
+          // item_index 기준으로 오름차순 정렬 (1번부터 위에서 아래로)
+          const sortedCompletedItems = [...completedItems].sort((a, b) => 
+            (a.item_index || 0) - (b.item_index || 0)
+          );
+          
+          wordResults = sortedCompletedItems.map((item) => {
+            // word 또는 sentence 필드에서 텍스트 가져오기
+            const text = item.word || item.sentence || '';
+            
+            return {
+              id: item.item_index + 1, // 1부터 시작하는 ID
+              word: text,
+              feedback: item.feedback || '피드백 정보가 없습니다.',
+              score: item.score ?? 0, // score가 null이면 0으로 설정
+            };
+          });
+        }
+        
+        setResultsData(wordResults);
         
         if (isVoice) {
           // 발성 연습 메트릭 설정
@@ -534,6 +562,7 @@ const WordSetResults: React.FC = () => {
         <WordResultsList
           results={resultsData}
           onDetailClick={handleDetailClick}
+          sessionType={sessionType}
         />
         
         {/* 다음 행동 버튼 */}
