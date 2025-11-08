@@ -24,16 +24,18 @@ const PraatDetailPage: React.FC = () => {
   const [itemId, setItemId] = useState<number | undefined>(undefined);
   const [praatValues, setPraatValues] = useState<PraatValues>({});
   const [isVocalExercise, setIsVocalExercise] = useState(false);
+  const [sessionType, setSessionType] = useState<string | null>(null);
   const [recordingCount, setRecordingCount] = useState(0);
   const [currentRecordingIndex, setCurrentRecordingIndex] = useState(0);
   const [compositedVideoUrl, setCompositedVideoUrl] = useState<string | null>(null);
+  const [praatImageUrl, setPraatImageUrl] = useState<string | null>(null);
   const [baseItemIndex, setBaseItemIndex] = useState<number>(0); // 현재 훈련의 첫 번째 itemIndex
 
   // URL 파라미터에서 세션 정보 가져오기
   const sessionIdParam = searchParams.get("sessionId");
   const typeParam = searchParams.get("type");
   const itemIndexParam = searchParams.get("itemIndex");
-  const dateParam = searchParams.get("date"); // result-detail에서 온 경우 날짜 파라미터
+  const dateParam = searchParams.get("date"); // result-list에서 온 경우 날짜 파라미터
 
   // 세션 아이템 데이터 로드
   useEffect(() => {
@@ -72,6 +74,8 @@ const PraatDetailPage: React.FC = () => {
         const sessionTypeLower = (sessionData.type || '').toLowerCase();
         const isVocal = sessionTypeLower === 'vocal';
         setIsVocalExercise(isVocal);
+        // 세션 타입 저장 (handleBack에서 사용)
+        setSessionType(sessionTypeLower);
 
         // 발성연습일 때 녹음 횟수 계산 (total_items / 5)
         if (isVocal && sessionData.total_items) {
@@ -180,9 +184,18 @@ const PraatDetailPage: React.FC = () => {
         f1: praatData.f1,
         f2: praatData.f2,
       });
+      
+      // image_url 추출 (API 응답에 포함될 수 있음)
+      const imageUrl = (praatData as any).image_url;
+      if (imageUrl) {
+        setPraatImageUrl(imageUrl);
+      } else {
+        setPraatImageUrl(null);
+      }
     } else if (praatError) {
       // 에러 발생 시 빈 객체로 설정
       setPraatValues({});
+      setPraatImageUrl(null);
     }
   }, [praatData, praatError]);
 
@@ -234,15 +247,23 @@ const PraatDetailPage: React.FC = () => {
 
   // 이전 페이지로 돌아가기
   const handleBack = () => {
-    if (sessionIdParam && typeParam) {
-      // result-detail 페이지로 돌아가기
-      let detailUrl = `/result-detail?sessionId=${sessionIdParam}&type=${typeParam}&itemIndex=${itemIndexParam}`;
-      if (dateParam) {
-        detailUrl += `&date=${dateParam}`;
+    if (sessionIdParam) {
+      // typeParam이 있으면 사용, 없으면 sessionType 사용
+      const type = typeParam || sessionType;
+      if (type) {
+        // result-list 페이지로 이동
+        let listUrl = `/result-list?sessionId=${sessionIdParam}&type=${type}`;
+        if (dateParam) {
+          listUrl += `&date=${dateParam}`;
+        }
+        navigate(listUrl);
+      } else {
+        // 타입 정보가 없으면 홈으로 이동
+        navigate("/");
       }
-      navigate(detailUrl);
     } else {
-      navigate("/result-list");
+      // 세션 정보가 없으면 홈으로 이동
+      navigate("/");
     }
   };
 
@@ -295,7 +316,7 @@ const PraatDetailPage: React.FC = () => {
           />
         )}
 
-        {/* 발성연습일 때 음형 파장 비디오 표시 */}
+        {/* 발성연습일 때 음형 파장 비디오/이미지 표시 */}
         {isVocalExercise && (
           <PraatSectionCard
             title="음형 파장"
@@ -303,7 +324,14 @@ const PraatDetailPage: React.FC = () => {
             className="w-full"
           >
             <div className="w-full">
-              {compositedVideoUrl ? (
+              {praatImageUrl ? (
+                <img
+                  src={praatImageUrl}
+                  alt="음형 파장 그래프"
+                  className="w-full rounded-lg"
+                  style={{ maxHeight: "600px", objectFit: "contain" }}
+                />
+              ) : compositedVideoUrl ? (
                 <video
                   src={compositedVideoUrl}
                   controls

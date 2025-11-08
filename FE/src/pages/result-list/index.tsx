@@ -152,15 +152,28 @@ const WordSetResults: React.FC = () => {
         
         if (isVoice) {
           // 발성 연습 메트릭 설정
-          // TODO: 백엔드 API에서 세션 레벨의 메트릭을 제공하면 그 값 사용
-          setJitter(0.012);
-          setShimmer(0.012);
-          setNhr(0.012);
-          setHnr(0.012);
-          setMaxF0(0.012);
-          setMinF0(0.012);
-          setLhRatioMeanDb(0.012);
-          setLhRatioSdDb(0.012);
+          // session_praat_result가 있으면 그 값 사용, 없으면 null
+          const praatResult = (sessionDetailData as any).session_praat_result;
+          if (praatResult) {
+            setJitter(praatResult?.avg_jitter_local ?? null);
+            setShimmer(praatResult?.avg_shimmer_local ?? null);
+            setNhr(praatResult?.avg_nhr ?? null);
+            setHnr(praatResult?.avg_hnr ?? null);
+            setMaxF0(praatResult?.avg_max_f0 ?? null);
+            setMinF0(praatResult?.avg_min_f0 ?? null);
+            setLhRatioMeanDb(praatResult?.avg_lh_ratio_mean_db ?? null);
+            setLhRatioSdDb(praatResult?.avg_lh_ratio_sd_db ?? null);
+          } else {
+            // session_praat_result가 없으면 null로 설정
+            setJitter(null);
+            setShimmer(null);
+            setNhr(null);
+            setHnr(null);
+            setMaxF0(null);
+            setMinF0(null);
+            setLhRatioMeanDb(null);
+            setLhRatioSdDb(null);
+          }
         } else {
           // 일반 연습 메트릭 설정 (CPP/CSID)
           // TODO: 백엔드 API에서 세션 레벨의 CPP/CSID를 제공하면 그 값 사용
@@ -364,14 +377,14 @@ const WordSetResults: React.FC = () => {
                 {isVoiceTraining ? (
                   // 발성 연습: 8개 메트릭 카드
                   <>
-                    <MetricCard title="Jitter" value={jitter} />
-                    <MetricCard title="Shimmer" value={shimmer} />
-                    <MetricCard title="NHR" value={nhr} />
-                    <MetricCard title="HNR" value={hnr} />
-                    <MetricCard title="max_f0" value={maxF0} />
-                    <MetricCard title="min_f0" value={minF0} />
-                    <MetricCard title="LH_ratio_mean_db" value={lhRatioMeanDb} />
-                    <MetricCard title="LH_ratio_sd_db" value={lhRatioSdDb} />
+                    <MetricCard title="Jitter" value={jitter} unit="%"/>
+                    <MetricCard title="Shimmer" value={shimmer} unit="%"/>
+                    <MetricCard title="NHR" value={nhr} unit="dB"/>
+                    <MetricCard title="HNR" value={hnr} unit="dB"/>
+                    <MetricCard title="max_f0" value={maxF0} unit="Hz"/>
+                    <MetricCard title="min_f0" value={minF0} unit="Hz"/>
+                    <MetricCard title="LH_ratio_mean_db" value={lhRatioMeanDb} unit="dB"/>
+                    <MetricCard title="LH_ratio_sd_db" value={lhRatioSdDb} unit="dB"/>
                   </>
                 ) : (
                   // 일반 연습: CPP/CSID 2개 카드
