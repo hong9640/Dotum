@@ -365,15 +365,21 @@ const WordSetResults: React.FC = () => {
       <div className="p-4 md:p-8 flex flex-col justify-start items-center gap-8 w-full">
         
         {/* CPP/CSID 메트릭 카드 (기존 AverageScoreCard 구조 유지) */}
-        <div className="w-full max-w-[1220px] bg-gradient-to-br from-green-50 via-green-300 to-yellow-100 rounded-2xl outline outline-[3px] outline-offset-[-3px] outline-green-200 inline-flex flex-col md:flex-row justify-start items-start overflow-hidden">
+        <div className="w-full max-w-[1220px] bg-gradient-to-br from-green-50 via-green-300 to-yellow-100 rounded-2xl outline outline-[3px] outline-offset-[-3px] outline-green-200 inline-flex flex-col md:flex-row justify-start items-stretch overflow-hidden">
           <div className="p-6 flex flex-col md:flex-row justify-start items-center gap-6 w-full min-w-0">
-            <img 
-              className="w-full md:w-60 max-w-full h-auto p-2.5 object-contain rounded-lg" 
-              src={도드미치료사} 
-              alt="결과 축하 이미지" 
-            />
-            <div className="p-8 bg-white rounded-2xl shadow-lg inline-flex flex-col justify-start items-start gap-3.5 w-full md:w-auto md:shrink md:max-w-[calc(100%-15rem-1.5rem)] min-w-0 overflow-hidden">
-              <div className="w-fit max-w-full h-auto inline-flex justify-start items-start gap-6 flex-wrap content-start">
+            
+            {/* 이미지 래퍼: 비율로 자리 확보 + 최대 폭 캡 */}
+            <div className="w-full md:flex-[0_0_28%] lg:flex-[0_0_32%] xl:flex-[0_0_34%] md:max-w-[340px] lg:max-w-[380px] xl:max-w-[420px] flex justify-center md:justify-start">
+              <img 
+                src={도드미치료사} 
+                alt="결과 축하 이미지"
+                className="w-full h-auto p-2.5 object-contain rounded-lg max-w-[340px] md:max-w-[380px] lg:max-w-[420px] max-h-[45vh] min-w-[358px] flex-shrink-0" 
+              />
+            </div>
+
+            {/* 메트릭 카드: 가변 영역 */}
+            <div className="p-8 bg-white rounded-2xl shadow-lg inline-flex flex-col justify-start items-start gap-3.5 flex-1 min-w-0">
+              <div className="w-full inline-flex justify-start items-start gap-6 flex-wrap content-start">
                 {isVoiceTraining ? (
                   // 발성 연습: 8개 메트릭 카드
                   <>
