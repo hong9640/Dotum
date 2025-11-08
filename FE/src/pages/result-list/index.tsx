@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import ResultHeader from './components/ResultHeader';
 import WordResultsList from './components/WordResultsList';
 import ActionButtons from './components/ActionButtons';
+import MetricCard from './components/MetricCard';
 import type { WordResult } from './types';
 import { getSessionDetail } from '@/api/result-list/sessionDetailSearch';
 import { useTrainingSession } from '@/hooks/training-session';
@@ -352,219 +353,31 @@ const WordSetResults: React.FC = () => {
         
         {/* CPP/CSID 메트릭 카드 (기존 AverageScoreCard 구조 유지) */}
         <div className="w-full max-w-[1220px] bg-gradient-to-br from-green-50 via-green-300 to-yellow-100 rounded-2xl outline outline-[3px] outline-offset-[-3px] outline-green-200 inline-flex flex-col md:flex-row justify-start items-start overflow-hidden">
-          <div className="flex-1 p-6 flex flex-col md:flex-row justify-start items-center gap-6">
+          <div className="p-6 flex flex-col md:flex-row justify-start items-center gap-6 w-full min-w-0">
             <img 
-              className="w-full md:w-60 h-auto md:self-stretch p-2.5 object-cover rounded-lg" 
+              className="w-full md:w-60 max-w-full h-auto p-2.5 object-contain rounded-lg" 
               src={도드미치료사} 
               alt="결과 축하 이미지" 
             />
-            <div className="flex-1 p-8 bg-white rounded-2xl shadow-lg inline-flex flex-col justify-start items-start gap-3.5 w-full">
-              <div className="w-full h-auto inline-flex justify-start items-start gap-6 flex-wrap content-start">
+            <div className="p-8 bg-white rounded-2xl shadow-lg inline-flex flex-col justify-start items-start gap-3.5 w-full md:w-auto md:shrink md:max-w-[calc(100%-15rem-1.5rem)] min-w-0 overflow-hidden">
+              <div className="w-fit max-w-full h-auto inline-flex justify-start items-start gap-6 flex-wrap content-start">
                 {isVoiceTraining ? (
                   // 발성 연습: 8개 메트릭 카드
                   <>
-                    {/* Jitter 카드 */}
-                    <div className="w-52 h-32 p-4 rounded-xl outline outline-1 outline-offset-[-1px] outline-gray-200 inline-flex flex-col justify-start items-start">
-                      <div className="w-44 pb-2 inline-flex justify-start items-start">
-                        <div className="flex-1 h-7 relative">
-                          <div className="w-28 h-6 left-0 top-[2px] absolute inline-flex justify-center items-center gap-2.5">
-                            <div className="left-0 top-0 absolute justify-center text-gray-900 text-base font-medium leading-6">Jitter</div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="w-44 h-16 flex flex-col justify-start items-start">
-                        <div className="self-stretch h-10 inline-flex justify-start items-center">
-                          <div className="justify-center text-gray-900 text-2xl font-bold leading-10">
-                            {jitter !== null ? jitter.toFixed(3) : '0.000'}
-                          </div>
-                          <div className="justify-center text-gray-500 text-sm font-normal leading-6">%</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Shimmer 카드 */}
-                    <div className="w-52 h-32 p-4 rounded-xl outline outline-1 outline-offset-[-1px] outline-gray-200 inline-flex flex-col justify-start items-start">
-                      <div className="w-44 pb-2 inline-flex justify-start items-start">
-                        <div className="flex-1 h-7 relative">
-                          <div className="w-28 h-6 left-0 top-[2px] absolute inline-flex justify-center items-center gap-2.5">
-                            <div className="left-0 top-0 absolute justify-center text-gray-900 text-base font-medium leading-6">Shimmer</div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="w-44 h-16 flex flex-col justify-start items-start">
-                        <div className="self-stretch h-10 inline-flex justify-start items-center">
-                          <div className="justify-center text-gray-900 text-2xl font-bold leading-10">
-                            {shimmer !== null ? shimmer.toFixed(3) : '0.000'}
-                          </div>
-                          <div className="justify-center text-gray-500 text-sm font-normal leading-6">%</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* NHR 카드 */}
-                    <div className="w-52 h-32 p-4 rounded-xl outline outline-1 outline-offset-[-1px] outline-gray-200 inline-flex flex-col justify-start items-start">
-                      <div className="w-44 pb-2 inline-flex justify-start items-start">
-                        <div className="flex-1 h-7 relative">
-                          <div className="w-28 h-6 left-0 top-[2px] absolute inline-flex justify-center items-center gap-2.5">
-                            <div className="left-0 top-0 absolute justify-center text-gray-900 text-base font-medium leading-6">NHR</div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="w-44 h-16 flex flex-col justify-start items-start">
-                        <div className="self-stretch h-10 inline-flex justify-start items-center">
-                          <div className="justify-center text-gray-900 text-2xl font-bold leading-10">
-                            {nhr !== null ? nhr.toFixed(3) : '0.000'}
-                          </div>
-                          <div className="justify-center text-gray-500 text-sm font-normal leading-6">%</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* HNR 카드 */}
-                    <div className="w-52 h-32 p-4 rounded-xl outline outline-1 outline-offset-[-1px] outline-gray-200 inline-flex flex-col justify-start items-start">
-                      <div className="w-44 pb-2 inline-flex justify-start items-start">
-                        <div className="flex-1 h-7 relative">
-                          <div className="w-28 h-6 left-0 top-[2px] absolute inline-flex justify-center items-center gap-2.5">
-                            <div className="left-0 top-0 absolute justify-center text-gray-900 text-base font-medium leading-6">HNR</div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="w-44 h-16 flex flex-col justify-start items-start">
-                        <div className="self-stretch h-10 inline-flex justify-start items-center">
-                          <div className="justify-center text-gray-900 text-2xl font-bold leading-10">
-                            {hnr !== null ? hnr.toFixed(3) : '0.000'}
-                          </div>
-                          <div className="justify-center text-gray-500 text-sm font-normal leading-6">%</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* max_f0 카드 */}
-                    <div className="w-52 h-32 p-4 rounded-xl outline outline-1 outline-offset-[-1px] outline-gray-200 inline-flex flex-col justify-start items-start">
-                      <div className="w-44 pb-2 inline-flex justify-start items-start">
-                        <div className="flex-1 h-7 relative">
-                          <div className="w-28 h-6 left-0 top-[2px] absolute inline-flex justify-center items-center gap-2.5">
-                            <div className="left-0 top-0 absolute justify-center text-gray-900 text-base font-medium leading-6">max_f0</div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="w-44 h-16 flex flex-col justify-start items-start">
-                        <div className="self-stretch h-10 inline-flex justify-start items-center">
-                          <div className="justify-center text-gray-900 text-2xl font-bold leading-10">
-                            {maxF0 !== null ? maxF0.toFixed(3) : '0.000'}
-                          </div>
-                          <div className="justify-center text-gray-500 text-sm font-normal leading-6">%</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* min_f0 카드 */}
-                    <div className="w-52 h-32 p-4 rounded-xl outline outline-1 outline-offset-[-1px] outline-gray-200 inline-flex flex-col justify-start items-start">
-                      <div className="w-44 pb-2 inline-flex justify-start items-start">
-                        <div className="flex-1 h-7 relative">
-                          <div className="w-28 h-6 left-0 top-[2px] absolute inline-flex justify-center items-center gap-2.5">
-                            <div className="left-0 top-0 absolute justify-center text-gray-900 text-base font-medium leading-6">min_f0</div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="w-44 h-16 flex flex-col justify-start items-start">
-                        <div className="self-stretch h-10 inline-flex justify-start items-center">
-                          <div className="justify-center text-gray-900 text-2xl font-bold leading-10">
-                            {minF0 !== null ? minF0.toFixed(3) : '0.000'}
-                          </div>
-                          <div className="justify-center text-gray-500 text-sm font-normal leading-6">%</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* LH_ratio_mean_db 카드 */}
-                    <div className="w-52 h-32 p-4 rounded-xl outline outline-1 outline-offset-[-1px] outline-gray-200 inline-flex flex-col justify-start items-start">
-                      <div className="w-44 pb-2 inline-flex justify-start items-start">
-                        <div className="flex-1 h-7 relative">
-                          <div className="w-28 h-6 left-0 top-[2px] absolute inline-flex justify-center items-center gap-2.5">
-                            <div className="left-0 top-0 absolute justify-center text-gray-900 text-base font-medium leading-6">LH_ratio_mean_db</div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="w-44 h-16 flex flex-col justify-start items-start">
-                        <div className="self-stretch h-10 inline-flex justify-start items-center">
-                          <div className="justify-center text-gray-900 text-2xl font-bold leading-10">
-                            {lhRatioMeanDb !== null ? lhRatioMeanDb.toFixed(3) : '0.000'}
-                          </div>
-                          <div className="justify-center text-gray-500 text-sm font-normal leading-6">%</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* LH_ratio_sd_db 카드 */}
-                    <div className="w-52 h-32 p-4 rounded-xl outline outline-1 outline-offset-[-1px] outline-gray-200 inline-flex flex-col justify-start items-start">
-                      <div className="w-44 pb-2 inline-flex justify-start items-start">
-                        <div className="flex-1 h-7 relative">
-                          <div className="w-28 h-6 left-0 top-[2px] absolute inline-flex justify-center items-center gap-2.5">
-                            <div className="left-0 top-0 absolute justify-center text-gray-900 text-base font-medium leading-6">LH_ratio_sd_db</div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="w-44 h-16 flex flex-col justify-start items-start">
-                        <div className="self-stretch h-10 inline-flex justify-start items-center">
-                          <div className="justify-center text-gray-900 text-2xl font-bold leading-10">
-                            {lhRatioSdDb !== null ? lhRatioSdDb.toFixed(3) : '0.000'}
-                          </div>
-                          <div className="justify-center text-gray-500 text-sm font-normal leading-6">%</div>
-                        </div>
-                      </div>
-                    </div>
+                    <MetricCard title="Jitter" value={jitter} />
+                    <MetricCard title="Shimmer" value={shimmer} />
+                    <MetricCard title="NHR" value={nhr} />
+                    <MetricCard title="HNR" value={hnr} />
+                    <MetricCard title="max_f0" value={maxF0} />
+                    <MetricCard title="min_f0" value={minF0} />
+                    <MetricCard title="LH_ratio_mean_db" value={lhRatioMeanDb} />
+                    <MetricCard title="LH_ratio_sd_db" value={lhRatioSdDb} />
                   </>
                 ) : (
                   // 일반 연습: CPP/CSID 2개 카드
                   <>
-                    {/* CPP 카드 */}
-                    <div className="w-52 h-32 p-4 rounded-xl outline outline-1 outline-offset-[-1px] outline-gray-200 inline-flex flex-col justify-start items-start">
-                      <div className="w-44 pb-2 inline-flex justify-start items-start">
-                        <div className="flex-1 h-7 relative">
-                          <div className="w-28 h-6 left-0 top-[2px] absolute inline-flex justify-center items-center gap-2.5">
-                            <div className="left-0 top-0 absolute justify-center text-gray-900 text-base font-medium leading-6">CPP</div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="w-44 h-16 flex flex-col justify-start items-start">
-                        <div className="self-stretch h-10 inline-flex justify-start items-center">
-                          <div className="justify-center text-gray-900 text-2xl font-bold leading-10">
-                            {cpp !== null ? cpp.toFixed(3) : '0.000'}
-                          </div>
-                          <div className="justify-center text-gray-500 text-sm font-normal leading-6">%</div>
-                        </div>
-                        <div className="self-stretch pt-1 inline-flex justify-start items-start">
-                          <div className="w-full h-6 flex justify-start items-center">
-                            <div className="justify-center text-gray-500 text-sm font-normal leading-6">정상 범위: 0</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* CSID 카드 */}
-                    <div className="w-52 h-32 p-4 rounded-xl outline outline-1 outline-offset-[-1px] outline-gray-200 inline-flex flex-col justify-start items-start">
-                      <div className="w-44 pb-2 inline-flex justify-start items-start">
-                        <div className="flex-1 h-7 relative">
-                          <div className="w-28 h-6 left-0 top-[2px] absolute inline-flex justify-center items-center gap-2.5">
-                            <div className="left-0 top-0 absolute justify-center text-gray-900 text-base font-medium leading-6">CSID</div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="w-44 h-16 flex flex-col justify-start items-start">
-                        <div className="self-stretch h-10 inline-flex justify-start items-center">
-                          <div className="justify-center text-gray-900 text-2xl font-bold leading-10">
-                            {csid !== null ? csid.toFixed(3) : '0.000'}
-                          </div>
-                          <div className="justify-center text-gray-500 text-sm font-normal leading-6">%</div>
-                        </div>
-                        <div className="self-stretch pt-1 inline-flex justify-start items-start">
-                          <div className="w-full h-6 flex justify-start items-center">
-                            <div className="justify-center text-gray-500 text-sm font-normal leading-6">정상 범위: 0</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    <MetricCard title="CPP" value={cpp} normalRange="0" />
+                    <MetricCard title="CSID" value={csid} normalRange="0" />
                   </>
                 )}
               </div>
@@ -588,11 +401,13 @@ const WordSetResults: React.FC = () => {
           sessionType={sessionType}
         />
         
-        {/* 다음 행동 버튼 */}
-        <ActionButtons
-          onRetry={handleRetry}
-          onNewTraining={handleNewTraining}
-        />
+        {/* 다음 행동 버튼 - 발성 연습이 아닐 때만 표시 */}
+        {!isVoiceTraining && (
+          <ActionButtons
+            onRetry={handleRetry}
+            onNewTraining={handleNewTraining}
+          />
+        )}
       </div>
     </div>
   );
