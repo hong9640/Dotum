@@ -47,7 +47,7 @@ function CalendarGrid({ matrix, counts, onDateClick }: CalendarGridProps) {
           const setCnt = counts[iso] ?? 0;
 
           // 배지 색상 규칙
-          const badgeClass = setCnt >= 5 ? "bg-green-500" : setCnt >= 1 ? "bg-green-400" : "";
+          const badgeClass = setCnt >= 5 ? "bg-emerald-600 text-white" : setCnt >= 1 ? "bg-emerald-400 text-white" : "";
 
           // 주말 색상
           const dow = date.getDay();
@@ -97,14 +97,14 @@ function CalendarGrid({ matrix, counts, onDateClick }: CalendarGridProps) {
 
               {setCnt > 0 && (
                 <div className="w-full flex-1 flex items-center justify-center">
-                <div className={`hidden sm:flex justify-center w-full px-2 py-1.5 rounded-xl text-center ${badgeClass}`}>
-                  <span className="flex lg:hidden text-white text-[16px] font-semibold">
+                <div className={`hidden sm:flex justify-center w-full px-2 py-1.5 rounded-2xl text-center ${badgeClass}`}>
+                  <span className="flex lg:hidden text-[16px] font-semibold">
                 {/* <div className="flex-1 flex items-center justify-center w-full">
                   <div className={`hidden sm:flex w-full rounded-xl text-center ${badgeClass} items-center justify-center`}>
                     <span className="text-white text-[10px] sm:text-xs md:text-sm font-semibold text-center"> */}
                       {setCnt}회
                     </span>
-                  <span className="hidden lg:flex text-white text-[16px] font-semibold">
+                  <span className="hidden lg:flex text-[16px] font-semibold">
                 {/* <div className="flex-1 flex items-center justify-center w-full">
                   <div className={`hidden sm:flex w-full rounded-xl text-center ${badgeClass} items-center justify-center`}>
                     <span className="text-white text-[10px] sm:text-xs md:text-sm font-semibold text-center"> */}
