@@ -65,6 +65,63 @@ class VideoProcessor:
         except Exception as e:
             raise Exception(f"Metadata extraction failed: {str(e)}")
     
+    async def extract_audio_metadata(self, file_path: str) -> Dict[str, Any]:
+        """오디오 메타데이터 추출 (오디오 스트림 전용)"""
+        try:
+            cmd = [
+                'ffprobe', '-v', 'quiet', '-print_format', 'json',
+                '-show_format', '-show_streams', file_path
+            ]
+            
+            result = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            
+            stdout, stderr = await result.communicate()
+            
+            if result.returncode != 0:
+                raise Exception(f"FFprobe error: {stderr.decode()}")
+            
+            import json
+            metadata = json.loads(stdout.decode())
+            
+            # 오디오 스트림 정보 추출
+            audio_stream = None
+            for stream in metadata.get('streams', []):
+                if stream.get('codec_type') == 'audio':
+                    audio_stream = stream
+                    break
+            
+            if not audio_stream:
+                raise Exception("No audio stream found")
+            
+            # duration이 없는 경우 대비
+            duration_ms = 0
+            if 'duration' in metadata.get('format', {}):
+                duration_ms = int(float(metadata['format']['duration']) * 1000)
+            elif 'duration' in audio_stream:
+                duration_ms = int(float(audio_stream['duration']) * 1000)
+            
+            return {
+                'duration_ms': duration_ms,
+                'codec': audio_stream.get('codec_name'),
+                'bitrate': metadata['format'].get('bit_rate'),
+                'sample_rate': int(audio_stream.get('sample_rate', 0)),
+            }
+            
+        except Exception as e:
+            raise Exception(f"Audio metadata extraction failed: {str(e)}")
+
+    async def extract_audio_metadata_from_bytes(self, file_bytes: bytes) -> Dict[str, Any]:
+        """바이트 데이터로부터 직접 오디오 메타데이터 추출 (임시 파일 사용)"""
+        with tempfile.NamedTemporaryFile(delete=True, suffix=".wav") as temp_file:
+            temp_file_path = temp_file.name
+            async with aiofiles.open(temp_file_path, 'wb') as f:
+                await f.write(file_bytes)
+            return await self.extract_audio_metadata(temp_file_path)
+
     async def generate_thumbnail(
         self, 
         input_path: str, 
