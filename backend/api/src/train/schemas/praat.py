@@ -1,6 +1,7 @@
 from typing import Optional, List
 from datetime import datetime
-from pydantic import BaseModel, Field, ConfigDict
+import math
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 class PraatFeaturesResponse(BaseModel):
     """Praat 분석 결과 응답 스키마"""
@@ -24,6 +25,27 @@ class PraatFeaturesResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
+    # 공통 float 정규화기: NaN/Inf → None 변환
+    @field_validator(
+        'jitter_local', 'shimmer_local', 'hnr', 'nhr', 'f0', 'max_f0', 'min_f0',
+        'cpp', 'csid', 'lh_ratio_mean_db', 'lh_ratio_sd_db', 'f1', 'f2', 'intensity_mean',
+        mode='before'
+    )
+    @classmethod
+    def _nan_inf_to_none(cls, v):
+        """NaN, Infinity, -Infinity 값을 None으로 변환"""
+        # 넘파이 스칼라도 처리
+        try:
+            import numpy as np
+            if isinstance(v, (np.floating, np.integer)):
+                v = float(v)
+        except Exception:
+            pass
+        
+        if isinstance(v, float) and not math.isfinite(v):
+            return None
+        return v
+
 
 class SessionPraatResultResponse(BaseModel):
     """세션 단위 Praat 평균 지표 응답 스키마"""
@@ -43,6 +65,28 @@ class SessionPraatResultResponse(BaseModel):
     updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    # 공통 float 정규화기: NaN/Inf → None 변환
+    @field_validator(
+        'avg_jitter_local', 'avg_shimmer_local', 'avg_hnr', 'avg_nhr',
+        'avg_lh_ratio_mean_db', 'avg_lh_ratio_sd_db', 'avg_max_f0', 'avg_min_f0',
+        'avg_intensity_mean', 'avg_f0', 'avg_f1', 'avg_f2',
+        mode='before'
+    )
+    @classmethod
+    def _nan_inf_to_none(cls, v):
+        """NaN, Infinity, -Infinity 값을 None으로 변환"""
+        # 넘파이 스칼라도 처리
+        try:
+            import numpy as np
+            if isinstance(v, (np.floating, np.integer)):
+                v = float(v)
+        except Exception:
+            pass
+        
+        if isinstance(v, float) and not math.isfinite(v):
+            return None
+        return v
 
 
 class VocalItemPraatDetail(BaseModel):
