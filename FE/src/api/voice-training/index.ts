@@ -58,13 +58,6 @@ export const submitVocalItem = async ({
   graphVideo,
   onUploadProgress,
 }: SubmitVocalItemRequest): Promise<VocalItemSubmissionResponse> => {
-  console.log('📤 발성 훈련 아이템 제출:', { sessionId, itemIndex });
-  console.log('🎵 오디오 파일 정보:', {
-    name: audioFile.name,
-    type: audioFile.type,
-    size: `${(audioFile.size / 1024).toFixed(2)} KB`
-  });
-
   const formData = new FormData();
   formData.append('audio_file', audioFile);
   formData.append('graph_image', graphImage);
@@ -83,15 +76,6 @@ export const submitVocalItem = async ({
       onUploadProgress,
     }
   );
-  
-  console.log('📥 발성 훈련 아이템 제출 응답:', response.data);
-  
-  // 🔍 Praat 데이터 확인
-  if (response.data.praat) {
-    console.log('✅ Praat 데이터 있음:', response.data.praat);
-  } else {
-    console.warn('⚠️ Praat 데이터 없음 (null)');
-  }
   
   return response.data;
 };

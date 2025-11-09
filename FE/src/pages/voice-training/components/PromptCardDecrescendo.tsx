@@ -14,20 +14,24 @@ const PromptCardDecrescendo: React.FC<PromptCardDecrescendoProps> = ({ main, sub
         {attempt}/{totalAttempts}
       </div>
       <div className="flex justify-center items-end gap-1 mb-4">
-        {[...main].map((char, i) => (
-          <span
-            key={i}
-            className="font-extrabold text-yellow-900 transition-all"
-            style={{
-              fontSize: `${80 - i * 12}px`,
-              lineHeight: 1,
-            }}
-          >
-            {char}
-          </span>
-        ))}
+        {[...main].map((char, i) => {
+          // 데크레셴도: 더크 → 크 → 중 → 작 (80 → 64 → 48 → 32)
+          const sizes = [80, 64, 48, 32];
+          return (
+            <span
+              key={i}
+              className="font-extrabold text-yellow-900 transition-all"
+              style={{
+                fontSize: `${sizes[i]}px`,
+                lineHeight: 1,
+              }}
+            >
+              {char}
+            </span>
+          );
+        })}
         <span className="font-extrabold text-yellow-900" style={{ fontSize: '32px', lineHeight: 1 }}>
-          ——
+          —
         </span>
       </div>
       <p className="text-xl sm:text-2xl font-bold text-yellow-800 mb-3">

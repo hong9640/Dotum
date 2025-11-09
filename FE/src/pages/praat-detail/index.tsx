@@ -59,16 +59,11 @@ const PraatDetailPage: React.FC = () => {
           return;
         }
 
-        console.log("Praat 상세 데이터 로드 시작:", { sessionId, itemIndex });
-
         // 세션 상세 정보와 아이템 상세 정보를 병렬로 조회
         const [sessionData, itemDetailData] = await Promise.all([
           getTrainingSession(sessionId),
           getSessionItemByIndex(sessionId, itemIndex),
         ]);
-
-        console.log("Praat 상세 데이터 로드 성공:", { sessionData, itemDetailData });
-        console.log("item_id:", itemDetailData.item_id);
 
         // 발성연습 여부 확인 (type이 'vocal'인 경우)
         const sessionTypeLower = (sessionData.type || '').toLowerCase();
@@ -89,8 +84,6 @@ const PraatDetailPage: React.FC = () => {
           // 현재 itemIndex에 해당하는 녹음 탭 인덱스 설정 (0부터 시작)
           const currentTabIndex = itemIndex - baseIndex;
           setCurrentRecordingIndex(currentTabIndex);
-          console.log("발성연습 녹음 횟수:", count, "(total_items:", sessionData.total_items, ")");
-          console.log("현재 itemIndex:", itemIndex, "→ 훈련 인덱스:", trainingIndex, "→ baseItemIndex:", baseIndex, "→ 탭 인덱스:", currentTabIndex);
         } else {
           setBaseItemIndex(itemIndex);
         }
@@ -98,9 +91,8 @@ const PraatDetailPage: React.FC = () => {
         // item_id 저장 (Praat API 호출에 필요)
         if (itemDetailData.item_id) {
           setItemId(itemDetailData.item_id);
-          console.log("✅ item_id 설정 완료:", itemDetailData.item_id);
         } else {
-          console.error("❌ item_id가 없습니다!");
+          console.error("item_id가 없습니다");
         }
 
         // composited_video_url 설정 (발성연습일 때 사용)
@@ -165,9 +157,7 @@ const PraatDetailPage: React.FC = () => {
 
   // Praat 데이터를 PraatValues로 변환
   useEffect(() => {
-    console.log("🔄 Praat 데이터 변환 체크:", { praatData, praatError });
     if (praatData) {
-      console.log("✅ Praat 데이터 변환 시작:", praatData);
       setPraatValues({
         cpp: praatData.cpp,
         csid: praatData.csid,
@@ -222,15 +212,12 @@ const PraatDetailPage: React.FC = () => {
         // 선택한 녹음의 itemIndex 계산 (baseItemIndex + index)
         const selectedItemIndex = baseItemIndex + index;
         
-        console.log("녹음 선택:", index, "→ itemIndex:", selectedItemIndex);
-        
         // 해당 itemIndex의 아이템 데이터 조회
         const itemDetailData = await getSessionItemByIndex(sessionId, selectedItemIndex);
         
         // item_id 업데이트 (Praat API 호출에 필요)
         if (itemDetailData.item_id) {
           setItemId(itemDetailData.item_id);
-          console.log("✅ 선택한 녹음의 item_id 설정:", itemDetailData.item_id);
         }
         
         // composited_video_url 업데이트
