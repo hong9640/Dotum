@@ -8,6 +8,19 @@ if TYPE_CHECKING:
     from api.src.train.models.media import MediaFile
     from api.src.token.token_model import RefreshToken
 
+class UserVoice(SQLModel, table=True):
+    __tablename__ = "user_voice"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(unique=True, index=True, description="사용자 ID (논리 FK)")
+    
+    voice_id: str = Field(index=True, description="ElevenLabs Voice ID")
+    update_count: int = Field(default=0, description="Voice ID 갱신 횟수")
+    source_audio_duration_ms: int = Field(default=0, description="Voice ID 생성에 사용된 원본 음성의 길이 (ms)")
+    
+    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False, sa_column_kwargs={"onupdate": datetime.utcnow})
+
+
 class User(SQLModel, table=True):
     __tablename__ = "users"
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -40,6 +53,15 @@ class User(SQLModel, table=True):
         sa_relationship_kwargs={
             "primaryjoin": "User.id==foreign(RefreshToken.user_id)",
             "foreign_keys": "[RefreshToken.user_id]",
+        }
+    )
+
+    # 사용자 목소리 (1:1 관계)
+    voice: Optional["UserVoice"] = Relationship(
+        sa_relationship_kwargs={
+            "primaryjoin": "User.id==foreign(UserVoice.user_id)",
+            "foreign_keys": "[UserVoice.user_id]",
+            "uselist": False, # 1:1 관계 명시
         }
     )
     
