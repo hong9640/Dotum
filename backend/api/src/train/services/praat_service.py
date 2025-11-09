@@ -169,6 +169,10 @@ async def save_session_praat_result(
     avg_f0 = calc_avg([pf.f0 for pf in all_group])
     avg_f1 = calc_avg([pf.f1 for pf in all_group])
     avg_f2 = calc_avg([pf.f2 for pf in all_group])
+
+    # cpp, csid 평균
+    avg_cpp = calc_avg([pf.cpp for pf in all_group])
+    avg_csid = calc_avg([pf.csid for pf in all_group])
     
     # 6. DB에 저장 또는 업데이트
     existing_stmt = select(SessionPraatResult).where(
@@ -190,6 +194,8 @@ async def save_session_praat_result(
         existing_record.avg_f0 = avg_f0
         existing_record.avg_f1 = avg_f1
         existing_record.avg_f2 = avg_f2
+        existing_record.avg_cpp = avg_cpp
+        existing_record.avg_csid = avg_csid
         existing_record.updated_at = datetime.utcnow()
         
         print(f"🌀 Session {session_id} ({session.type}): 기존 평균 Praat 결과 갱신 완료")
@@ -208,6 +214,8 @@ async def save_session_praat_result(
             avg_f0=avg_f0,
             avg_f1=avg_f1,
             avg_f2=avg_f2,
+            avg_cpp=avg_cpp,
+            avg_csid=avg_csid
         )
         db.add(new_record)
         existing_record = new_record

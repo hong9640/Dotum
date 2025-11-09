@@ -180,6 +180,8 @@ async def convert_session_to_response(
         avg_f0=None,
         avg_f1=None,
         avg_f2=None,
+        avg_cpp=None,
+        avg_csid=None,
         created_at=None,
         updated_at=None
     )
@@ -207,6 +209,8 @@ async def convert_session_to_response(
                 avg_f0=praat_data.avg_f0,
                 avg_f1=praat_data.avg_f1,
                 avg_f2=praat_data.avg_f2,
+                avg_cpp=praat_data.avg_cpp,
+                avg_csid=praat_data.avg_csid,
                 created_at=praat_data.created_at,
                 updated_at=praat_data.updated_at
             )

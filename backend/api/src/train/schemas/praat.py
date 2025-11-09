@@ -39,6 +39,8 @@ class SessionPraatResultResponse(BaseModel):
     avg_f0: Optional[float] = None
     avg_f1: Optional[float] = None
     avg_f2: Optional[float] = None
+    avg_cpp: Optional[float] = None
+    avg_csid: Optional[float] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
