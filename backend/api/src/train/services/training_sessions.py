@@ -197,7 +197,7 @@ class TrainingSessionService:
             user_id
         )
         
-        # vocal 타입 세션의 경우 Praat 평균 결과 저장 (이미 조회한 세션 객체 전달하여 재조회 방지)
+        # 모든 타입의 세션 Praat 평균 결과 저장 (이미 조회한 세션 객체 전달하여 재조회 방지)
         try:
             await save_session_praat_result(self.db, session_id, session)
         except Exception as e:
