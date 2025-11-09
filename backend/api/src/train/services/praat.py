@@ -13,10 +13,9 @@ from typing import Optional
 from api.src.train.models.praat import PraatFeatures
 from api.src.train.models.media import MediaFile, MediaType
 from api.src.train.repositories.training_items import TrainingItemRepository
+from api.src.train.repositories.training_sessions import TrainingSessionRepository
 from api.src.train.services.media import MediaService
 from api.src.user.user_model import User
-from ..repositories.training_items import TrainingItemRepository
-from ..repositories.training_sessions import TrainingSessionRepository
 
 # ============================
 # 1. 파라미터 정의
@@ -40,6 +39,36 @@ SHIMMER_EXTRA_ARGS = (1.6,)
 # ============================
 # 2. 도우미 함수
 # ============================
+def _safe_float(v) -> Optional[float]:
+    """
+    NaN, Infinity, -Infinity 값을 None으로 변환하는 안전한 float 변환 함수.
+    넘파이 스칼라도 처리합니다.
+    """
+    if v is None:
+        return None
+    
+    # 넘파이 스칼라 처리
+    try:
+        if isinstance(v, (np.floating, np.integer)):
+            v = float(v)
+    except Exception:
+        pass
+    
+    # float 타입 확인 및 유한성 검사
+    if isinstance(v, float):
+        if not np.isfinite(v):
+            return None
+        return v
+    
+    # 다른 타입은 그대로 반환 (int 등)
+    try:
+        v_float = float(v)
+        if not np.isfinite(v_float):
+            return None
+        return v_float
+    except (ValueError, TypeError):
+        return None
+
 def _extract_mono(snd: parselmouth.Sound) -> parselmouth.Sound:
     """사운드 객체에서 단일 채널을 추출합니다."""
     if snd.n_channels == 2:
@@ -80,7 +109,8 @@ def compute_cpp_numpy(snd: parselmouth.Sound, fmin: float = 60.0, fmax: float = 
         trend_at_peak = trend[peak_idx]
         cpp = (peak_val - trend_at_peak) * 20 / np.log(10)
         cpp_list.append(cpp)
-    return float(np.mean(cpp_list)) if cpp_list else float("nan")
+    result = float(np.mean(cpp_list)) if cpp_list else None
+    return _safe_float(result)
 
 def compute_lh_ratio_series(snd: parselmouth.Sound) -> np.ndarray:
     """L/H Ratio (Low-to-High frequency energy ratio) 시계열 데이터를 계산합니다."""
@@ -107,14 +137,14 @@ def compute_lh_ratio_series(snd: parselmouth.Sound) -> np.ndarray:
         lh_db_list.append(lh_db)
     return np.array(lh_db_list, dtype=float)
 
-def estimate_csid_awan2016(cpp: float, lh_series_db: np.ndarray) -> float:
+def estimate_csid_awan2016(cpp: float, lh_series_db: np.ndarray) -> Optional[float]:
     """CSID (Cepstral/Spectral Index of Dysphonia) 값을 추정합니다."""
-    if lh_series_db.size == 0 or not np.isfinite(cpp):
-        return float("nan")
+    if lh_series_db.size == 0 or cpp is None or not np.isfinite(cpp):
+        return None
     lh_mean = float(np.mean(lh_series_db))
     lh_sd = float(np.std(lh_series_db, ddof=1)) if lh_series_db.size > 1 else 0.0
     csid = 154.59 - (10.39 * cpp) - (1.08 * lh_mean) - (3.71 * lh_sd)
-    return float(csid)
+    return _safe_float(float(csid))
 
 
 # ============================
@@ -172,15 +202,13 @@ async def extract_all_features(voice_data: bytes) -> dict:
         csid = estimate_csid_awan2016(cpp, lh_series)
         
         # L/H ratio 평균 및 표준편차 계산
-        lh_ratio_mean_db = float(np.mean(lh_series)) if lh_series.size > 0 else float("nan")
-        lh_ratio_sd_db = float(np.std(lh_series, ddof=1)) if lh_series.size > 1 else float("nan")
+        lh_ratio_mean_db = _safe_float(float(np.mean(lh_series))) if lh_series.size > 0 else None
+        lh_ratio_sd_db = _safe_float(float(np.std(lh_series, ddof=1))) if lh_series.size > 1 else None
 
         # 포먼트(Formant) 추출
         formant = snd.to_formant_burg(time_step=0.01, max_number_of_formants=5, 
                                        maximum_formant=5500, window_length=0.025, 
                                        pre_emphasis_from=50)
-        f1 = parselmouth.praat.call(formant, "Get mean", 1, 0, 0, "Hertz")
-        f2 = parselmouth.praat.call(formant, "Get mean", 2, 0, 0, "Hertz")
 
         cpp_csid_features = {
             "cpp": cpp,
@@ -191,27 +219,38 @@ async def extract_all_features(voice_data: bytes) -> dict:
 
         jitter_types = ["local"]
         jitter_features = {
-            f"jitter_{j_type}": parselmouth.praat.call(point_process, f"Get jitter ({j_type})", *JITTER_SHIMMER_COMMON_ARGS)
+            f"jitter_{j_type}": _safe_float(parselmouth.praat.call(point_process, f"Get jitter ({j_type})", *JITTER_SHIMMER_COMMON_ARGS))
             for j_type in jitter_types
         }
 
         shimmer_types = ["local"]
         shimmer_features = {
-            f"shimmer_{s_type}": parselmouth.praat.call(
+            f"shimmer_{s_type}": _safe_float(parselmouth.praat.call(
                 (snd, point_process), f"Get shimmer ({s_type})", *JITTER_SHIMMER_COMMON_ARGS, *SHIMMER_EXTRA_ARGS
-            )
+            ))
             for s_type in shimmer_types
         }
 
-        hnr = parselmouth.praat.call(harmonicity, "Get mean", 0, 0)
-        nhr = 10 ** (-hnr / 10) if hnr > 0 else 0.0
+        hnr_raw = parselmouth.praat.call(harmonicity, "Get mean", 0, 0)
+        hnr = _safe_float(hnr_raw)
+        nhr = _safe_float(10 ** (-hnr_raw / 10)) if hnr_raw > 0 else 0.0
 
-        f0 = parselmouth.praat.call(pitch, "Get mean", 0, 0, "Hertz")
-        max_f0 = parselmouth.praat.call(pitch, "Get maximum", 0, 0, "Hertz", "Parabolic")
-        min_f0 = parselmouth.praat.call(pitch, "Get minimum", 0, 0, "Hertz", "Parabolic")
+        f0_raw = parselmouth.praat.call(pitch, "Get mean", 0, 0, "Hertz")
+        f0 = _safe_float(f0_raw)
+        max_f0_raw = parselmouth.praat.call(pitch, "Get maximum", 0, 0, "Hertz", "Parabolic")
+        max_f0 = _safe_float(max_f0_raw)
+        min_f0_raw = parselmouth.praat.call(pitch, "Get minimum", 0, 0, "Hertz", "Parabolic")
+        min_f0 = _safe_float(min_f0_raw)
+
+        # 포먼트(Formant) 추출
+        f1_raw = parselmouth.praat.call(formant, "Get mean", 1, 0, 0, "Hertz")
+        f1 = _safe_float(f1_raw)
+        f2_raw = parselmouth.praat.call(formant, "Get mean", 2, 0, 0, "Hertz")
+        f2 = _safe_float(f2_raw)
 
         # Intensity 값 추출
-        intensity_mean = parselmouth.praat.call(intensity, "Get mean", 0, 0, "dB")
+        intensity_mean_raw = parselmouth.praat.call(intensity, "Get mean", 0, 0, "dB")
+        intensity_mean = _safe_float(intensity_mean_raw)
 
         other_features = {
             "hnr": hnr,
@@ -221,7 +260,7 @@ async def extract_all_features(voice_data: bytes) -> dict:
             "min_f0": min_f0,
             "f1": f1,
             "f2": f2,
-            "intensity_mean": float(intensity_mean) if not np.isnan(intensity_mean) else float("nan"),
+            "intensity_mean": intensity_mean,
         }
 
         final_features = {
