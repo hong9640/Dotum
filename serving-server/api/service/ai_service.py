@@ -25,7 +25,8 @@ class AIService:
         self,
         user_video_gs: str,
         gen_audio_gs: str,
-        output_video_gs: str
+        output_video_gs: str,
+        target_fps: int = 18
     ) -> dict:
         """
         립싱크 영상 생성 파이프라인 실행
@@ -76,7 +77,8 @@ class AIService:
                 face_video_path=video_local_path,
                 audio_path=audio_local_path,
                 output_gs_path=output_video_gs,
-                use_gpu=True
+                use_gpu=True,
+                target_fps=target_fps
             )
             if not result_video_path:
                 raise ValueError("Failed to run Wav2Lip inference or upload to GCS")
@@ -157,7 +159,8 @@ class AIService:
         face_video_path: str,
         audio_path: str,
         output_gs_path: str,
-        use_gpu: bool = True
+        use_gpu: bool = True,
+        target_fps: int = 18
     ) -> Optional[str]:
         """Wav2Lip 립싱크 (GPU 최적화 + Static Face Detection)"""
         try:
@@ -224,12 +227,13 @@ class AIService:
                     logger.error(f"Wav2Lip output file not found: {output_temp}")
                     return None
                 
-                # 후처리: 원본 해상도로 리사이즈 (고품질 스케일링)
-                logger.info(f"Resizing output to original resolution: {original_resolution}")
+                # 후처리: 원본 해상도로 리사이즈 (고품질 스케일링) + FPS 조정
+                logger.info(f"Resizing output to original resolution: {original_resolution} @ {target_fps}fps")
                 resize_success = await self._resize_video_to_resolution(
                     input_path=output_temp,
                     output_path=output_local,
-                    resolution=original_resolution
+                    resolution=original_resolution,
+                    target_fps=target_fps
                 )
                 
                 if not resize_success or not os.path.exists(output_local):
@@ -288,7 +292,8 @@ class AIService:
         self,
         input_path: str,
         output_path: str,
-        resolution: str
+        resolution: str,
+        target_fps: int = 18
     ) -> bool:
         """
         FFmpeg를 사용하여 영상을 특정 해상도로 리사이즈
@@ -297,17 +302,18 @@ class AIService:
             input_path: 입력 영상 경로
             output_path: 출력 영상 경로
             resolution: 목표 해상도 "widthxheight" (예: "1280x720")
+            target_fps: 목표 프레임률 (기본값: 25fps)
             
         Returns:
             bool: 성공 여부
         """
         try:
-            # lanczos 알고리즘 사용 (고품질 스케일링)
+            # lanczos 알고리즘 사용 (고품질 스케일링) + FPS 조정
             cmd = [
                 "ffmpeg",
                 "-y",  # 기존 파일 덮어쓰기
                 "-i", input_path,
-                "-vf", f"scale={resolution}:flags=lanczos",  # 고품질 스케일링
+                "-vf", f"scale={resolution}:flags=lanczos,fps={target_fps}",  # 고품질 스케일링 + FPS 설정
                 "-c:v", "libx264",  # H.264 코덱
                 "-preset", "medium",  # 인코딩 속도/품질 균형
                 "-crf", "18",  # 품질 (18 = 시각적으로 무손실에 가까움)

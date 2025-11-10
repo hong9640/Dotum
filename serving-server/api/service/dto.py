@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic import BaseModel, Field
 
 # ---------- 요청 DTO ----------
@@ -7,6 +8,8 @@ class LipVideoGenerationRequest(BaseModel):
     user_video_gs: str = Field(..., description="사용자 발화 영상이 업로드된 GCS 경로")
     gen_audio_gs: str = Field(..., description="생성된 오디오가 업로드된 GCS 경로")
     output_video_gs: str = Field(..., description="생성된 영상을 업로드할 GCS 경로 (미리 지정된 경로)")
+    word: Optional[str] = Field(None, description="발음할 단어/문장 텍스트 (FPS 자동 조정용)")
+    target_fps: Optional[int] = Field(None, description="출력 영상의 프레임률 (미지정시 자동: 문장 15fps, 단어 18fps)", ge=15, le=60)
 
 # ---------- 응답 DTO ----------
 
