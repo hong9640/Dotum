@@ -2,9 +2,6 @@ import { ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-// 연 선택 범위(필요 시 조정)
-const YEARS = Array.from({ length: 7 }, (_, i) => 2023 + i); // 2023~2029
-
 interface CalendarHeaderProps {
   year: number;
   monthLabel: string;
@@ -20,6 +17,9 @@ function CalendarHeader({
   onNext, 
   onYearChange 
 }: CalendarHeaderProps) {
+  // 현재 연도 기준으로 이전 2년, 현재, 다음 2년 (총 5개)
+  const YEARS = Array.from({ length: 5 }, (_, i) => year - 2 + i);
+
   return (
     <div className="flex items-center justify-center">
       <div className="flex items-center gap-2">
@@ -47,14 +47,18 @@ function CalendarHeader({
                 <ChevronDown className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" className="w-48">
-              <DropdownMenuLabel className="text-center">연도 선택</DropdownMenuLabel>
+            <DropdownMenuContent align="center" className="w-40">
+              <DropdownMenuLabel className="text-center text-base font-semibold">연도 선택</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {YEARS.map((y) => (
                 <DropdownMenuItem 
                   key={y} 
                   onClick={() => onYearChange(y)} 
-                  className="cursor-pointer text-center justify-center hover:bg-gray-100"
+                  className={`cursor-pointer text-center justify-center text-xl font-semibold py-2.5 rounded-lg transition-colors ${
+                    y === year 
+                      ? 'bg-blue-100 text-blue-700' 
+                      : 'hover:bg-gray-100'
+                  }`}
                 >
                   {y}년
                 </DropdownMenuItem>

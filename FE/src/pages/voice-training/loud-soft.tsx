@@ -91,24 +91,27 @@ const LoudSoftPage: React.FC = () => {
             setResetTrigger(prev => prev + 1);
             setTimeout(() => {
               navigate(`/voice-training/loud-soft?attempt=${attempt + 1}&sessionId=${sessionId}`);
+              setIsSubmitting(false);  // ✅ navigate 후 로딩 해제
             }, 500);
           } else {
             // 다음 훈련으로
             setResetTrigger(prev => prev + 1);
             setTimeout(() => {
               navigate(`/voice-training/soft-loud?attempt=1&sessionId=${sessionId}`);
+              setIsSubmitting(false);  // ✅ navigate 후 로딩 해제
             }, 500);
           }
         } else {
           toast.error('훈련이 완료되지 않았습니다. 다시 시도해주세요.');
+          setIsSubmitting(false);  // ✅ 에러 시에만 해제
         }
       }
     } catch (error: any) {
       console.error('제출 실패:', error);
       toast.error(error.response?.data?.detail || '제출에 실패했습니다.');
-    } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false);  // ✅ 에러 시에만 해제
     }
+    // ❌ finally 제거
   };
 
 

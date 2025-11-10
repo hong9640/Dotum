@@ -24,6 +24,16 @@ const PraatMetricTile: React.FC<MetricTileProps> = ({
 }) => {
   // 값이 없으면 0으로 처리
   const v = value ?? 0;
+  
+  // 소수점 4자리까지 반올림하여 포맷팅
+  const formatValue = (num: number): string => {
+    // 소수점 4자리까지 반올림
+    const rounded = Math.round(num * 10000) / 10000;
+    // 소수점 5자리까지 표시하되, 불필요한 0은 제거
+    return rounded.toFixed(4).replace(/\.?0+$/, '');
+  };
+  
+  const formattedValue = typeof v === 'number' ? formatValue(v) : (v as unknown as string);
 
   return (
     <div
@@ -40,7 +50,7 @@ const PraatMetricTile: React.FC<MetricTileProps> = ({
       <div>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="text-gray-900 text-xl sm:text-2xl font-bold leading-8 sm:leading-10">
-            {v.toString()}
+            {formattedValue}
           </div>
           {unit ? (
             <div className="text-gray-500 text-xs sm:text-sm">{unit}</div>

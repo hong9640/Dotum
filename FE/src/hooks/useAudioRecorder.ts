@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import RecordRTC from 'recordrtc';
 
 export interface UseAudioRecorderReturn {
   isRecording: boolean;
@@ -20,20 +21,38 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+  const recorderRef = useRef<RecordRTC | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);  // ref로도 보관
+  const audioContextRef = useRef<AudioContext | null>(null);  // ref로도 보관
 
   const startRecording = useCallback(async () => {
     try {
+      // 이전 AudioContext 정리 (혹시 남아있다면)
+      const prevContext = audioContextRef.current;
+      if (prevContext && prevContext.state !== 'closed') {
+        await prevContext.close();
+        audioContextRef.current = null;
+        setAudioContext(null);
+        setAnalyser(null);
+      }
+      
       // 기존 녹음 데이터 초기화
       setAudioBlob(null);
       setAudioUrl(null);
       
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 44100
+        } 
+      });
+      streamRef.current = mediaStream;
       setStream(mediaStream);
       
       // AudioContext 및 AnalyserNode 생성
       const ctx = new AudioContext();
+      audioContextRef.current = ctx;
       const source = ctx.createMediaStreamSource(mediaStream);
       const analyserNode = ctx.createAnalyser();
       
@@ -41,80 +60,92 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
       analyserNode.smoothingTimeConstant = 0;
       
       source.connect(analyserNode);
-      // 주의: destination에 연결하지 않음 (에코 방지)
       
       setAudioContext(ctx);
       setAnalyser(analyserNode);
       
-      const mediaRecorder = new MediaRecorder(mediaStream);
-      mediaRecorderRef.current = mediaRecorder;
-      chunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        const url = URL.createObjectURL(blob);
-        setAudioBlob(blob);
-        setAudioUrl(url);
-        
-        // Clean up
-        mediaStream.getTracks().forEach(track => track.stop());
-        setStream(null);
-        
-        // AudioContext cleanup
-        if (ctx.state !== 'closed') {
-          ctx.close();
-        }
-        setAudioContext(null);
-        setAnalyser(null);
-      };
-
-      mediaRecorder.start();
+      // RecordRTC로 WAV 녹음
+      const recorder = new RecordRTC(mediaStream, {
+        type: 'audio',
+        mimeType: 'audio/wav',
+        recorderType: RecordRTC.StereoAudioRecorder,
+        numberOfAudioChannels: 1,
+        desiredSampRate: 16000,
+        timeSlice: 1000,
+        ondataavailable: () => {}
+      });
+      
+      recorderRef.current = recorder;
+      recorder.startRecording();
       setIsRecording(true);
     } catch (error) {
-      console.error('Error accessing microphone:', error);
+      console.error('마이크 접근 오류:', error);
       alert('마이크 접근 권한이 필요합니다.');
     }
   }, []);
 
   const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
+    if (recorderRef.current && isRecording) {
+      // 즉시 stream 정리 (마이크 표시 끄기)
+      const currentStream = streamRef.current;
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+        setStream(null);
+      }
+      
+      // AudioContext도 즉시 닫기
+      const currentContext = audioContextRef.current;
+      if (currentContext && currentContext.state !== 'closed') {
+        currentContext.close().catch(err => console.warn('AudioContext 정리 실패:', err));
+        audioContextRef.current = null;
+        setAudioContext(null);
+        setAnalyser(null);
+      }
+      
+      const recorder = recorderRef.current;
+      recorder.stopRecording(() => {
+        const blob = recorder.getBlob();
+        const url = URL.createObjectURL(blob);
+        
+        setAudioBlob(blob);
+        setAudioUrl(url);
+        
+        recorder.destroy();
+        recorderRef.current = null;
+        setIsRecording(false);
+      });
     }
   }, [isRecording]);
 
   const reset = useCallback(() => {
-    // 녹음 중이면 중지
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
+    if (recorderRef.current && isRecording) {
+      recorderRef.current.stopRecording(() => {
+        recorderRef.current?.destroy();
+        recorderRef.current = null;
+      });
       setIsRecording(false);
     }
     
-    // 스트림 정리
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
+    const currentStream = streamRef.current;
+    if (currentStream) {
+      currentStream.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
       setStream(null);
     }
     
-    // AudioContext 정리
-    if (audioContext && audioContext.state !== 'closed') {
-      audioContext.close();
+    const currentContext = audioContextRef.current;
+    if (currentContext && currentContext.state !== 'closed') {
+      currentContext.close();
+      audioContextRef.current = null;
       setAudioContext(null);
       setAnalyser(null);
     }
     
-    // 상태 초기화
     setAudioBlob(null);
     setAudioUrl(null);
-    chunksRef.current = [];
-    mediaRecorderRef.current = null;
-  }, [isRecording, stream, audioContext]);
+    recorderRef.current = null;
+  }, [isRecording]);
 
   return {
     isRecording,

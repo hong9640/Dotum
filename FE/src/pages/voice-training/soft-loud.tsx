@@ -91,35 +91,38 @@ const SoftLoudPage: React.FC = () => {
             setResetTrigger(prev => prev + 1);
             setTimeout(() => {
               navigate(`/voice-training/soft-loud?attempt=${attempt + 1}&sessionId=${sessionId}`);
+              setIsSubmitting(false);  // ✅ navigate 후 로딩 해제
             }, 500);
           } else {
             // 마지막 시도(attempt 3)가 완료되면 세션 완료 처리 후 result-list로 이동
+            // ⚠️ setIsSubmitting(false)를 호출하지 않음 → 로딩 화면 유지
             try {
               await completeTrainingSession(sessionId);
               toast.success('모든 발성 훈련을 완료했습니다! 🎉');
               setResetTrigger(prev => prev + 1);
-              setTimeout(() => {
-                navigate(`/result-list?sessionId=${sessionId}&type=vocal`);
-              }, 1000);
+              // ✅ setTimeout 제거 - 바로 이동
+              navigate(`/result-list?sessionId=${sessionId}&type=vocal`);
+              // 페이지 이동 후 언마운트되므로 setIsSubmitting 불필요
             } catch (error) {
               console.error('세션 완료 처리 실패:', error);
               toast.success('훈련이 완료되었습니다!');
               setResetTrigger(prev => prev + 1);
-              setTimeout(() => {
-                navigate(`/result-list?sessionId=${sessionId}&type=vocal`);
-              }, 1000);
+              // ✅ setTimeout 제거 - 바로 이동
+              navigate(`/result-list?sessionId=${sessionId}&type=vocal`);
+              // 페이지 이동 후 언마운트되므로 setIsSubmitting 불필요
             }
           }
         } else {
           toast.error('훈련이 완료되지 않았습니다. 다시 시도해주세요.');
+          setIsSubmitting(false);  // ✅ 에러 시에만 해제
         }
       }
     } catch (error: any) {
       console.error('제출 실패:', error);
       toast.error(error.response?.data?.detail || '제출에 실패했습니다.');
-    } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false);  // ✅ 에러 시에만 해제
     }
+    // ❌ finally 제거 - 성공 시에는 isSubmitting을 false로 만들지 않음
   };
 
 
@@ -141,6 +144,7 @@ const SoftLoudPage: React.FC = () => {
                 onRecordEnd={handleRecordEnd}
                 onSubmit={handleSubmit}
                 isSubmitting={isSubmitting}
+                isLastSubmit={attempt === 3}
                 resetTrigger={resetTrigger}
               />
             </div>

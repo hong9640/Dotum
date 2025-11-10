@@ -58,8 +58,6 @@ export const submitVocalItem = async ({
   graphVideo,
   onUploadProgress,
 }: SubmitVocalItemRequest): Promise<VocalItemSubmissionResponse> => {
-  console.log('📤 발성 훈련 아이템 제출:', { sessionId, itemIndex });
-
   const formData = new FormData();
   formData.append('audio_file', audioFile);
   formData.append('graph_image', graphImage);
@@ -79,6 +77,5 @@ export const submitVocalItem = async ({
     }
   );
   
-  console.log('📥 발성 훈련 아이템 제출 응답:', response.data);
   return response.data;
 };

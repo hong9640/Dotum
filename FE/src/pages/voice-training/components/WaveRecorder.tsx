@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Upload } from 'lucide-react';
+import { RotateCcw, Upload, Loader2 } from 'lucide-react';
 import { useAudioRecorder } from '@/hooks/useAudioRecorder';
 import RecordToggle from './RecordToggle';
 import AudioPlayer from './AudioPlayer';
@@ -10,6 +10,7 @@ interface WaveRecorderProps {
   onRecordEnd?: (blob: Blob, url: string) => void;
   onSubmit?: (audioBlob: Blob, graphImageBlob: Blob) => void;
   isSubmitting?: boolean;
+  isLastSubmit?: boolean; // 마지막 제출 여부 (메시지 변경용)
   resetTrigger?: number; // 리셋 트리거 (값이 변경되면 리셋)
 }
 
@@ -17,11 +18,21 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
   onRecordEnd, 
   onSubmit,
   isSubmitting = false,
+  isLastSubmit = false,
   resetTrigger = 0
 }) => {
-  const { isRecording, audioBlob, audioUrl, startRecording, stopRecording, reset, analyser } = useAudioRecorder();
+  const { 
+    isRecording, 
+    audioBlob, 
+    audioUrl, 
+    startRecording, 
+    stopRecording, 
+    reset,
+    analyser
+  } = useAudioRecorder();
   const graphRef = useRef<AudioLevelGraphRef>(null);
   const prevResetTriggerRef = useRef(resetTrigger);
+  
   
   // resetTrigger가 변경되면 리셋 (이전 값과 다를 때만)
   React.useEffect(() => {
@@ -36,6 +47,14 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
       onRecordEnd?.(audioBlob, audioUrl);
     }
   }, [audioBlob, audioUrl, onRecordEnd]);
+  
+  // 컴포넌트 언마운트 시 모든 리소스 정리
+  useEffect(() => {
+    return () => {
+      reset();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleToggle = () => {
     if (isRecording) {
@@ -46,14 +65,12 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
   };
 
   const handleRetake = () => {
-    // 녹음 재시작
     startRecording();
   };
 
   const handleSubmit = async () => {
     if (!audioBlob || !onSubmit) return;
     
-    // 그래프 이미지 캡처
     const graphImageBlob = await graphRef.current?.captureImage();
     if (!graphImageBlob) {
       console.error('그래프 이미지 캡처 실패');
@@ -64,51 +81,90 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
   };
 
   return (
-    <div className="space-y-6">
-      <AudioLevelGraph
-        ref={graphRef}
-        active={isRecording}
-        analyser={analyser}
-        width={720}
-        height={200}
-        stroke="#0C2C66"
-        minDb={-60}
-        maxDb={0}
-      />
-
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-        {!audioUrl ? (
-          <RecordToggle isRecording={isRecording} onToggle={handleToggle} />
-        ) : (
-          <div className="flex flex-wrap items-center gap-3">
-            <Button 
-              size="lg" 
-              variant="secondary" 
-              className="px-8 py-6 text-xl flex items-center gap-3" 
-              onClick={handleRetake}
-              disabled={isSubmitting}
-            >
-              <RotateCcw className="size-6 text-slate-700" strokeWidth={2.5} />
-              다시 녹음
-            </Button>
+    <div className="relative space-y-6">
+      {/* 제출 중 로딩 오버레이 (모든 제출 시 표시) */}
+      {isSubmitting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl p-10 max-w-md mx-4 text-center animate-in zoom-in-95 duration-300">
+            <div className="mb-6 flex justify-center">
+              {/* 로딩 스피너 */}
+              <div className="relative">
+                <div className="w-20 h-20 border-4 border-lime-200 rounded-full"></div>
+                <div className="absolute inset-0 w-20 h-20 border-4 border-transparent border-t-lime-500 rounded-full animate-spin"></div>
+                <Loader2 className="absolute inset-0 m-auto w-10 h-10 text-lime-600 animate-pulse" />
+              </div>
+            </div>
             
-            {onSubmit && (
-              <Button 
-                size="lg" 
-                variant="default" 
-                className="px-8 py-6 text-xl flex items-center gap-3" 
-                onClick={handleSubmit}
-                disabled={isSubmitting || !audioBlob}
-              >
-                <Upload className="size-6 text-white" strokeWidth={2.5} />
-                {isSubmitting ? "제출 중..." : "제출하기"}
-              </Button>
+            {/* 마지막 제출 시와 그 외 제출 시 메시지 분기 */}
+            {isLastSubmit ? (
+              <>
+                <h3 className="text-3xl font-bold text-gray-900 mb-3">결과를 계산 중입니다</h3>
+                <p className="text-gray-600 text-lg mb-6">잠시만 기다려주세요...</p>
+                <div className="bg-lime-50 border border-lime-200 rounded-lg p-4">
+                  <p className="text-gray-700 text-sm">
+                    🎤 음성 분석 (Praat)<br/>
+                    📊 파형 데이터 처리<br/>
+                    ✨ 평가 결과 생성
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="text-3xl font-bold text-gray-900 mb-3">제출 중...</h3>
+                <p className="text-gray-600 text-lg">음성을 분석하고 있습니다</p>
+              </>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+      
+      {/* 제출 중일 때는 메인 콘텐츠 숨기기 */}
+      <div className={isSubmitting ? 'invisible' : ''}>
+        <AudioLevelGraph
+          ref={graphRef}
+          active={isRecording}
+          analyser={analyser}
+          width={720}
+          height={200}
+          stroke="#0C2C66"
+          minDb={-60}
+          maxDb={0}
+        />
+
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          {!audioUrl ? (
+            <RecordToggle isRecording={isRecording} onToggle={handleToggle} />
+          ) : (
+            <div className="flex flex-wrap items-center gap-3">
+              <Button 
+                size="lg" 
+                variant="secondary" 
+                className="px-8 py-6 text-xl flex items-center gap-3" 
+                onClick={handleRetake}
+                disabled={isSubmitting}
+              >
+                <RotateCcw className="size-6 text-slate-700" strokeWidth={2.5} />
+                다시 녹음
+              </Button>
+              
+              {onSubmit && (
+                <Button 
+                  size="lg" 
+                  variant="default" 
+                  className="px-8 py-6 text-xl flex items-center gap-3" 
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || !audioBlob}
+                >
+                  <Upload className="size-6 text-white" strokeWidth={2.5} />
+                  제출하기
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
 
       <AudioPlayer src={audioUrl} />
+      </div>
     </div>
   );
 };

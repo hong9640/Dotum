@@ -14,7 +14,7 @@ const PromptCardMPT: React.FC<PromptCardMPTProps> = ({ main, subtitle, attempt, 
         {attempt}/{totalAttempts}
       </div>
       <h1 className="text-6xl sm:text-7xl font-extrabold text-blue-900 mb-4">
-        {main}——
+        {main}—
       </h1>
       <p className="text-xl sm:text-2xl font-bold text-blue-800 mb-3">
         {subtitle}

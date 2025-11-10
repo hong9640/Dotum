@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, ClipboardList, Languages, Smile } from 'lucide-react';
+import { BookOpen, ClipboardList, Languages, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import 도드미안경 from '@/assets/도드미_안경.png';
@@ -76,9 +76,9 @@ const HomePage: React.FC = () => {
             size="lg"
             onClick={handleMaxVoiceTraining}
             disabled={isLoading}
-            className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-lime-300 rounded-xl flex justify-center items-center gap-3 hover:bg-lime-400 disabled:opacity-50"
+            className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex justify-center items-center gap-3 hover:from-emerald-600 hover:to-teal-600 disabled:opacity-50 shadow-md hover:shadow-lg transition-all duration-200"
           >
-            <Smile size={32} className="size-7 lg:size-9 text-white" strokeWidth={2.5} />
+            <Mic size={32} className="size-7 lg:size-9 text-white" strokeWidth={2.5} />
             <span className="text-center text-white text-2xl lg:text-3xl font-semibold leading-9">
               {isLoading ? "세션 생성 중..." : "발성 연습 시작"}
             </span>
@@ -89,10 +89,9 @@ const HomePage: React.FC = () => {
             size="lg"
             onClick={handleWordTraining}
             disabled={isLoading}
-            className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-green-500 rounded-xl flex justify-center items-center gap-3 hover:bg-green-600 disabled:opacity-50"
+            className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-green-500 rounded-xl flex justify-center items-center gap-3 hover:bg-green-600 disabled:opacity-50 shadow-md hover:shadow-lg transition-all duration-200"
           >
             <Languages size={32} className="size-7 lg:size-9 text-white" strokeWidth={2.5} />
-            {/* <Languages size={32} className="hidden sm:block text-white" strokeWidth={2.5} /> */}
             <span className="text-center text-white text-2xl lg:text-3xl font-semibold leading-9">
               {isLoading ? "세션 생성 중..." : "단어 연습 시작"}
             </span>
@@ -103,7 +102,7 @@ const HomePage: React.FC = () => {
             size="lg"
             onClick={handleSentenceTraining}
             disabled={isLoading}
-            className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-cyan-500 rounded-xl flex justify-center items-center gap-3 hover:bg-cyan-600 disabled:opacity-50"
+            className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-emerald-500 rounded-xl flex justify-center items-center gap-3 hover:bg-emerald-600 disabled:opacity-50 shadow-md hover:shadow-lg transition-all duration-200"
           >
             <BookOpen size={32} className="size-7 lg:size-9 text-white" strokeWidth={2.5} />
             <span className="text-center text-white text-2xl lg:text-3xl font-semibold leading-9">
@@ -113,13 +112,12 @@ const HomePage: React.FC = () => {
 
           {/* 훈련 기록 버튼 */}
           <Button
-            variant="outline"
             size="lg"
             onClick={handleTrainingHistory}
-            className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-white rounded-xl outline outline-2 outline-slate-200 flex justify-center items-center gap-3 hover:bg-gray-100"
+            className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-teal-600 rounded-xl flex justify-center items-center gap-3 hover:bg-teal-700 disabled:opacity-50 shadow-md hover:shadow-lg transition-all duration-200"
           >
-            <ClipboardList size={32} className="size-7 lg:size-9 text-slate-800" strokeWidth={2.5} />
-            <span className="text-center text-slate-800 text-2xl lg:text-3xl font-semibold leading-9">
+            <ClipboardList size={32} className="size-7 lg:size-9 text-white" strokeWidth={2.5} />
+            <span className="text-center text-white text-2xl lg:text-3xl font-semibold leading-9">
               훈련 기록
             </span>
           </Button>

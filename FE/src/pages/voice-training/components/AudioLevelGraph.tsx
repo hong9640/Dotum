@@ -2,7 +2,6 @@
 import {
   useEffect,
   useRef,
-  useState,
   useImperativeHandle,
   forwardRef,
 } from "react";
@@ -10,12 +9,11 @@ import {
 type Props = {
   active: boolean;
   analyser: AnalyserNode | null;
-  width?: number;   // CSS px
-  height?: number;  // CSS px
+  width?: number;
+  height?: number;
   stroke?: string;
-  minDb?: number;   // 화면 스케일 하한 (기본 -60 dB)
-  maxDb?: number;   // 화면 스케일 상한 (기본 0 dB)
-  uiUpdateHz?: number; // 숫자표시 갱신 주파수 (기본 10Hz)
+  minDb?: number;
+  maxDb?: number;
 };
 
 export type AudioLevelGraphRef = {
@@ -42,7 +40,6 @@ const AudioLevelGraph = forwardRef<AudioLevelGraphRef, Props>(
       stroke = "#0C2C66",
       minDb = DEFAULT_MIN_DB,
       maxDb = DEFAULT_MAX_DB,
-      uiUpdateHz = 10,
     },
     ref
   ) => {
@@ -55,20 +52,16 @@ const AudioLevelGraph = forwardRef<AudioLevelGraphRef, Props>(
     // 버퍼
     const tdBufRef = useRef<Float32Array | null>(null);
 
-    // UI 표시에만 쓰는 상태(쓰로틀)
-    const [dbfs, setDbfs] = useState<number>(-Infinity);
-    const [deltaDb, setDeltaDb] = useState<number>(-Infinity);
-
     // 내부 참조 (EMA/기준선)
     const emaDbRef = useRef<number | null>(null);
     const emaDeltaRef = useRef<number | null>(null);
-    const refRmsRef = useRef<number>(1.0); // 기준 RMS (캘리브레이션으로 갱신)
+    const refRmsRef = useRef<number>(1.0);
 
     // 캘리브레이션용 최근 프레임 RMS 저장
     const calibWindowRef = useRef<number[]>([]);
 
     // 그리기 x 위치
-    const xRef = useRef(41); // 좌측 여백 40px, 실제 그리기는 41부터
+    const xRef = useRef(41);
 
     // 그리기 영역(좌표) 계산
     const LEFT_PAD = 40;                // 눈금/라벨용 왼쪽 여백
@@ -80,7 +73,7 @@ const AudioLevelGraph = forwardRef<AudioLevelGraphRef, Props>(
     const emaStep = (prev: number | null, next: number, a: number) =>
       prev === null ? next : prev + a * (next - prev);
 
-    // dB 눈금 그리기 (minDb~maxDb, 10dB 간격)
+    // dB 눈금 그리기 (텍스트만, 그리드 선 없음)
     const drawDbScale = (ctx: CanvasRenderingContext2D) => {
       ctx.save();
       ctx.fillStyle = "#6b7280";
@@ -90,15 +83,9 @@ const AudioLevelGraph = forwardRef<AudioLevelGraphRef, Props>(
       const start = Math.ceil(minDb / 10) * 10;
       const end = Math.floor(maxDb / 10) * 10;
       for (let db = end; db >= start; db -= 10) {
-        const normalized = clamp((db - minDb) / (maxDb - minDb), 0, 1); // 0..1
+        const normalized = clamp((db - minDb) / (maxDb - minDb), 0, 1);
         const y = DRAW_BASE_Y - normalized * DRAW_RANGE_H;
         ctx.fillText(`${db} dB`, LEFT_PAD - 5, y + 3);
-        ctx.strokeStyle = "#e5e7eb";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(LEFT_PAD, y);
-        ctx.lineTo(width, y);
-        ctx.stroke();
       }
       ctx.restore();
     };
@@ -107,9 +94,18 @@ const AudioLevelGraph = forwardRef<AudioLevelGraphRef, Props>(
     useImperativeHandle(ref, () => ({
       captureImage: async (): Promise<Blob | null> => {
         const canvas = canvasRef.current;
-        if (!canvas) return null;
+        if (!canvas) {
+          console.error('Canvas ref 없음');
+          return null;
+        }
+        
         return new Promise((resolve) => {
-          canvas.toBlob((blob) => resolve(blob), "image/png");
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              console.error('Canvas toBlob 실패');
+            }
+            resolve(blob);
+          }, "image/png");
         });
       },
       calibrateBaseline: () => {
@@ -122,7 +118,7 @@ const AudioLevelGraph = forwardRef<AudioLevelGraphRef, Props>(
       },
     }));
 
-    // 메인 루프
+    // Canvas 초기화 (analyser나 크기 변경 시에만)
     useEffect(() => {
       const canvas = canvasRef.current;
       if (!canvas || !analyser) return;
@@ -151,22 +147,43 @@ const AudioLevelGraph = forwardRef<AudioLevelGraphRef, Props>(
       ctx.fillStyle = "#fff";
       ctx.fillRect(0, 0, width, height);
       drawDbScale(ctx);
-
-      // 상태/루프 관리 초기화
-      mountedRef.current = true;
+      
+      // 상태 초기화
       emaDbRef.current = null;
       emaDeltaRef.current = null;
       xRef.current = 41;
+    }, [analyser, width, height, minDb, maxDb]);
+    
+    // 그리기 루프 (active 변경에만 반응)
+    useEffect(() => {
+      const canvas = canvasRef.current;
+      if (!canvas || !analyser) {
+        if (rafRef.current) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
+        return;
+      }
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      
+      const tdBuf = tdBufRef.current;
+      if (!tdBuf) return;
 
+      // 그리기 루프 시작/중지만 제어
+      mountedRef.current = true;
       let lastY = DRAW_BASE_Y;
-      const uiIntervalMs = 1000 / Math.max(1, uiUpdateHz);
-      let lastUiUpdate = performance.now();
 
       const draw = () => {
-        if (!mountedRef.current) return;
+        if (!mountedRef.current || !analyser) {
+          if (rafRef.current) {
+            cancelAnimationFrame(rafRef.current);
+            rafRef.current = null;
+          }
+          return;
+        }
 
         // 시간영역 데이터
-        const tdBuf = tdBufRef.current!;
         // @ts-ignore (TypedArray 호환)
         analyser.getFloatTimeDomainData(tdBuf);
 
@@ -189,18 +206,10 @@ const AudioLevelGraph = forwardRef<AudioLevelGraphRef, Props>(
         const dDbEma = emaStep(emaDeltaRef.current, dDb, 0.4)!;
         emaDeltaRef.current = dDbEma;
 
-        // 캘리브레이션용 최근 값 저장 (적당한 길이 유지)
+        // 캘리브레이션용 최근 값 저장
         const cw = calibWindowRef.current;
         cw.push(rms);
-        if (cw.length > 120) cw.shift(); // 최근 ~2초@60fps
-
-        // 숫자 표시(저주파 업데이트)
-        const now = performance.now();
-        if (now - lastUiUpdate >= uiIntervalMs) {
-          setDbfs(dbEma);
-          setDeltaDb(dDbEma);
-          lastUiUpdate = now;
-        }
+        if (cw.length > 120) cw.shift();
 
         // 정규화 (minDb~maxDb → 0..1)
         const normalized = clamp((dbEma - minDb) / (maxDb - minDb), 0, 1);
@@ -252,39 +261,21 @@ const AudioLevelGraph = forwardRef<AudioLevelGraphRef, Props>(
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       };
-    }, [active, analyser, width, height, stroke, minDb, maxDb, uiUpdateHz]);
+    }, [active, analyser, stroke]);
 
     // HMR/언마운트 안전장치
     useEffect(() => {
       return () => {
         mountedRef.current = false;
-        if (rafRef.current) cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
+        if (rafRef.current) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
       };
     }, []);
 
     return (
       <div className="border border-slate-200 rounded-lg p-2 bg-white">
-        {/* 상단 상태 표시 */}
-        <div className="flex items-center gap-2 mb-1.5 text-xs text-slate-800">
-          <strong className="text-blue-900">RMS→dBFS</strong>
-          <span className="text-slate-600">
-            dBFS: <b>{Number.isFinite(dbfs) ? dbfs.toFixed(1) : "-∞"}</b>
-          </span>
-          <span className="text-slate-600">
-            ΔdB:{" "}
-            <b>
-              {Number.isFinite(deltaDb)
-                ? (deltaDb >= 0 ? `+${deltaDb.toFixed(1)}` : deltaDb.toFixed(1))
-                : "-∞"}
-            </b>
-          </span>
-        </div>
-
-        <p className="text-xs text-slate-500 font-semibold mb-1">
-          🎚 Audio Level (dBFS, 범위: {minDb} ~ {maxDb} dB)
-        </p>
-
         <canvas
           ref={canvasRef}
           width={width}
