@@ -47,12 +47,8 @@ const ResultDetailPage: React.FC = () => {
           return;
         }
         
-        console.log('세션 아이템 상세 조회 시작:', { sessionId, itemIndex, type: typeParam });
-        
         // 세션 아이템 상세 조회 API 호출
         const itemDetailData = await getSessionItemByIndex(sessionId, itemIndex);
-        
-        console.log('세션 아이템 상세 조회 성공:', itemDetailData);
         
         setItemData(itemDetailData);
         
@@ -68,16 +64,12 @@ const ResultDetailPage: React.FC = () => {
           setCompositedVideoError(null);
           // is_completed가 true이고 composited_video_url이 없으면 폴링 시작
           if (itemDetailData.is_completed && !itemDetailData.composited_video_url) {
-            console.log('🚀 직접 폴링 시작 (result-detail):', {
-              item_id: itemDetailData.item_id,
-              sessionId,
-            });
             setIsLoadingCompositedVideo(true);
           }
         }
         
         setIsLoading(false);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('세션 아이템 상세 조회 실패:', err);
         
         const errorMessage = getSessionItemErrorMessage(err);

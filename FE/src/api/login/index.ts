@@ -1,4 +1,5 @@
 import { apiClient } from "../axios";
+import type { AxiosErrorResponse } from "@/types/api";
 
 export interface LoginRequest {
     username: string;
@@ -53,23 +54,33 @@ const ERROR_MAPPING: Record<string, string> = {
 export const Login = async (
     data: LoginRequest
 ): Promise<LoginResponse> => {
-    // application/x-www-form-urlencoded 형식으로 데이터 변환
-    const formData = new URLSearchParams();
-    formData.append("username", data.username);
-    formData.append("password", data.password);
-    
-    const response = await apiClient.post<LoginResponse>(
-        "/auth/login",
-        formData.toString(),
-        {
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-            },
-            withCredentials: true, // 쿠키를 주고받기 위한 필수 설정
-        }
-    );
+    try {
+        // application/x-www-form-urlencoded 형식으로 데이터 변환
+        const formData = new URLSearchParams();
+        formData.append("username", data.username);
+        formData.append("password", data.password);
+        
+        const response = await apiClient.post<LoginResponse>(
+            "/auth/login",
+            formData.toString(),
+            {
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+                withCredentials: true, // 쿠키를 주고받기 위한 필수 설정
+            }
+        );
 
-    return response.data;
+        return response.data;
+    } catch (error: unknown) {
+        // HTTP 에러 응답 (4xx, 5xx)인 경우 에러 응답 반환
+        const axiosError = error as AxiosErrorResponse & { response?: { data?: LoginResponse } };
+        if (axiosError.response?.data) {
+            return axiosError.response.data;
+        }
+        // 네트워크 에러 등
+        throw error;
+    }
 };
 
 /**

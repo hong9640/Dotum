@@ -12,6 +12,8 @@ interface SignupFormProps {
   onSubmit: (data: SignupFormValues) => void;
   onEmailVerification: () => void;
   emailVerificationStatus?: string | null;
+  isEmailVerified: boolean;
+  onCheckEmailVerification: () => void;
 }
 
 export const SignupForm = ({
@@ -22,10 +24,25 @@ export const SignupForm = ({
   onSubmit,
   onEmailVerification,
   emailVerificationStatus,
+  isEmailVerified,
+  onCheckEmailVerification,
 }: SignupFormProps) => {
 
+  const handleSignupClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    
+    // 먼저 이메일 인증 체크
+    if (!isEmailVerified) {
+      onCheckEmailVerification();
+      return;
+    }
+    
+    // 이메일 인증이 되어 있으면 폼 제출
+    handleSubmit(onSubmit)();
+  };
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+    <form className="space-y-8">
       <EmailVerificationField
         register={register}
         error={errors.username?.message}
@@ -55,7 +72,8 @@ export const SignupForm = ({
       />
 
       <Button
-        type="submit"
+        type="button"
+        onClick={handleSignupClick}
         disabled={isLoading}
         size="lg"
         className="w-full bg-green-500 hover:bg-green-600"

@@ -4,12 +4,33 @@ import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import 도드미안경 from '@/assets/도드미_안경.png';
 import { useTrainingSession } from '@/hooks/training-session';
+import { useAlertDialog } from '@/hooks/useAlertDialog';
 
-const HomePage: React.FC = () => {
+interface HomePageProps {
+  isLoggedIn: boolean;
+}
+
+const HomePage: React.FC<HomePageProps> = ({ isLoggedIn }) => {
   const navigate = useNavigate();
   const { createWordSession, createSentenceSession, createVocalSession: _createVocalSession, isLoading, apiError } = useTrainingSession();
+  const { showAlert, AlertDialog: LoginRequiredDialog } = useAlertDialog();
+
+  // 로그인이 필요한 경우 알림
+  const handleAuthRequired = () => {
+    showAlert({
+      title: '로그인이 필요합니다',
+      description: '로그인 페이지로 이동합니다.',
+      onConfirm: () => navigate('/login')
+    });
+  };
 
   const handleWordTraining = async () => {
+    // 로그인 확인
+    if (!isLoggedIn) {
+      handleAuthRequired();
+      return;
+    }
+    // 로그인한 상태면 바로 시작
     try {
       await createWordSession(2); // 2개 단어
     } catch (error) {
@@ -18,6 +39,12 @@ const HomePage: React.FC = () => {
   };
 
   const handleSentenceTraining = async () => {
+    // 로그인 확인
+    if (!isLoggedIn) {
+      handleAuthRequired();
+      return;
+    }
+    // 로그인한 상태면 바로 시작
     try {
       await createSentenceSession(2); // 2개 문장
     } catch (error) {
@@ -30,14 +57,23 @@ const HomePage: React.FC = () => {
   };
 
   const handleMaxVoiceTraining = () => {
+    // 로그인 확인
+    if (!isLoggedIn) {
+      handleAuthRequired();
+      return;
+    }
     // 발성 훈련 페이지로 이동
     navigate('/voice-training');
   };
 
   return (
-    <div className="w-full h-full min-h-100vh p-[49px] flex justify-center items-center">
-      <div className="w-full max-w-7xl pt-0 sm:pt-12 pb-12 px-12 rounded-2xl flex flex-col lg:flex-row justify-center items-center sm:gap-7 gap-4 mx-1.5">
-        {/* 에러 메시지 표시 */}
+    <>
+      {/* 로그인 필요 다이얼로그 */}
+      <LoginRequiredDialog />
+      
+      <div className="w-full h-full min-h-100vh p-[49px] flex justify-center items-center">
+        <div className="w-full max-w-7xl pt-0 sm:pt-12 pb-12 px-12 rounded-2xl flex flex-col lg:flex-row justify-center items-center sm:gap-7 gap-4 mx-1.5">
+          {/* 에러 메시지 표시 */}
         {apiError && (
           <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50">
             {apiError}
@@ -124,6 +160,7 @@ const HomePage: React.FC = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

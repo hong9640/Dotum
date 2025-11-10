@@ -1,4 +1,6 @@
 import { apiClient } from "../axios";
+import type { AxiosErrorResponse } from "@/types/api";
+import { EnhancedError } from "@/types/api";
 import type { CreateTrainingSessionResponse } from "./index";
 
 /**
@@ -10,7 +12,6 @@ import type { CreateTrainingSessionResponse } from "./index";
 export const retryTrainingSession = async (
   sessionId: number
 ): Promise<CreateTrainingSessionResponse> => {
-  console.log('📤 훈련 세션 재훈련 요청:', { sessionId });
   
   try {
     const response = await apiClient.post<CreateTrainingSessionResponse>(
@@ -23,42 +24,39 @@ export const retryTrainingSession = async (
       }
     );
 
-    console.log('📥 훈련 세션 재훈련 응답:', response.data);
     return response.data;
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const axiosError = error as AxiosErrorResponse;
     console.error('❌ 훈련 세션 재훈련 API 에러:', {
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      data: error.response?.data,
+      status: axiosError.response?.status,
+      statusText: axiosError.response?.statusText,
+      data: axiosError.response?.data,
       sessionId
     });
 
     // 에러 메시지 추출
     let errorMessage = '훈련 세션 재훈련에 실패했습니다.';
     
-    if (error.response?.data?.detail) {
-      if (Array.isArray(error.response.data.detail)) {
+    const detail = axiosError.response?.data?.detail;
+    if (detail) {
+      if (Array.isArray(detail)) {
         // 422 Validation Error
         errorMessage = '요청 데이터가 올바르지 않습니다.';
       } else {
-        errorMessage = error.response.data.detail;
+        errorMessage = detail as string;
       }
-    } else if (error.response?.status === 400) {
+    } else if (axiosError.response?.status === 400) {
       errorMessage = '완료되지 않은 세션이거나 잘못된 요청입니다.';
-    } else if (error.response?.status === 401) {
+    } else if (axiosError.response?.status === 401) {
       errorMessage = '인증이 필요합니다. 다시 로그인해주세요.';
-    } else if (error.response?.status === 404) {
+    } else if (axiosError.response?.status === 404) {
       errorMessage = '세션을 찾을 수 없습니다.';
-    } else if (error.response?.status === 422) {
+    } else if (axiosError.response?.status === 422) {
       errorMessage = '요청 데이터가 올바르지 않습니다.';
     }
 
     // 에러 객체에 사용자 친화적인 메시지 추가
-    const enhancedError = new Error(errorMessage);
-    (enhancedError as any).status = error.response?.status;
-    (enhancedError as any).originalError = error;
-    
-    throw enhancedError;
+    throw new EnhancedError(errorMessage, axiosError.response?.status, error);
   }
 };
 

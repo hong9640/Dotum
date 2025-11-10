@@ -74,12 +74,13 @@ export async function fetchPraat(
     // 200 OK: 분석 완료
     const data = response.data;
     return { status: "done", data };
-  } catch (error: any) {
+  } catch (error: unknown) {
     // 표준화된 에러 throw: 상위에서 코드별 UI 처리
-    const status = error.response?.status;
-    const text = error.response?.data?.detail || error.message || "";
+    const axiosError = error as { response?: { status?: number, data?: { detail?: string } }, message?: string };
+    const status = axiosError.response?.status;
+    const text = axiosError.response?.data?.detail || axiosError.message || "";
     const err = new Error(`Praat fetch failed: ${status} ${text}`);
-    // @ts-expect-error
+    // @ts-expect-error - Error 객체에 커스텀 status 프로퍼티를 추가하기 위해 필요
     err.status = status;
     throw err;
   }
@@ -90,8 +91,9 @@ export async function fetchPraat(
  * @param error API 에러 객체
  * @returns 사용자 친화적인 에러 메시지
  */
-export const getPraatErrorMessage = (error: any): string => {
-  const status = error?.status || error?.response?.status;
+export const getPraatErrorMessage = (error: unknown): string => {
+  const axiosError = error as { status?: number; response?: { status?: number; data?: { detail?: string } } };
+  const status = axiosError?.status || axiosError?.response?.status;
 
   if (status === 403) {
     return "권한이 없습니다. 다시 로그인해 주세요.";
@@ -105,8 +107,8 @@ export const getPraatErrorMessage = (error: any): string => {
     return "잘못된 요청입니다. 세션/아이템 ID를 확인하세요.";
   }
 
-  if (error?.response?.data?.detail) {
-    return error.response.data.detail;
+  if (axiosError?.response?.data?.detail) {
+    return axiosError.response.data.detail;
   }
 
   return "Praat 분석 결과를 불러오는데 실패했습니다.";
