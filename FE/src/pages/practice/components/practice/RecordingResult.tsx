@@ -20,7 +20,6 @@ const RecordingResult: React.FC<RecordingResultProps> = ({
   isVisible,
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [playerKey, setPlayerKey] = useState(0);
 
   if (!isVisible || !recordedBlobUrl) return null;
 
@@ -43,7 +42,6 @@ const RecordingResult: React.FC<RecordingResultProps> = ({
             {/* 녹화된 비디오 재생 */}
             <div className="absolute inset-0 overflow-hidden">
               <ReactPlayer
-                key={playerKey}
                 src={recordedBlobUrl}
                 controls={false}
                 playing={isPlaying}
