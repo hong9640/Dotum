@@ -90,14 +90,14 @@ const LoudSoftPage: React.FC = () => {
             setTimeout(() => {
               navigate(`/voice-training/loud-soft?attempt=${attempt + 1}&sessionId=${sessionId}`);
               setIsSubmitting(false);  // ✅ navigate 후 로딩 해제
-            }, 500);
+            }, 100);
           } else {
             // 다음 훈련으로
             setResetTrigger(prev => prev + 1);
             setTimeout(() => {
               navigate(`/voice-training/soft-loud?attempt=1&sessionId=${sessionId}`);
               setIsSubmitting(false);  // ✅ navigate 후 로딩 해제
-            }, 500);
+            }, 100);
           }
         } else {
           toast.error('훈련이 완료되지 않았습니다. 다시 시도해주세요.');

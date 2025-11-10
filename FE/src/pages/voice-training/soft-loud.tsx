@@ -90,7 +90,7 @@ const SoftLoudPage: React.FC = () => {
             setTimeout(() => {
               navigate(`/voice-training/soft-loud?attempt=${attempt + 1}&sessionId=${sessionId}`);
               setIsSubmitting(false);  // ✅ navigate 후 로딩 해제
-            }, 500);
+            }, 100);
           } else {
             // 마지막 시도(attempt 3)가 완료되면 세션 완료 처리 후 result-list로 이동
             // ⚠️ setIsSubmitting(false)를 호출하지 않음 → 로딩 화면 유지
