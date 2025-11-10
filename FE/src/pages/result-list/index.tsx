@@ -340,10 +340,10 @@ const WordSetResults: React.FC = () => {
     try {
       if (sessionType === 'word') {
         // 단어 연습 시작과 동일하게 동작
-        await createWordSession(2);
+        await createWordSession(10);
       } else {
         // 문장 연습 시작과 동일하게 동작
-        await createSentenceSession(2);
+        await createSentenceSession(10);
       }
     } catch (error) {
       // 에러는 훅에서 처리됨 (toast 메시지 표시)

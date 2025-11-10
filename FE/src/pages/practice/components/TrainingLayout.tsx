@@ -36,6 +36,7 @@ const TrainingLayout: React.FC<TrainingLayoutProps> = ({
             onPrevious={onPrevious}
             showNext={currentItem ? currentItem.has_next : false}
             showPrevious={currentItem ? currentItem.item_index > 0 : false}
+            type={sessionData?.type}
           />
 
           {/* 하위 컴포넌트 (practice 또는 result) */}

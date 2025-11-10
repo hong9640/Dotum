@@ -40,7 +40,7 @@ export function Header({ date, totalSets, onBack }: HeaderProps) {
         {/* 날짜 */}
         <div className="self-stretch px-4 inline-flex justify-center items-center gap-2.5">
           <p className="text-center justify-start text-slate-500 text-base md:text-xl font-semibold leading-snug md:leading-7">
-            총 {totalSets}개의 단어 세트를 연습했습니다.
+            총 {totalSets}개의 세트를 연습했습니다.
           </p>
         </div>
       </div>
