@@ -23,7 +23,7 @@ const WordDisplay: React.FC<WordDisplayProps> = ({
     <div className="flex flex-col items-center gap-6">
       <div className="flex items-center justify-center gap-6">
         {/* 이전 버튼 */}
-        {showPrevious ? (
+        {/* {showPrevious ? (
           // <Button
           //   variant="ghost"
           //   size="icon"
@@ -44,7 +44,7 @@ const WordDisplay: React.FC<WordDisplayProps> = ({
           <div className="size-14 p-3 bg-slate-100 rounded-full border border-slate-200 grid place-items-center">
             <ChevronLeft className="size-6 text-slate-600" />
           </div>
-        )}
+        )} */}
 
         {/* 단어 표시 */}
         <div className="px-2 sm:px-8 h-auto">
@@ -59,7 +59,7 @@ const WordDisplay: React.FC<WordDisplayProps> = ({
         </div>
 
         {/* 다음 버튼 */}
-        {showNext ? (
+        {/* {showNext ? (
           <Button
             variant="ghost"
             size="icon"
@@ -71,10 +71,10 @@ const WordDisplay: React.FC<WordDisplayProps> = ({
         ) : (
           // <div className="size-14 p-3 bg-green-500 rounded-full border border-slate-500 grid place-items-center">
           <div className="size-14 p-3 bg-slate-100 rounded-full border border-slate-200 grid place-items-center">
-            {/* <ChevronRight className="size-6 text-white" /> */}
+            <ChevronRight className="size-6 text-white" />
             <ChevronRight className="size-6 text-slate-600" />
           </div>
-        )}
+        )} */}
       </div>
       <div className="text-center text-slate-500 text-xl sm:text-2xl md:text-3xl font-semibold">
         {type?.toLowerCase() === 'sentence' ? '위 문장을 또박또박 발음해주세요' : '위 단어를 또박또박 발음해주세요'}

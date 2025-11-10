@@ -37,7 +37,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
           <div className="self-stretch pt-1 inline-flex justify-start items-start">
             <div className="w-full h-6 flex justify-start items-center">
               <div className="justify-center text-gray-500 text-sm font-normal leading-6">
-                정상 범위: {normalRange}
+                {/* 정상 범위: {normalRange} */}
               </div>
             </div>
           </div>
