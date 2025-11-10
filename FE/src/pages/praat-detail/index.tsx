@@ -8,9 +8,8 @@ import RecordingTabs from "./components/RecordingTabs";
 import PraatSectionCard from "./components/PraatSectionCard";
 import { getSessionItemByIndex, getSessionItemErrorMessage } from "@/api/training-session/sessionItemSearch";
 import { getTrainingSession } from "@/api/training-session";
-import { usePraat } from "@/hooks/usePraat";
-import { getPraatErrorMessage } from "@/api/training-session/praat";
 import type { PraatValues } from "./types";
+import type { PraatMetrics } from "@/api/training-session/praat";
 
 /**
  * Praat 상세 페이지
@@ -88,7 +87,7 @@ const PraatDetailPage: React.FC = () => {
           setBaseItemIndex(itemIndex);
         }
 
-        // item_id 저장 (Praat API 호출에 필요)
+        // item_id 저장
         if (itemDetailData.item_id) {
           setItemId(itemDetailData.item_id);
         } else {
@@ -98,6 +97,14 @@ const PraatDetailPage: React.FC = () => {
         // composited_video_url 설정 (발성연습일 때 사용)
         if (isVocal && itemDetailData.composited_video_url) {
           setCompositedVideoUrl(itemDetailData.composited_video_url);
+        }
+
+        // Praat 데이터 설정 (아이템 상세 조회 API 응답에 포함된 praat 데이터 사용)
+        if (itemDetailData.praat) {
+          updatePraatValues(itemDetailData.praat);
+        } else {
+          setPraatValues({});
+          setPraatImageUrl(null);
         }
 
         // 환자 정보 설정
@@ -143,64 +150,34 @@ const PraatDetailPage: React.FC = () => {
     loadItemData();
   }, [sessionIdParam, itemIndexParam]);
 
-  // Praat 분석 결과 조회 (폴링 포함)
-  const sessionId = sessionIdParam ? Number(sessionIdParam) : undefined;
-  const { data: praatData, error: praatError } = usePraat(
-    sessionId,
-    itemId,
-    {
-      pollIntervalMs: 2500,
-      maxPollMs: 60000,
-      enabled: !!sessionId && !!itemId && !isLoading,
-    }
-  );
-
-  // Praat 데이터를 PraatValues로 변환
-  useEffect(() => {
-    if (praatData) {
-      setPraatValues({
-        cpp: praatData.cpp,
-        csid: praatData.csid,
-        hnr: praatData.hnr,
-        nhr: praatData.nhr,
-        jitter_local: praatData.jitter_local,
-        shimmer_local: praatData.shimmer_local,
-        f0: praatData.f0,
-        max_f0: praatData.max_f0,
-        min_f0: praatData.min_f0,
-        lh_ratio_mean_db: praatData.lh_ratio_mean_db,
-        lh_ratio_sd_db: praatData.lh_ratio_sd_db,
-        intensity: praatData.intensity_mean,
-        f1: praatData.f1,
-        f2: praatData.f2,
-      });
-      
-      // image_url 추출 (API 응답에 포함될 수 있음)
-      const dataWithImageUrl = praatData as { image_url?: string };
-      const imageUrl = dataWithImageUrl.image_url;
-      if (imageUrl) {
-        setPraatImageUrl(imageUrl);
-      } else {
-        setPraatImageUrl(null);
-      }
-    } else if (praatError) {
-      // 에러 발생 시 빈 객체로 설정
-      setPraatValues({});
+  // Praat 데이터를 PraatValues로 변환하는 함수
+  const updatePraatValues = (praatData: PraatMetrics) => {
+    setPraatValues({
+      cpp: praatData.cpp,
+      csid: praatData.csid,
+      hnr: praatData.hnr,
+      nhr: praatData.nhr,
+      jitter_local: praatData.jitter_local,
+      shimmer_local: praatData.shimmer_local,
+      f0: praatData.f0,
+      max_f0: praatData.max_f0,
+      min_f0: praatData.min_f0,
+      lh_ratio_mean_db: praatData.lh_ratio_mean_db,
+      lh_ratio_sd_db: praatData.lh_ratio_sd_db,
+      intensity: praatData.intensity_mean,
+      f1: praatData.f1,
+      f2: praatData.f2,
+    });
+    
+    // image_url 추출 (API 응답에 포함될 수 있음)
+    const dataWithImageUrl = praatData as { image_url?: string };
+    const imageUrl = dataWithImageUrl.image_url;
+    if (imageUrl) {
+      setPraatImageUrl(imageUrl);
+    } else {
       setPraatImageUrl(null);
     }
-  }, [praatData, praatError]);
-
-  // Praat 에러 처리
-  useEffect(() => {
-    if (praatError) {
-      const errorMessage = getPraatErrorMessage(praatError);
-      // 기존 에러가 없고, Praat 에러만 있는 경우에만 설정
-      // (세션 아이템 로드 에러보다 Praat 에러는 덜 중요하므로)
-      if (!error) {
-        setError(errorMessage);
-      }
-    }
-  }, [praatError, error]);
+  };
 
   // 녹음 탭 선택 핸들러
   const handleRecordingSelect = async (index: number) => {
@@ -226,6 +203,14 @@ const PraatDetailPage: React.FC = () => {
           setCompositedVideoUrl(itemDetailData.composited_video_url);
         } else {
           setCompositedVideoUrl(null);
+        }
+
+        // Praat 데이터 업데이트 (아이템 상세 조회 API 응답에 포함된 praat 데이터 사용)
+        if (itemDetailData.praat) {
+          updatePraatValues(itemDetailData.praat);
+        } else {
+          setPraatValues({});
+          setPraatImageUrl(null);
         }
       } catch (err: unknown) {
         console.error("선택한 녹음 데이터 로드 실패:", err);
