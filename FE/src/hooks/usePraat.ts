@@ -30,7 +30,7 @@ export function usePraat(
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const deadline = useMemo(
     () => Date.now() + maxPollMs,
-    [maxPollMs, sessionId, itemId]
+    [maxPollMs]
   );
 
   useEffect(() => {
@@ -87,15 +87,16 @@ export function usePraat(
         }
 
         timerRef.current = setTimeout(tick, pollIntervalMs);
-      } catch (e: any) {
-        if (e?.name === "CanceledError" || e?.message?.includes("cancel")) {
+      } catch (e: unknown) {
+        const error = e as { name?: string; message?: string };
+        if (error?.name === "CanceledError" || error?.message?.includes("cancel")) {
           return;
         }
 
         console.error("Praat API 오류:", e);
         setLoading(false);
         setProcessing(false);
-        setError(e);
+        setError(e instanceof Error ? e : new Error(String(e)));
       }
     };
 

@@ -6,6 +6,7 @@ import { convertSessionsToTrainingSets } from './utils';
 import { useTrainingDayDetail } from '@/hooks/useTrainingDayDetail';
 import { getDailyRecordSearch } from '@/api/training-history/dailyRecordSearch';
 import { completeTrainingSession } from '@/api/training-session';
+import { toast } from 'sonner';
 
 export interface TrainingDayDetailProps {
   date: string; // "YYYY-MM-DD" 형식
@@ -52,9 +53,10 @@ export default function TrainingDayDetail({
         const convertedSets = convertSessionsToTrainingSets(response);
         setActualTrainingSets(convertedSets);
         setTotalSessions(response.total_sessions);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('일별 훈련 기록 조회 실패 :', err);
-        setError(err.response?.data?.detail || '훈련 기록을 불러오는데 실패했습니다.');
+        const axiosError = err as { response?: { data?: { detail?: string } } };
+        setError(axiosError.response?.data?.detail || '훈련 기록을 불러오는데 실패했습니다.');
         // 에러 발생 시 빈 배열 또는 더미 데이터 사용
         setActualTrainingSets([]);
         setTotalSessions(0);
@@ -92,9 +94,10 @@ export default function TrainingDayDetail({
           if (onTrainingSetClick) {
             onTrainingSetClick(trainingSet);
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error('세션 종료 실패:', error);
-          alert(error.message || '세션을 종료하는데 실패했습니다.');
+          const errorWithMessage = error as { message?: string };
+          toast.error(errorWithMessage.message || '세션을 종료하는데 실패했습니다.');
         }
         return;
       }

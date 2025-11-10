@@ -5,9 +5,9 @@ import {
   createWordTrainingSession, 
   createSentenceTrainingSession,
   createVocalTrainingSession,
-  getTrainingSessionErrorMessage,
   type CreateTrainingSessionResponse 
 } from "@/api/training-session";
+import type { AxiosErrorResponse } from "@/types/api";
 
 interface UseTrainingSessionProps {
   onSessionCreated?: (session: CreateTrainingSessionResponse) => void;
@@ -30,27 +30,28 @@ export const useTrainingSession = ({ onSessionCreated }: UseTrainingSessionProps
     try {
       const session = await createWordTrainingSession(itemCount, sessionName);
       
-      toast.success("단어 훈련 세션이 생성되었습니다!");
       onSessionCreated?.(session);
       
       // 훈련 페이지로 이동 (세션 ID와 itemIndex를 쿼리 파라미터로 전달)
       navigate(`/practice?sessionId=${session.session_id}&type=word&itemIndex=0`);
       
       return session;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // 401 에러 처리 - 로그인 필요
-      if (error.response?.status === 401) {
-        alert("로그인이 필요합니다.\n로그인 페이지로 이동합니다.");
+      const axiosError = error as AxiosErrorResponse;
+      if (axiosError.response?.status === 401) {
         navigate('/login');
         return;
       }
 
-      const errorMessage = error.response?.data?.error?.code 
-        ? getTrainingSessionErrorMessage(error.response.data.error.code, error.response.data.error.message)
-        : "네트워크 오류가 발생했습니다. 다시 시도해주세요.";
+      const errorMessage = axiosError.response?.data?.error?.message || 
+                           axiosError.response?.data?.message || 
+                           "";
       
-      setApiError(errorMessage);
-      toast.error(errorMessage);
+      if (errorMessage) {
+        setApiError(errorMessage);
+        toast.error(errorMessage);
+      }
       throw error;
     } finally {
       setIsLoading(false);
@@ -69,27 +70,28 @@ export const useTrainingSession = ({ onSessionCreated }: UseTrainingSessionProps
     try {
       const session = await createSentenceTrainingSession(itemCount, sessionName);
       
-      toast.success("문장 훈련 세션이 생성되었습니다!");
       onSessionCreated?.(session);
       
       // 훈련 페이지로 이동 (세션 ID와 itemIndex를 쿼리 파라미터로 전달)
       navigate(`/practice?sessionId=${session.session_id}&type=sentence&itemIndex=0`);
       
       return session;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // 401 에러 처리 - 로그인 필요
-      if (error.response?.status === 401) {
-        alert("로그인이 필요합니다.\n로그인 페이지로 이동합니다.");
+      const axiosError = error as AxiosErrorResponse;
+      if (axiosError.response?.status === 401) {
         navigate('/login');
         return;
       }
 
-      const errorMessage = error.response?.data?.error?.code 
-        ? getTrainingSessionErrorMessage(error.response.data.error.code, error.response.data.error.message)
-        : "네트워크 오류가 발생했습니다. 다시 시도해주세요.";
+      const errorMessage = axiosError.response?.data?.error?.message || 
+                           axiosError.response?.data?.message || 
+                           "";
       
-      setApiError(errorMessage);
-      toast.error(errorMessage);
+      if (errorMessage) {
+        setApiError(errorMessage);
+        toast.error(errorMessage);
+      }
       throw error;
     } finally {
       setIsLoading(false);
@@ -108,24 +110,25 @@ export const useTrainingSession = ({ onSessionCreated }: UseTrainingSessionProps
     try {
       const session = await createVocalTrainingSession(itemCount, sessionName);
       
-      toast.success("발성 훈련 세션이 생성되었습니다!");
       onSessionCreated?.(session);
       
       return session;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // 401 에러 처리 - 로그인 필요
-      if (error.response?.status === 401) {
-        alert("로그인이 필요합니다.\n로그인 페이지로 이동합니다.");
+      const axiosError = error as AxiosErrorResponse;
+      if (axiosError.response?.status === 401) {
         navigate('/login');
         return;
       }
 
-      const errorMessage = error.response?.data?.error?.code 
-        ? getTrainingSessionErrorMessage(error.response.data.error.code, error.response.data.error.message)
-        : "네트워크 오류가 발생했습니다. 다시 시도해주세요.";
+      const errorMessage = axiosError.response?.data?.error?.message || 
+                           axiosError.response?.data?.message || 
+                           "";
       
-      setApiError(errorMessage);
-      toast.error(errorMessage);
+      if (errorMessage) {
+        setApiError(errorMessage);
+        toast.error(errorMessage);
+      }
       throw error;
     } finally {
       setIsLoading(false);

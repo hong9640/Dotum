@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Signup, CheckEmailDuplication, GetErrorMessage } from "@/api/signup";
+import { Signup, CheckEmailDuplication } from "@/api/signup";
+import { useAlertDialog } from "@/hooks/useAlertDialog";
+import type { AxiosErrorResponse } from "@/types/api";
 
 // Zod 유효성 검사 스키마
 const signupSchema = z
@@ -30,9 +32,11 @@ export const useSignup = ({ onSignup }: UseSignupProps = {}) => {
   const [apiError, setApiError] = useState<string | null>(null);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [emailVerificationStatus, setEmailVerificationStatus] = useState<string | null>(null);
+  const { showAlert, AlertDialog } = useAlertDialog();
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
+    mode: "onChange", // 실시간 검증
     defaultValues: {
       username: "",
       password: "",
@@ -48,6 +52,22 @@ export const useSignup = ({ onSignup }: UseSignupProps = {}) => {
   } = form;
 
   const emailValue = watch("username") || "";
+  
+  // 이메일 값이 변경되면 중복 확인 상태 리셋
+  useEffect(() => {
+    if (isEmailVerified) {
+      setIsEmailVerified(false);
+      setEmailVerificationStatus(null);
+    }
+  }, [emailValue, isEmailVerified]);
+
+  // 이메일 인증 체크 함수 (AlertDialog 표시)
+  const checkEmailVerification = () => {
+    showAlert({
+      title: "이메일 인증이 필요합니다",
+      description: "회원가입을 진행하려면 먼저 이메일 중복 확인을 완료해주세요.",
+    });
+  };
 
   const onSubmit = async (data: SignupFormValues) => {
     setIsLoading(true);
@@ -64,13 +84,22 @@ export const useSignup = ({ onSignup }: UseSignupProps = {}) => {
         onSignup?.();
         navigate("/login");
       } else {
-        const errorMessage =
-          GetErrorMessage(result.error?.code, result.error?.message) ||
-          "회원가입에 실패했습니다.";
+        // 서버에서 온 메시지만 사용
+        const errorMessage = result.error?.message || "";
+        if (errorMessage) {
+          setApiError(errorMessage);
+        }
+      }
+    } catch (error: unknown) {
+      // 네트워크 에러 등 예외 상황
+      console.error("회원가입 에러:", error);
+      // 서버 응답이 있으면 사용, 없으면 빈 문자열
+      const axiosError = error as AxiosErrorResponse;
+      const errorMessage = axiosError.response?.data?.error?.message || 
+                          axiosError.response?.data?.message || "";
+      if (errorMessage) {
         setApiError(errorMessage);
       }
-    } catch {
-      setApiError("네트워크 오류가 발생했습니다. 다시 시도해주세요.");
     } finally {
       setIsLoading(false);
     }
@@ -89,15 +118,26 @@ export const useSignup = ({ onSignup }: UseSignupProps = {}) => {
     try {
       const result = await CheckEmailDuplication(emailValue);
       
-      if (result.status === "SUCCESS" && !result.data.is_duplicate) {
-        setIsEmailVerified(true);
-        setEmailVerificationStatus("사용 가능한 이메일입니다.");
-      } else {
+            if (result.status === "SUCCESS" && !result.data.is_duplicate) {
+                setIsEmailVerified(true);
+                setEmailVerificationStatus("사용 가능한 이메일입니다.");
+            } else {
         setIsEmailVerified(false);
-        setEmailVerificationStatus("이미 등록된 이메일입니다.");
+        const errorMessage = result.data.message || "";
+        if (errorMessage) {
+          setEmailVerificationStatus(errorMessage);
+        }
       }
-    } catch {
-      setEmailVerificationStatus("이메일 확인 중 오류가 발생했습니다.");
+    } catch (error: unknown) {
+      // 네트워크 에러 등 예외 상황
+      console.error("이메일 확인 에러:", error);
+      // 서버 응답이 있으면 사용, 없으면 빈 문자열
+      const axiosError = error as AxiosErrorResponse;
+      const errorMessage = axiosError.response?.data?.error?.message || 
+                          axiosError.response?.data?.message || "";
+      if (errorMessage) {
+        setEmailVerificationStatus(errorMessage);
+      }
     }
   };
 
@@ -114,6 +154,8 @@ export const useSignup = ({ onSignup }: UseSignupProps = {}) => {
     onSubmit,
     handleToggleMode,
     handleEmailVerification,
+    checkEmailVerification,
+    AlertDialog,
   };
 };
 

@@ -146,6 +146,7 @@ const PracticePage: React.FC = () => {
     };
 
     loadSessionData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionIdParam, sessionTypeParam, itemIndexParam, setSessionData, navigate]);
 
   // 폴링 조건 계산
@@ -384,19 +385,20 @@ const PracticePage: React.FC = () => {
       // 업로드 완료 후 파일 상태 초기화
       setRecordedFile(null);
       
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('📥 영상 업로드 실패:', err);
       
+      const axiosError = err as { response?: { status?: number; data?: { detail?: string } } };
       let errorMessage = '영상 업로드에 실패했습니다.';
       
-      if (err.response?.status === 401) {
+      if (axiosError.response?.status === 401) {
         errorMessage = '인증이 필요합니다. 다시 로그인해주세요.';
-      } else if (err.response?.status === 404) {
+      } else if (axiosError.response?.status === 404) {
         errorMessage = '세션을 찾을 수 없습니다.';
-      } else if (err.response?.status === 422) {
+      } else if (axiosError.response?.status === 422) {
         errorMessage = '업로드할 파일이 올바르지 않습니다.';
-      } else if (err.response?.data?.detail) {
-        errorMessage = err.response.data.detail;
+      } else if (axiosError.response?.data?.detail) {
+        errorMessage = axiosError.response.data.detail;
       }
       
       setUploadError(errorMessage);

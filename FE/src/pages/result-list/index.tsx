@@ -9,6 +9,7 @@ import { getSessionDetail } from '@/api/result-list/sessionDetailSearch';
 import { useTrainingSession } from '@/hooks/training-session';
 import { retryTrainingSession } from '@/api/training-session/sessionRetry';
 import 도드미치료사 from "@/assets/도드미_치료사.png";
+import { useAlertDialog } from '@/hooks/useAlertDialog';
 
 // 날짜 포맷팅 함수 (시간 제외)
 const formatDate = (dateString: string): string => {
@@ -51,6 +52,9 @@ const WordSetResults: React.FC = () => {
   // 훈련 세션 훅 사용 (새로운 훈련 시작 시 사용)
   const { createWordSession, createSentenceSession } = useTrainingSession();
   
+  // AlertDialog 훅 사용
+  const { showAlert, AlertDialog: AlertDialogComponent } = useAlertDialog();
+  
   // URL 파라미터에서 sessionId, type, date 가져오기
   const sessionIdParam = searchParams.get('sessionId');
   const typeParam = searchParams.get('type') as 'word' | 'sentence' | 'vocal' | null;
@@ -76,12 +80,8 @@ const WordSetResults: React.FC = () => {
           return;
         }
         
-        console.log('세션 상세 조회 시작:', { sessionId, type: typeParam });
-        
         // 훈련 세션 상세 조회 API 호출
         const sessionDetailData = await getSessionDetail(sessionId);
-        
-        console.log('세션 상세 조회 성공:', sessionDetailData);
         
         // 세션 타입 설정 (대문자로 올 수 있으므로 소문자로 변환)
         const sessionTypeLower = (sessionDetailData.type || '').toLowerCase();
@@ -98,13 +98,6 @@ const WordSetResults: React.FC = () => {
         // sessionTypeLower 또는 typeParam을 확인하여 발성 연습 여부 판단
         const isVoice = sessionTypeLower === 'vocal' || (typeParam && typeParam.toLowerCase() === 'vocal');
         setIsVoiceTraining(isVoice);
-        
-        console.log('발성 연습 여부 확인:', {
-          sessionTypeLower,
-          typeParam,
-          sessionDetailDataType: sessionDetailData.type,
-          isVoice
-        });
         
         let wordResults: WordResult[];
         
@@ -191,16 +184,20 @@ const WordSetResults: React.FC = () => {
         setOverallFeedback(sessionDetailData.overall_feedback || '피드백 정보가 없습니다.');
         
         setIsLoading(false);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('세션 상세 조회 실패:', err);
         
+        const enhancedError = err as { status?: number };
         let errorMessage = '세션 상세 조회에 실패했습니다.';
-        if (err.status === 401) {
+        if (enhancedError.status === 401) {
           errorMessage = '인증이 필요합니다. 다시 로그인해주세요.';
-        } else if (err.status === 404) {
+        } else if (enhancedError.status === 404) {
           errorMessage = '세션을 찾을 수 없습니다.';
-        } else if (err.message) {
-          errorMessage = err.message;
+        }
+        
+        const errorWithMessage = err as { message?: string };
+        if (errorWithMessage.message) {
+          errorMessage = errorWithMessage.message;
         }
         
         setError(errorMessage);
@@ -276,7 +273,7 @@ const WordSetResults: React.FC = () => {
   const handleDetailClick = (result: WordResult) => {
     if (!sessionIdParam || !typeParam) {
       console.error('세션 정보가 없습니다.');
-      alert('세션 정보를 찾을 수 없습니다.');
+      showAlert({ description: '세션 정보를 찾을 수 없습니다.' });
       return;
     }
 
@@ -311,33 +308,30 @@ const WordSetResults: React.FC = () => {
   const handleRetry = async () => {
     if (!sessionIdParam) {
       console.error('세션 ID가 없습니다.');
-      alert('세션 정보를 찾을 수 없습니다.');
+      showAlert({ description: '세션 정보를 찾을 수 없습니다.' });
       return;
     }
 
     try {
       const sessionId = Number(sessionIdParam);
       if (isNaN(sessionId)) {
-        alert('유효하지 않은 세션 ID입니다.');
+        showAlert({ description: '유효하지 않은 세션 ID입니다.' });
         return;
       }
 
-      console.log('재훈련 세션 생성 시작:', { sessionId });
-      
       // 재훈련 API 호출
       const retrySession = await retryTrainingSession(sessionId);
-      
-      console.log('재훈련 세션 생성 성공:', retrySession);
       
       // 성공 시 practice 페이지로 이동 (sessionId, type, itemIndex=0)
       if (retrySession.session_id && retrySession.type) {
         navigate(`/practice?sessionId=${retrySession.session_id}&type=${retrySession.type}&itemIndex=0`);
       } else {
-        alert('재훈련 세션 정보가 올바르지 않습니다.');
+        showAlert({ description: '재훈련 세션 정보가 올바르지 않습니다.' });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('재훈련 세션 생성 실패:', error);
-      alert(error.message || '재훈련 세션 생성에 실패했습니다.');
+      const errorWithMessage = error as { message?: string };
+      showAlert({ description: errorWithMessage.message || '재훈련 세션 생성에 실패했습니다.' });
     }
   };
 
@@ -359,6 +353,8 @@ const WordSetResults: React.FC = () => {
 
   return (
     <div className="self-stretch pt-7 pb-10 flex flex-col justify-start items-center bg-white min-h-screen">
+      {/* AlertDialog */}
+      <AlertDialogComponent />
       
       {/* 헤더 */}
       <ResultHeader

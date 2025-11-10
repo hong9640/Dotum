@@ -132,7 +132,7 @@ const PraatDetailPage: React.FC = () => {
         });
 
         setIsLoading(false);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Praat 상세 데이터 로드 실패:", err);
         const errorMessage = getSessionItemErrorMessage(err);
         setError(errorMessage);
@@ -176,7 +176,8 @@ const PraatDetailPage: React.FC = () => {
       });
       
       // image_url 추출 (API 응답에 포함될 수 있음)
-      const imageUrl = (praatData as any).image_url;
+      const dataWithImageUrl = praatData as { image_url?: string };
+      const imageUrl = dataWithImageUrl.image_url;
       if (imageUrl) {
         setPraatImageUrl(imageUrl);
       } else {
@@ -226,7 +227,7 @@ const PraatDetailPage: React.FC = () => {
         } else {
           setCompositedVideoUrl(null);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("선택한 녹음 데이터 로드 실패:", err);
       }
     }

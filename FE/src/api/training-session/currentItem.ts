@@ -30,7 +30,6 @@ export type CurrentItemApiResponse = CurrentItemResponse | CurrentItemErrorRespo
 export const getCurrentItem = async (
   sessionId: number
 ): Promise<CurrentItemResponse> => {
-  console.log('📤 현재 진행 중인 아이템 조회 요청:', { sessionId });
   
   const response = await apiClient.get<CurrentItemResponse>(
     `/train/training-sessions/${sessionId}/current-item`,
@@ -41,7 +40,6 @@ export const getCurrentItem = async (
     }
   );
 
-  console.log('📥 현재 진행 중인 아이템 조회 응답:', response.data);
   return response.data;
 };
 
@@ -50,21 +48,23 @@ export const getCurrentItem = async (
  * @param error API 에러 객체
  * @returns 사용자 친화적인 에러 메시지
  */
-export const getCurrentItemErrorMessage = (error: any): string => {
-  if (error.response?.status === 401) {
+export const getCurrentItemErrorMessage = (error: unknown): string => {
+  const axiosError = error as { response?: { status?: number } };
+  if (axiosError.response?.status === 401) {
     return "인증이 필요합니다. 다시 로그인해주세요.";
   }
   
-  if (error.response?.status === 404) {
+  if (axiosError.response?.status === 404) {
     return "세션을 찾을 수 없습니다.";
   }
   
-  if (error.response?.status === 422) {
+  if (axiosError.response?.status === 422) {
     return "요청 데이터가 올바르지 않습니다.";
   }
   
-  if (error.response?.data?.detail) {
-    return error.response.data.detail;
+  const axiosErrorWithDetail = error as { response?: { data?: { detail?: string } } };
+  if (axiosErrorWithDetail.response?.data?.detail) {
+    return axiosErrorWithDetail.response.data.detail;
   }
   
   return "현재 진행 중인 아이템을 불러오는데 실패했습니다.";

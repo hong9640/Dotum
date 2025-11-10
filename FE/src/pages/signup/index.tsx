@@ -25,11 +25,18 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignup }) => {
     handleToggleMode,
     handleEmailVerification,
     emailVerificationStatus,
+    isEmailVerified,
+    checkEmailVerification,
+    AlertDialog,
   } = useSignup({ onSignup });
 
   return (
-    <div className="w-full flex justify-center items-center py-12 px-4">
-      <Card className="w-full max-w-2xl">
+    <>
+      {/* 이메일 인증 필요 AlertDialog */}
+      <AlertDialog />
+      
+      <div className="w-full flex justify-center items-center py-12 px-4">
+        <Card className="w-full max-w-2xl">
         <CardHeader>
           <CardTitle className="text-center text-4xl font-extrabold md:text-5xl text-slate-800 py-6">
             회원가입
@@ -45,6 +52,8 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignup }) => {
             onSubmit={onSubmit}
             onEmailVerification={handleEmailVerification}
             emailVerificationStatus={emailVerificationStatus}
+            isEmailVerified={isEmailVerified}
+            onCheckEmailVerification={checkEmailVerification}
           />
         </CardContent>
         <CardFooter className="flex-col sm:flex-row justify-center items-baseline pt-8">
@@ -52,6 +61,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignup }) => {
         </CardFooter>
       </Card>
     </div>
+    </>
   );
 };
 

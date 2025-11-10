@@ -157,7 +157,9 @@ const AudioLevelGraph = forwardRef<AudioLevelGraphRef, Props>(
       try {
         analyser.fftSize = 2048;
         analyser.smoothingTimeConstant = 0;
-      } catch {}
+      } catch {
+        // 설정 실패 시 무시 (기본값 사용)
+      }
 
       if (!tdBufRef.current || tdBufRef.current.length !== analyser.fftSize) {
         tdBufRef.current = new Float32Array(analyser.fftSize);
@@ -172,6 +174,7 @@ const AudioLevelGraph = forwardRef<AudioLevelGraphRef, Props>(
       emaDbRef.current = null;
       emaDeltaRef.current = null;
       xRef.current = 41;
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [analyser, width, height, minDb, maxDb]);
     
     // 그리기 루프 (active 변경에만 반응)
@@ -204,7 +207,7 @@ const AudioLevelGraph = forwardRef<AudioLevelGraphRef, Props>(
         }
 
         // 시간영역 데이터
-        // @ts-ignore (TypedArray 호환)
+        // @ts-expect-error - Float32Array 타입 호환을 위해 필요
         analyser.getFloatTimeDomainData(tdBuf);
 
         // RMS → dBFS
@@ -281,6 +284,7 @@ const AudioLevelGraph = forwardRef<AudioLevelGraphRef, Props>(
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [active, analyser, stroke]);
 
     // HMR/언마운트 안전장치
