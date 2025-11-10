@@ -501,7 +501,7 @@ async def submit_current_item(
         session=await convert_session_to_response(session, service.db, gcs_service, current_user.username),
         next_item=next_item_response,
         media=convert_media_to_response(media_file),
-        praat=convert_praat_to_response(praat_feature),
+        praat=await convert_praat_to_response(praat_feature),
         video_url=result["video_url"]
     )
 
@@ -646,7 +646,7 @@ async def submit_vocal_item(
         session=await convert_session_to_response(session, service.db, gcs_service, current_user.username),
         next_item=next_item_response,
         media=convert_media_to_response(media_file),
-        praat=convert_praat_to_response(praat_feature),
+        praat=await convert_praat_to_response(praat_feature),
         video_url=video_url,
         image_url=image_url,
         video_image_url=video_image_url
@@ -802,7 +802,7 @@ async def resubmit_item_video(
         session=await convert_session_to_response(result["session"], service.db, gcs_service, current_user.username),
         next_item=None,
         media=convert_media_to_response(result["media_file"]),
-        praat=convert_praat_to_response(result["praat_feature"]),
+        praat=await convert_praat_to_response(result["praat_feature"]),
         video_url=result["video_url"],
         message="동영상이 교체되었습니다."
     )
@@ -854,7 +854,6 @@ async def get_wav2lip_result_video(
     status_code=status.HTTP_200_OK,
     summary="praat 데이터 가져오기",
     responses={
-        202: {"description": "Analysis is still processing"},
         403: {"description": "Forbidden (Not owner)"},
         404: {"description": "Media file not found"},
     }
@@ -868,7 +867,6 @@ async def read_praat_analysis(
     """
     특정 미디어 파일의 Praat 분석 결과를 조회합니다.
     - (200 OK): 분석 완료
-    - (202 Accepted): 분석 처리 중
     - (404 Not Found): 원본 미디어 파일 없음
     - (403 Forbidden): 파일 소유자가 아님
     """
@@ -883,15 +881,14 @@ async def read_praat_analysis(
         if analysis_results:
             return analysis_results
         else:
-            # Case 2: 분석 처리 중
-            # 202 코드를 반환하기 위해 Response 객체를 사용
-            return Response(status_code=status.HTTP_202_ACCEPTED)
+            # 분석 결과가 없으면 404 처리
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Praat analysis not found.")
 
     except LookupError as e:
-        # Case 3: 원본 미디어 파일이 없음
+        # 원본 미디어 파일이 없음
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except PermissionError as e:
-        # Case 4: 파일 소유자가 아님
+        # 파일 소유자가 아님
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 

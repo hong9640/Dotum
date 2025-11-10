@@ -58,7 +58,7 @@ class TrainingSessionResponse(BaseModel):
     # 세션 전체 피드백
     overall_feedback: Optional[str] = None
     
-    # 세션 Praat 결과 (vocal 타입 전용, 항상 객체 반환, 필드들은 null 가능)
+    # 세션 Praat 결과 (항상 객체 반환, 필드들은 null 가능)
     session_praat_result: SessionPraatResultResponse
     
     # 메타데이터

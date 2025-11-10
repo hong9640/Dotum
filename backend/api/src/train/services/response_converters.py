@@ -116,7 +116,7 @@ async def build_current_item_response(
         media_file_id=item.media_file_id,
         composited_media_file_id=composited_media_file_id,
         has_next=has_next,
-        praat=(convert_praat_to_response(praat) if praat else None),
+        praat=(await convert_praat_to_response(praat) if praat else None),
         integrate_voice_url=integrate_voice_url
     )
 
@@ -180,6 +180,8 @@ async def convert_session_to_response(
         avg_f0=None,
         avg_f1=None,
         avg_f2=None,
+        avg_cpp=None,
+        avg_csid=None,
         created_at=None,
         updated_at=None
     )
@@ -207,6 +209,8 @@ async def convert_session_to_response(
                 avg_f0=praat_data.avg_f0,
                 avg_f1=praat_data.avg_f1,
                 avg_f2=praat_data.avg_f2,
+                avg_cpp=praat_data.avg_cpp,
+                avg_csid=praat_data.avg_csid,
                 created_at=praat_data.created_at,
                 updated_at=praat_data.updated_at
             )
@@ -332,7 +336,7 @@ def convert_media_to_response(media) -> MediaResponse:
     )
 
 
-def convert_praat_to_response(praat) -> Optional[PraatFeaturesResponse]:
+async def convert_praat_to_response(praat) -> Optional[PraatFeaturesResponse]:
     """PraatFeatures 모델을 PraatFeaturesResponse로 변환"""
     if praat is None:
         return None

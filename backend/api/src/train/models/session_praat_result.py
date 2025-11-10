@@ -32,6 +32,10 @@ class SessionPraatResult(SQLModel, table=True):
     avg_f0: Optional[float] = None
     avg_f1: Optional[float] = None
     avg_f2: Optional[float] = None
+
+    # cpp, csid 평균
+    avg_cpp: Optional[float] = None
+    avg_csid: Optional[float] = None
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
