@@ -104,8 +104,44 @@ export default function TrainingDayDetail({
       const shouldNavigate = window.confirm(message); // 확인 버튼 클릭 시 true, 취소 버튼 클릭 시 false
 
       if (shouldNavigate) {
-        // practice 페이지로 이동 (current_item_index 사용)
-        navigate(`/practice?sessionId=${trainingSet.sessionId}&type=${trainingSet.type}&itemIndex=${trainingSet.currentItemIndex}`);
+        // vocal 타입인 경우 특별한 경로 처리
+        if (trainingSet.type === 'vocal' && trainingSet.currentItemIndex !== undefined && trainingSet.totalItems) {
+          const n = Math.floor(trainingSet.totalItems / 5); // 반복 횟수
+          const currentIndex = trainingSet.currentItemIndex;
+          let path = '';
+          let attempt = 1;
+
+          if (currentIndex >= 0 && currentIndex < n) {
+            // 0 ~ n-1: /voice-training/mpt
+            path = '/voice-training/mpt';
+            attempt = currentIndex + 1;
+          } else if (currentIndex >= n && currentIndex < 2 * n) {
+            // n ~ 2n-1: /voice-training/crescendo
+            path = '/voice-training/crescendo';
+            attempt = currentIndex - n + 1;
+          } else if (currentIndex >= 2 * n && currentIndex < 3 * n) {
+            // 2n ~ 3n-1: /voice-training/decrescendo
+            path = '/voice-training/decrescendo';
+            attempt = currentIndex - 2 * n + 1;
+          } else if (currentIndex >= 3 * n && currentIndex < 4 * n) {
+            // 3n ~ 4n-1: /voice-training/loud-soft
+            path = '/voice-training/loud-soft';
+            attempt = currentIndex - 3 * n + 1;
+          } else if (currentIndex >= 4 * n && currentIndex < 5 * n) {
+            // 4n ~ 5n-1: /voice-training/soft-loud
+            path = '/voice-training/soft-loud';
+            attempt = currentIndex - 4 * n + 1;
+          } else {
+            // 범위를 벗어난 경우 기본 practice 페이지로 이동
+            navigate(`/practice?sessionId=${trainingSet.sessionId}&type=${trainingSet.type}&itemIndex=${trainingSet.currentItemIndex}`);
+            return;
+          }
+
+          navigate(`${path}?attempt=${attempt}&sessionId=${trainingSet.sessionId}`);
+        } else {
+          // vocal이 아니거나 필요한 정보가 없는 경우 기존 로직 사용
+          navigate(`/practice?sessionId=${trainingSet.sessionId}&type=${trainingSet.type}&itemIndex=${trainingSet.currentItemIndex}`);
+        }
       }
       return;
     }
@@ -120,7 +156,6 @@ export default function TrainingDayDetail({
     }
   };
 
-  // totalSets는 API 응답의 total_sessions를 우선 사용
   // totalSets는 API 응답의 total_sessions를 우선 사용
   const displayTotalSets = totalSessions > 0 ? totalSessions : statistics.totalSets;
 
