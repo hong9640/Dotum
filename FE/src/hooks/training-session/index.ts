@@ -30,7 +30,7 @@ export const useTrainingSession = ({ onSessionCreated }: UseTrainingSessionProps
     try {
       const session = await createWordTrainingSession(itemCount, sessionName);
       
-      toast.success("단어 훈련 세션이 생성되었습니다!");
+      // toast.success("단어 훈련 세션이 생성되었습니다!");
       onSessionCreated?.(session);
       
       // 훈련 페이지로 이동 (세션 ID와 itemIndex를 쿼리 파라미터로 전달)
@@ -69,7 +69,7 @@ export const useTrainingSession = ({ onSessionCreated }: UseTrainingSessionProps
     try {
       const session = await createSentenceTrainingSession(itemCount, sessionName);
       
-      toast.success("문장 훈련 세션이 생성되었습니다!");
+      // toast.success("문장 훈련 세션이 생성되었습니다!");
       onSessionCreated?.(session);
       
       // 훈련 페이지로 이동 (세션 ID와 itemIndex를 쿼리 파라미터로 전달)
@@ -108,7 +108,7 @@ export const useTrainingSession = ({ onSessionCreated }: UseTrainingSessionProps
     try {
       const session = await createVocalTrainingSession(itemCount, sessionName);
       
-      toast.success("발성 훈련 세션이 생성되었습니다!");
+      // toast.success("발성 훈련 세션이 생성되었습니다!");
       onSessionCreated?.(session);
       
       return session;

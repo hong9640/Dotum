@@ -57,7 +57,7 @@ const CrescendoPage: React.FC = () => {
   const handleRecordEnd = (b: Blob, u: string) => {
     setBlob(b);
     setUrl(u);
-    toast.success('녹음이 완료되었습니다!');
+    // toast.success('녹음이 완료되었습니다!');
   };
 
   const handleSubmit = async (audioBlob: Blob, graphImageBlob: Blob) => {
@@ -83,7 +83,7 @@ const CrescendoPage: React.FC = () => {
         const currentItem = result.session.training_items?.find((item: any) => item.item_index === itemIndex);
         
         if (currentItem?.is_completed) {
-          toast.success('훈련이 완료되었습니다!');
+          toast.success('음성 파일이 제출되었습니다!');
           
           // 제출 성공 후 자동으로 다음으로 이동
           if (attempt < 3) {
