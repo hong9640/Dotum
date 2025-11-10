@@ -150,10 +150,11 @@ const WordSetResults: React.FC = () => {
         
         setResultsData(wordResults);
         
+        // session_praat_result에서 메트릭 값 가져오기
+        const praatResult = sessionDetailData.session_praat_result;
+        
         if (isVoice) {
           // 발성 연습 메트릭 설정
-          // session_praat_result가 있으면 그 값 사용, 없으면 null
-          const praatResult = (sessionDetailData as any).session_praat_result;
           if (praatResult) {
             setJitter(praatResult?.avg_jitter_local ?? null);
             setShimmer(praatResult?.avg_shimmer_local ?? null);
@@ -176,9 +177,14 @@ const WordSetResults: React.FC = () => {
           }
         } else {
           // 일반 연습 메트릭 설정 (CPP/CSID)
-          // TODO: 백엔드 API에서 세션 레벨의 CPP/CSID를 제공하면 그 값 사용
-          setCpp(0.012);
-          setCsid(0.012);
+          // 백엔드 API에서 세션 레벨의 CPP/CSID를 서버로부터 받아서 사용
+          if (praatResult) {
+            setCpp(praatResult?.avg_cpp ?? null);
+            setCsid(praatResult?.avg_csid ?? null);
+          } else {
+            setCpp(null);
+            setCsid(null);
+          }
         }
         
         // 전체 피드백 설정 (백엔드에서 제공하는 overall_feedback 사용, null이면 기본 메시지)
