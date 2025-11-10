@@ -4,19 +4,34 @@ import { Card, CardContent } from '@/components/ui/card';
 import WaveRecorder from './components/WaveRecorder';
 import PromptCardSoftLoud from './components/PromptCardSoftLoud';
 import { toast } from 'sonner';
-import { 
+import {
   getTrainingSession,
   completeTrainingSession,
-  type CreateTrainingSessionResponse 
+  type CreateTrainingSessionResponse
 } from '@/api/training-session';
 import { submitVocalItem } from '@/api/voice-training';
+
+function getErrInfo(err: any): { status?: number; detail?: string } {
+  // axios 스타일
+  const resStatus = err?.response?.status;
+  const resDetail = err?.response?.data?.detail || err?.response?.data?.message;
+
+  // 래퍼 스타일(지금 콘솔 찍힌 형태)
+  const flatStatus = err?.status;
+  const flatDetail = err?.data?.detail || err?.data?.message;
+
+  const status = Number(resStatus ?? flatStatus);
+  const detail = resDetail ?? flatDetail ?? err?.message;
+
+  return { status, detail };
+}
 
 const SoftLoudPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const attempt = parseInt(searchParams.get('attempt') || '1', 10);
   const sessionIdParam = searchParams.get('sessionId');
-  
+
   const [_blob, setBlob] = useState<Blob | null>(null);
   const [_url, setUrl] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,7 +73,7 @@ const SoftLoudPage: React.FC = () => {
   const handleRecordEnd = (b: Blob, u: string) => {
     setBlob(b);
     setUrl(u);
-    toast.success('녹음이 완료되었습니다!');
+    // toast.success('녹음이 완료되었습니다!');
   };
 
   const handleSubmit = async (audioBlob: Blob, graphImageBlob: Blob) => {
@@ -71,7 +86,7 @@ const SoftLoudPage: React.FC = () => {
     try {
       // Soft-Loud는 item_index 12, 13, 14 (attempt + 11)
       const itemIndex = attempt + 11;
-      
+
       const result = await submitVocalItem({
         sessionId,
         itemIndex,
@@ -82,12 +97,12 @@ const SoftLoudPage: React.FC = () => {
       if (result.session) {
         setSession(result.session);
         const currentItem = result.session.training_items?.find((item: any) => item.item_index === itemIndex);
-        
+
         if (currentItem?.is_completed) {
           // 제출 성공 후 자동으로 다음으로 이동
           if (attempt < 3) {
             // 같은 훈련 다음 시도
-            toast.success('훈련이 완료되었습니다!');
+            toast.success('음성 파일이 제출되었습니다!');
             setResetTrigger(prev => prev + 1);
             setTimeout(() => {
               navigate(`/voice-training/soft-loud?attempt=${attempt + 1}&sessionId=${sessionId}`);
@@ -103,13 +118,17 @@ const SoftLoudPage: React.FC = () => {
               // ✅ setTimeout 제거 - 바로 이동
               navigate(`/result-list?sessionId=${sessionId}&type=vocal`);
               // 페이지 이동 후 언마운트되므로 setIsSubmitting 불필요
-            } catch (error) {
+            } catch (error: any) {
               console.error('세션 완료 처리 실패:', error);
-              toast.success('훈련이 완료되었습니다!');
-              setResetTrigger(prev => prev + 1);
-              // ✅ setTimeout 제거 - 바로 이동
-              navigate(`/result-list?sessionId=${sessionId}&type=vocal`);
-              // 페이지 이동 후 언마운트되므로 setIsSubmitting 불필요
+              const { status, detail } = getErrInfo(error);
+              // 오버레이 먼저 해제 후 토스트
+              setIsSubmitting(false);
+              if (status === 400) {
+                toast.error(detail || '모든 아이템이 완료되지 않았습니다.');
+                return;
+              }
+              toast.error(detail || '세션 완료 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+              return;
             }
           }
         } else {
@@ -119,8 +138,9 @@ const SoftLoudPage: React.FC = () => {
       }
     } catch (error: any) {
       console.error('제출 실패:', error);
-      toast.error(error.response?.data?.detail || '제출에 실패했습니다.');
-      setIsSubmitting(false);  // ✅ 에러 시에만 해제
+      const { detail } = getErrInfo(error);
+      setIsSubmitting(false); // 먼저 오버레이 해제
+      toast.error(detail || '제출에 실패했습니다.');
     }
     // ❌ finally 제거 - 성공 시에는 isSubmitting을 false로 만들지 않음
   };
@@ -132,15 +152,15 @@ const SoftLoudPage: React.FC = () => {
       <div className="max-w-4xl mx-auto">
         <Card className="border-0 shadow-none">
           <CardContent className="p-6 sm:p-8">
-            <PromptCardSoftLoud 
-              main="아아아아아" 
+            <PromptCardSoftLoud
+              main="아아아아아"
               subtitle="연속 강약 조절 훈련"
               attempt={attempt}
               totalAttempts={3}
             />
 
             <div className="mb-6">
-              <WaveRecorder 
+              <WaveRecorder
                 onRecordEnd={handleRecordEnd}
                 onSubmit={handleSubmit}
                 isSubmitting={isSubmitting}

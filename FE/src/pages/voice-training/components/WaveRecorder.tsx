@@ -78,13 +78,16 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
     }
     
     onSubmit(audioBlob, graphImageBlob);
+    
+    // 제출 후 canvas 초기화
+    graphRef.current?.clearCanvas();
   };
 
   return (
     <div className="relative space-y-6">
       {/* 제출 중 로딩 오버레이 (모든 제출 시 표시) */}
       {isSubmitting && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-2xl p-10 max-w-md mx-4 text-center animate-in zoom-in-95 duration-300">
             <div className="mb-6 flex justify-center">
               {/* 로딩 스피너 */}
@@ -118,8 +121,8 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
         </div>
       )}
       
-      {/* 제출 중일 때는 메인 콘텐츠 숨기기 */}
-      <div className={isSubmitting ? 'invisible' : ''}>
+      {/* 제출 중일 때는 메인 콘텐츠 비활성화 (시각적으로는 보이게) */}
+      <div className={isSubmitting ? 'pointer-events-none opacity-30' : ''}>
         <AudioLevelGraph
           ref={graphRef}
           active={isRecording}

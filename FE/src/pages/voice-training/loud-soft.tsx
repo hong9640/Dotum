@@ -4,9 +4,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import WaveRecorder from './components/WaveRecorder';
 import PromptCardLoudSoft from './components/PromptCardLoudSoft';
 import { toast } from 'sonner';
-import { 
+import {
   getTrainingSession,
-  type CreateTrainingSessionResponse 
+  type CreateTrainingSessionResponse
 } from '@/api/training-session';
 import { submitVocalItem } from '@/api/voice-training';
 
@@ -15,7 +15,7 @@ const LoudSoftPage: React.FC = () => {
   const navigate = useNavigate();
   const attempt = parseInt(searchParams.get('attempt') || '1', 10);
   const sessionIdParam = searchParams.get('sessionId');
-  
+
   const [_blob, setBlob] = useState<Blob | null>(null);
   const [_url, setUrl] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -57,7 +57,7 @@ const LoudSoftPage: React.FC = () => {
   const handleRecordEnd = (b: Blob, u: string) => {
     setBlob(b);
     setUrl(u);
-    toast.success('녹음이 완료되었습니다!');
+    // toast.success('녹음이 완료되었습니다!');
   };
 
   const handleSubmit = async (audioBlob: Blob, graphImageBlob: Blob) => {
@@ -70,7 +70,7 @@ const LoudSoftPage: React.FC = () => {
     try {
       // Loud-Soft는 item_index 9, 10, 11 (attempt + 8)
       const itemIndex = attempt + 8;
-      
+
       const result = await submitVocalItem({
         sessionId,
         itemIndex,
@@ -81,10 +81,10 @@ const LoudSoftPage: React.FC = () => {
       if (result.session) {
         setSession(result.session);
         const currentItem = result.session.training_items?.find((item: any) => item.item_index === itemIndex);
-        
+
         if (currentItem?.is_completed) {
-          toast.success('훈련이 완료되었습니다!');
-          
+          toast.success('음성 파일이 제출되었습니다!');
+
           // 제출 성공 후 자동으로 다음으로 이동
           if (attempt < 3) {
             // 같은 훈련 다음 시도
@@ -121,15 +121,15 @@ const LoudSoftPage: React.FC = () => {
       <div className="max-w-4xl mx-auto">
         <Card className="border-0 shadow-none">
           <CardContent className="p-6 sm:p-8">
-            <PromptCardLoudSoft 
-              main="아아아아아" 
+            <PromptCardLoudSoft
+              main="아아아아아"
               subtitle="순간 강약 전환 훈련"
               attempt={attempt}
               totalAttempts={3}
             />
 
             <div className="mb-6">
-              <WaveRecorder 
+              <WaveRecorder
                 onRecordEnd={handleRecordEnd}
                 onSubmit={handleSubmit}
                 isSubmitting={isSubmitting}

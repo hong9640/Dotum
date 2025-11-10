@@ -21,6 +21,7 @@ import { clearAuthCookies } from '@/lib/cookies';
 import { checkAuthStatus } from '@/api/user';
 import { Logout } from '@/api/logout/Logout';
 import { toast } from 'sonner';
+import { Toaster } from 'sonner';
 
 const AppContent: React.FC<{
   isLoggedIn: boolean;
@@ -223,6 +224,7 @@ const App: React.FC = () => {
         handleLogout={handleLogout}
         handleSignup={handleSignup}
       />
+      <Toaster position="top-center" richColors closeButton />
     </Router>
   );
 };
