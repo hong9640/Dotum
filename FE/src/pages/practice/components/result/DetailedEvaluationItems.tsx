@@ -184,13 +184,15 @@ const DetailedEvaluationItems: React.FC<DetailedEvaluationItemsProps> = ({
         </div>
       </div>
 
-      {/* 카드 그리드 및 버튼 */}
+      {/* 카드 그리드 */}
       <div className="self-stretch flex justify-center items-start gap-6 flex-wrap">
         {evaluationData.map((item) => (
           <DetailedEvaluationItemCard key={item.id} item={item} />
         ))}
-        
-        {/* 자세히 보기 버튼 */}
+      </div>
+      
+      {/* 자세히 보기 버튼 */}
+      <div className="self-stretch flex justify-center items-center mt-6">
         <Button
           className="h-auto min-h-10 px-6 py-4 bg-green-500 hover:bg-green-600 rounded-xl inline-flex justify-center items-center gap-3 text-white text-3xl font-semibold leading-9"
           onClick={handleDetailClick}
