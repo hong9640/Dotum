@@ -33,6 +33,26 @@ export interface TrainingItem {
   updated_at?: string;
 }
 
+// 세션 Praat 분석 결과 타입
+export interface SessionPraatResult {
+  avg_jitter_local?: number | null;
+  avg_shimmer_local?: number | null;
+  avg_hnr?: number | null;
+  avg_nhr?: number | null;
+  avg_lh_ratio_mean_db?: number | null;
+  avg_lh_ratio_sd_db?: number | null;
+  avg_max_f0?: number | null;
+  avg_min_f0?: number | null;
+  avg_intensity_mean?: number | null;
+  avg_f0?: number | null;
+  avg_f1?: number | null;
+  avg_f2?: number | null;
+  avg_cpp?: number | null;
+  avg_csid?: number | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 // 훈련 세션 생성 응답 타입
 export interface CreateTrainingSessionResponse {
   session_id: number;
@@ -47,6 +67,7 @@ export interface CreateTrainingSessionResponse {
   progress_percentage?: number;
   average_score?: number | null; // 전체 평균 점수
   overall_feedback?: string | null; // 전체 피드백
+  session_praat_result?: SessionPraatResult | null; // Praat 분석 결과
   session_metadata?: Record<string, unknown>;
   created_at?: string;
   updated_at?: string;
