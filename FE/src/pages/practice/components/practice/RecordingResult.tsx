@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import ReactPlayer from "react-player";
-import { Play, RotateCcw } from "lucide-react";
+import { Play, Pause, RotateCcw } from "lucide-react";
 
 interface RecordingResultProps {
   recordedBlobUrl: string | null;
@@ -79,7 +79,7 @@ const RecordingResult: React.FC<RecordingResultProps> = ({
               onClick={() => setIsPlaying(!isPlaying)}
               className="flex items-center justify-center gap-2 px-8 py-4 bg-blue-500 hover:bg-blue-600 text-white rounded-full font-semibold transition-colors text-lg"
             >
-              <Play className="size-5" />
+              {isPlaying ? <Pause className="size-5" /> : <Play className="size-5" />}
               {isPlaying ? "일시정지" : "재생"}
             </button>
             <button
