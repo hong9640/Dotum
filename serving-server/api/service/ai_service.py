@@ -170,6 +170,10 @@ class AIService:
                 face_local = os.path.join(tmp_dir, "face_input.mp4")
                 shutil.copy2(face_video_path, face_local)
                 
+                # 원본 영상 해상도 추출 (FFprobe)
+                original_resolution = await self._get_video_resolution(face_local)
+                logger.info(f"Original video resolution: {original_resolution}")
+                
                 # 모델 경로
                 model_local = os.path.join(settings.LOCAL_WAV2LIP_PATH, "checkpoints", "Wav2Lip_gan.pth")
                 if not os.path.exists(model_local):
@@ -179,7 +183,8 @@ class AIService:
                 # Wav2Lip 실행
                 wav2lip_dir = settings.LOCAL_WAV2LIP_PATH
                 inference_path = os.path.join(wav2lip_dir, "inference.py")
-                output_local = os.path.join(tmp_dir, "lipsynced.mp4")
+                output_temp = os.path.join(tmp_dir, "lipsynced_temp.mp4")  # 임시 출력
+                output_local = os.path.join(tmp_dir, "lipsynced.mp4")  # 최종 출력
                 
                 # GPU 사용 여부 확인
                 device = "cuda" if torch.cuda.is_available() and use_gpu else "cpu"
@@ -200,7 +205,7 @@ class AIService:
                     "--checkpoint_path", model_local,
                     "--face", face_local,
                     "--audio", audio_local,
-                    "--outfile", output_local,
+                    "--outfile", output_temp,  # 임시 파일로 출력
                     "--pads", "0", "15", "0", "0",  # 아래쪽 패딩 15픽셀 (턱 포함, 경계 최소화)
                     "--wav2lip_batch_size", batch_size,
                     "--face_det_batch_size", face_det_batch,
@@ -215,8 +220,20 @@ class AIService:
                     logger.error(f"Wav2Lip inference failed: {result.stderr}")
                     return None
                 
-                if not os.path.exists(output_local):
-                    logger.error(f"Wav2Lip output file not found: {output_local}")
+                if not os.path.exists(output_temp):
+                    logger.error(f"Wav2Lip output file not found: {output_temp}")
+                    return None
+                
+                # 후처리: 원본 해상도로 리사이즈 (고품질 스케일링)
+                logger.info(f"Resizing output to original resolution: {original_resolution}")
+                resize_success = await self._resize_video_to_resolution(
+                    input_path=output_temp,
+                    output_path=output_local,
+                    resolution=original_resolution
+                )
+                
+                if not resize_success or not os.path.exists(output_local):
+                    logger.error("Failed to resize video to original resolution")
                     return None
                 
                 # GCS에 업로드
@@ -231,6 +248,90 @@ class AIService:
         except Exception as e:
             logger.error(f"Failed to run Wav2Lip inference: {e}")
             return None
+    
+    async def _get_video_resolution(self, video_path: str) -> str:
+        """
+        FFprobe를 사용하여 영상의 해상도를 추출
+        
+        Returns:
+            str: "widthxheight" 형식 (예: "1280x720")
+        """
+        try:
+            cmd = [
+                "ffprobe",
+                "-v", "error",
+                "-select_streams", "v:0",
+                "-show_entries", "stream=width,height",
+                "-of", "csv=s=x:p=0",
+                video_path
+            ]
+            
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            
+            resolution = result.stdout.strip()
+            logger.info(f"Detected video resolution: {resolution}")
+            return resolution
+            
+        except subprocess.CalledProcessError as e:
+            logger.error(f"FFprobe failed: {e.stderr}")
+            return "1280x720"  # 기본값
+        except Exception as e:
+            logger.error(f"Failed to get video resolution: {e}")
+            return "1280x720"  # 기본값
+    
+    async def _resize_video_to_resolution(
+        self,
+        input_path: str,
+        output_path: str,
+        resolution: str
+    ) -> bool:
+        """
+        FFmpeg를 사용하여 영상을 특정 해상도로 리사이즈
+        
+        Args:
+            input_path: 입력 영상 경로
+            output_path: 출력 영상 경로
+            resolution: 목표 해상도 "widthxheight" (예: "1280x720")
+            
+        Returns:
+            bool: 성공 여부
+        """
+        try:
+            # lanczos 알고리즘 사용 (고품질 스케일링)
+            cmd = [
+                "ffmpeg",
+                "-y",  # 기존 파일 덮어쓰기
+                "-i", input_path,
+                "-vf", f"scale={resolution}:flags=lanczos",  # 고품질 스케일링
+                "-c:v", "libx264",  # H.264 코덱
+                "-preset", "medium",  # 인코딩 속도/품질 균형
+                "-crf", "18",  # 품질 (18 = 시각적으로 무손실에 가까움)
+                "-c:a", "copy",  # 오디오는 복사 (재인코딩 안함)
+                output_path
+            ]
+            
+            logger.info(f"Resizing video: {' '.join(cmd)}")
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            
+            logger.info(f"Video resized successfully to {resolution}")
+            return True
+            
+        except subprocess.CalledProcessError as e:
+            logger.error(f"FFmpeg resize failed: {e.stderr}")
+            return False
+        except Exception as e:
+            logger.error(f"Failed to resize video: {e}")
+            return False
 
 
 # AI 서비스 인스턴스
