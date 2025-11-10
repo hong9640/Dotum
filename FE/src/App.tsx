@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
-import { Toaster } from 'sonner';
 import NavigationBar from '@/components/NavigationBar';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import ScrollToTop from '@/components/ScrollToTop';
