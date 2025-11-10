@@ -132,7 +132,7 @@ const PraatDetailPage: React.FC = () => {
         });
 
         setIsLoading(false);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Praat 상세 데이터 로드 실패:", err);
         const errorMessage = getSessionItemErrorMessage(err);
         setError(errorMessage);
@@ -145,7 +145,7 @@ const PraatDetailPage: React.FC = () => {
 
   // Praat 분석 결과 조회 (폴링 포함)
   const sessionId = sessionIdParam ? Number(sessionIdParam) : undefined;
-  const { data: praatData, loading: praatLoading, processing: praatProcessing, error: praatError } = usePraat(
+  const { data: praatData, error: praatError } = usePraat(
     sessionId,
     itemId,
     {
@@ -176,7 +176,8 @@ const PraatDetailPage: React.FC = () => {
       });
       
       // image_url 추출 (API 응답에 포함될 수 있음)
-      const imageUrl = (praatData as any).image_url;
+      const dataWithImageUrl = praatData as { image_url?: string };
+      const imageUrl = dataWithImageUrl.image_url;
       if (imageUrl) {
         setPraatImageUrl(imageUrl);
       } else {
@@ -226,7 +227,7 @@ const PraatDetailPage: React.FC = () => {
         } else {
           setCompositedVideoUrl(null);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("선택한 녹음 데이터 로드 실패:", err);
       }
     }
@@ -255,14 +256,12 @@ const PraatDetailPage: React.FC = () => {
   };
 
   // 로딩 상태
-  if (isLoading || praatLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-lg text-gray-600">
-            {isLoading ? "세션 정보를 불러오는 중..." : praatProcessing ? "Praat 분석 중..." : "Praat 데이터를 불러오는 중..."}
-          </p>
+          <p className="text-lg text-gray-600">세션 정보를 불러오는 중...</p>
         </div>
       </div>
     );
@@ -290,7 +289,7 @@ const PraatDetailPage: React.FC = () => {
   return (
     <div className="self-stretch pt-7 pb-10 flex flex-col justify-start items-center bg-white min-h-screen">
       {/* 메인 콘텐츠 영역 */}
-      <div className="p-4 md:p-8 flex flex-col justify-start items-center gap-8 w-full max-w-[1152px] mx-auto">
+      <div className="p-4 md:p-8 flex flex-col justify-start items-center gap-8 w-full min-w-[320px] max-w-[1152px] mx-auto">
         {/* 환자 정보 */}
         {patientInfo && <PatientInfoSection info={patientInfo} />}
 

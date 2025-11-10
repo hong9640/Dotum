@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import RecordRTC from 'recordrtc';
+import { toast } from 'sonner';
 
 export interface UseAudioRecorderReturn {
   isRecording: boolean;
@@ -80,7 +81,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
       setIsRecording(true);
     } catch (error) {
       console.error('마이크 접근 오류:', error);
-      alert('마이크 접근 권한이 필요합니다.');
+      toast.error('마이크 접근 권한이 필요합니다.');
     }
   }, []);
 

@@ -1,4 +1,5 @@
 import { apiClient } from "../axios";
+import type { AxiosErrorResponse } from "@/types/api";
 
 // 회원가입 API 타입 정의
 export interface SignupRequest {
@@ -37,13 +38,23 @@ const ERROR_MAPPING: Record<string, string> = {
 export const Signup = async (
   data: SignupRequest
 ): Promise<SignupResponse> => {
-  const response = await apiClient.post<SignupResponse>("/auth/signup", {
-    username: data.username,
-    password: data.password,
-    name: ""
-  });
+  try {
+    const response = await apiClient.post<SignupResponse>("/auth/signup", {
+      username: data.username,
+      password: data.password,
+      name: ""
+    });
 
-  return response.data;
+    return response.data;
+  } catch (error: unknown) {
+    // HTTP 에러 응답 (4xx, 5xx)인 경우 에러 응답 반환
+    const axiosError = error as AxiosErrorResponse & { response?: { data?: SignupResponse } };
+    if (axiosError.response?.data) {
+      return axiosError.response.data;
+    }
+    // 네트워크 에러 등
+    throw error;
+  }
 };
 
 /**
@@ -54,11 +65,21 @@ export const Signup = async (
 export const CheckEmailDuplication = async (
   email: string
 ): Promise<EmailCheckResponse> => {
-  const response = await apiClient.get<EmailCheckResponse>(
-    `/auth/emails/${email}`
-  );
+  try {
+    const response = await apiClient.get<EmailCheckResponse>(
+      `/auth/emails/${email}`
+    );
 
-  return response.data;
+    return response.data;
+  } catch (error: unknown) {
+    // HTTP 에러 응답 (4xx, 5xx)인 경우 에러 응답 반환
+    const axiosError = error as AxiosErrorResponse & { response?: { data?: EmailCheckResponse } };
+    if (axiosError.response?.data) {
+      return axiosError.response.data;
+    }
+    // 네트워크 에러 등
+    throw error;
+  }
 };
 
 /**

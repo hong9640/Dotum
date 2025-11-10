@@ -23,7 +23,7 @@ export interface TrainingItemResponse {
  * 세션 메타데이터 타입
  */
 export interface SessionMetadata {
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**

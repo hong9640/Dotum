@@ -99,7 +99,8 @@ export const convertSessionsToTrainingSets = (
       status: session.status,
       totalItems: session.total_items,
       completedItems: session.completed_items,
-      currentItemIndex: session.current_item_index
+      currentItemIndex: session.current_item_index,
+      training_date: session.training_date
     };
   });
 };

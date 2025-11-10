@@ -32,7 +32,6 @@ export const useMediaRecorder = ({
   // 카메라 초기화 함수
   const initializeCamera = async () => {
     try {
-      console.log('카메라 초기화 시작...');
       const constraints: MediaStreamConstraints = {
         audio: {
           echoCancellation: true,
@@ -48,7 +47,6 @@ export const useMediaRecorder = ({
       };
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log('카메라 스트림 획득 성공:', stream);
       mediaStreamRef.current = stream;
       
       // MediaStream을 Blob URL로 변환하여 ReactPlayer에서 사용할 수 있도록 함
@@ -77,7 +75,6 @@ export const useMediaRecorder = ({
         videoRef.current.srcObject = stream;
         videoRef.current.playsInline = true;
         await videoRef.current.play().catch(() => void 0);
-        console.log('비디오 엘리먼트에 스트림 연결 완료');
       }
 
       const videoTrack = stream.getVideoTracks()[0];
@@ -85,7 +82,6 @@ export const useMediaRecorder = ({
       setDeviceInfo(`${s.width}x${s.height} @ ${s.frameRate ?? "?"}fps`);
       setIsCameraReady(true);
       setPermissionError(null);
-      console.log('카메라 초기화 완료');
     } catch (err: unknown) {
       console.error('카메라 초기화 실패:', err);
       const errorMessage = err instanceof Error ? err.message : "카메라/마이크 접근 권한을 허용해주세요.";

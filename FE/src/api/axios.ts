@@ -63,6 +63,12 @@ apiClient.interceptors.response.use(
         processQueue(error, null);
         return Promise.reject(error);
       }
+      
+      // 로그인/회원가입 API는 토큰 갱신 시도하지 않음
+      if (originalRequest.url?.includes('/auth/login') || 
+          originalRequest.url?.includes('/auth/signup')) {
+        return Promise.reject(error);
+      }
 
       // 이미 토큰 갱신 중이면 대기열에 추가
       if (isRefreshing) {

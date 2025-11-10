@@ -32,7 +32,6 @@ export const getCompositedVideoUrl = async (
   sessionId: number,
   itemId: number
 ): Promise<CompositedVideoResponse> => {
-  console.log('📤 Wav2Lip 결과 영상 URL 조회 요청:', { sessionId, itemId });
   
   try {
     const response = await apiClient.get<CompositedVideoResponse | CompositedVideoProcessingResponse>(
@@ -50,13 +49,11 @@ export const getCompositedVideoUrl = async (
 
     // 200 응답인 경우
     if (response.status === 200) {
-      console.log('📥 Wav2Lip 결과 영상 URL 조회 응답 (200):', response.data);
       return response.data as CompositedVideoResponse;
     }
 
     // 202 응답인 경우 에러로 처리하여 폴링 계속 진행
     if (response.status === 202) {
-      console.log('📥 Wav2Lip 결과 영상 URL 조회 응답 (202): 아직 처리 중');
       throw {
         response: {
           status: 202,
@@ -72,9 +69,10 @@ export const getCompositedVideoUrl = async (
         data: response.data
       }
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     // 이미 에러 형태로 처리한 경우 그대로 재throw
-    if (error.response?.status === 202) {
+    const axiosError = error as { response?: { status?: number } };
+    if (axiosError.response?.status === 202) {
       throw error;
     }
     // axios 에러인 경우 그대로 재throw
@@ -85,7 +83,7 @@ export const getCompositedVideoUrl = async (
 /**
  * detail 필드를 안전하게 문자열로 변환
  */
-const toErrorMessage = (detail: any): string | null => {
+const toErrorMessage = (detail: unknown): string | null => {
   if (!detail) return null;
   
   if (typeof detail === 'string') return detail;
@@ -100,7 +98,8 @@ const toErrorMessage = (detail: any): string | null => {
   }
   
   if (typeof detail === 'object') {
-    return detail.message || JSON.stringify(detail);
+    const detailWithMessage = detail as { message?: string };
+    return detailWithMessage.message || JSON.stringify(detail);
   }
   
   return String(detail);
@@ -111,20 +110,21 @@ const toErrorMessage = (detail: any): string | null => {
  * @param error API 에러 객체
  * @returns 사용자 친화적인 에러 메시지
  */
-export const getCompositedVideoErrorMessage = (error: any): string => {
-  if (error.response?.status === 401) {
+export const getCompositedVideoErrorMessage = (error: unknown): string => {
+  const axiosError = error as { response?: { status?: number; data?: { detail?: unknown } } };
+  if (axiosError.response?.status === 401) {
     return "인증이 필요합니다. 다시 로그인해주세요.";
   }
   
-  if (error.response?.status === 404) {
+  if (axiosError.response?.status === 404) {
     return "세션이나 아이템을 찾을 수 없습니다.";
   }
   
-  if (error.response?.status === 422) {
+  if (axiosError.response?.status === 422) {
     return "요청 데이터가 올바르지 않습니다.";
   }
   
-  const detail = error.response?.data?.detail;
+  const detail = axiosError.response?.data?.detail;
   const msg = toErrorMessage(detail);
   
   return msg || "Wav2Lip 결과 영상 URL을 불러오는데 실패했습니다.";

@@ -10,22 +10,6 @@ import {
   type CreateTrainingSessionResponse
 } from '@/api/training-session';
 import { submitVocalItem } from '@/api/voice-training';
-
-function getErrInfo(err: any): { status?: number; detail?: string } {
-  // axios 스타일
-  const resStatus = err?.response?.status;
-  const resDetail = err?.response?.data?.detail || err?.response?.data?.message;
-
-  // 래퍼 스타일(지금 콘솔 찍힌 형태)
-  const flatStatus = err?.status;
-  const flatDetail = err?.data?.detail || err?.data?.message;
-
-  const status = Number(resStatus ?? flatStatus);
-  const detail = resDetail ?? flatDetail ?? err?.message;
-
-  return { status, detail };
-}
-
 const SoftLoudPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -59,6 +43,7 @@ const SoftLoudPage: React.FC = () => {
     };
 
     loadSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
   // attempt가 변경될 때 리셋 트리거 증가 (첫 마운트 제외)
@@ -73,7 +58,6 @@ const SoftLoudPage: React.FC = () => {
   const handleRecordEnd = (b: Blob, u: string) => {
     setBlob(b);
     setUrl(u);
-    // toast.success('녹음이 완료되었습니다!');
   };
 
   const handleSubmit = async (audioBlob: Blob, graphImageBlob: Blob) => {
@@ -96,13 +80,12 @@ const SoftLoudPage: React.FC = () => {
 
       if (result.session) {
         setSession(result.session);
-        const currentItem = result.session.training_items?.find((item: any) => item.item_index === itemIndex);
-
+        const currentItem = result.session.training_items?.find((item: { item_index: number }) => item.item_index === itemIndex);
+        
         if (currentItem?.is_completed) {
           // 제출 성공 후 자동으로 다음으로 이동
           if (attempt < 3) {
             // 같은 훈련 다음 시도
-            toast.success('음성 파일이 제출되었습니다!');
             setResetTrigger(prev => prev + 1);
             setTimeout(() => {
               navigate(`/voice-training/soft-loud?attempt=${attempt + 1}&sessionId=${sessionId}`);
@@ -118,17 +101,12 @@ const SoftLoudPage: React.FC = () => {
               // ✅ setTimeout 제거 - 바로 이동
               navigate(`/result-list?sessionId=${sessionId}&type=vocal`);
               // 페이지 이동 후 언마운트되므로 setIsSubmitting 불필요
-            } catch (error: any) {
+            } catch (error: unknown) {
               console.error('세션 완료 처리 실패:', error);
-              const { status, detail } = getErrInfo(error);
-              // 오버레이 먼저 해제 후 토스트
-              setIsSubmitting(false);
-              if (status === 400) {
-                toast.error(detail || '모든 아이템이 완료되지 않았습니다.');
-                return;
-              }
-              toast.error(detail || '세션 완료 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
-              return;
+              setResetTrigger(prev => prev + 1);
+              // ✅ setTimeout 제거 - 바로 이동
+              navigate(`/result-list?sessionId=${sessionId}&type=vocal`);
+              // 페이지 이동 후 언마운트되므로 setIsSubmitting 불필요
             }
           }
         } else {
@@ -136,11 +114,11 @@ const SoftLoudPage: React.FC = () => {
           setIsSubmitting(false);  // ✅ 에러 시에만 해제
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('제출 실패:', error);
-      const { detail } = getErrInfo(error);
-      setIsSubmitting(false); // 먼저 오버레이 해제
-      toast.error(detail || '제출에 실패했습니다.');
+      const axiosError = error as { response?: { data?: { detail?: string } } };
+      toast.error(axiosError.response?.data?.detail || '제출에 실패했습니다.');
+      setIsSubmitting(false);  // ✅ 에러 시에만 해제
     }
     // ❌ finally 제거 - 성공 시에는 isSubmitting을 false로 만들지 않음
   };

@@ -43,6 +43,7 @@ const LoudSoftPage: React.FC = () => {
     };
 
     loadSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
   // attempt가 변경될 때 리셋 트리거 증가 (첫 마운트 제외)
@@ -57,7 +58,6 @@ const LoudSoftPage: React.FC = () => {
   const handleRecordEnd = (b: Blob, u: string) => {
     setBlob(b);
     setUrl(u);
-    // toast.success('녹음이 완료되었습니다!');
   };
 
   const handleSubmit = async (audioBlob: Blob, graphImageBlob: Blob) => {
@@ -80,11 +80,9 @@ const LoudSoftPage: React.FC = () => {
 
       if (result.session) {
         setSession(result.session);
-        const currentItem = result.session.training_items?.find((item: any) => item.item_index === itemIndex);
-
+        const currentItem = result.session.training_items?.find((item: { item_index: number }) => item.item_index === itemIndex);
+        
         if (currentItem?.is_completed) {
-          toast.success('음성 파일이 제출되었습니다!');
-
           // 제출 성공 후 자동으로 다음으로 이동
           if (attempt < 3) {
             // 같은 훈련 다음 시도
@@ -106,9 +104,10 @@ const LoudSoftPage: React.FC = () => {
           setIsSubmitting(false);  // ✅ 에러 시에만 해제
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('제출 실패:', error);
-      toast.error(error.response?.data?.detail || '제출에 실패했습니다.');
+      const axiosError = error as { response?: { data?: { detail?: string } } };
+      toast.error(axiosError.response?.data?.detail || '제출에 실패했습니다.');
       setIsSubmitting(false);  // ✅ 에러 시에만 해제
     }
     // ❌ finally 제거

@@ -1,4 +1,5 @@
 import { apiClient } from "../axios";
+import type { AxiosErrorResponse } from "@/types/api";
 
 // 사용자 정보 응답 타입
 export interface UserMeResponse {
@@ -43,9 +44,10 @@ export const checkAuthStatus = async (): Promise<boolean> => {
     // 1단계: /user/me 호출
     await getUserMe();
     return true;
-  } catch (error: any) {
+    } catch (error: unknown) {
+    const axiosError = error as AxiosErrorResponse;
     // 401이 아니면 false 반환
-    if (error.response?.status !== 401) {
+    if (axiosError.response?.status !== 401) {
       return false;
     }
 
@@ -56,7 +58,7 @@ export const checkAuthStatus = async (): Promise<boolean> => {
       // 갱신 성공하면 다시 user/me 호출
       await getUserMe();
       return true;
-    } catch (refreshError) {
+    } catch {
       // 리프레시도 실패하면 false
       return false;
     }

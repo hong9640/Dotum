@@ -1,5 +1,6 @@
 import { apiClient } from "../axios";
 import { clearAuthCookies } from "@/lib/cookies";
+import type { AxiosErrorResponse } from "@/types/api";
 
 // 로그아웃 성공 응답 타입
 export interface LogoutSuccessResponse {
@@ -32,19 +33,19 @@ export const Logout = async (): Promise<LogoutResponse> => {
             // 쿠키에서 access_token과 refresh_token 삭제
             clearAuthCookies();
             
-            console.log("✅ 로그아웃 성공: 쿠키가 정리되었습니다.");
         }
         
         return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("❌ 로그아웃 API 에러:", error);
+        const axiosError = error as AxiosErrorResponse & { response?: { data?: LogoutResponse } };
         
         // API 에러가 발생해도 클라이언트 측 정리는 수행
         clearAuthCookies();
         
         // 에러 응답 반환
-        if (error.response?.data) {
-            return error.response.data;
+        if (axiosError.response?.data) {
+            return axiosError.response.data;
         }
         
         // 네트워크 에러 등 기타 에러

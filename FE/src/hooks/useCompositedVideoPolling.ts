@@ -94,10 +94,6 @@ export function useCompositedVideoPolling(
 
       try {
         triesRef.current += 1;
-        console.log(`📤 Wav2Lip 결과 영상 URL 폴링 시도 ${triesRef.current}/${maxTries}:`, {
-          sessionId,
-          itemId
-        });
 
         const response = await getCompositedVideoUrl(
           sessionId,
@@ -105,7 +101,6 @@ export function useCompositedVideoPolling(
         );
 
         // 200 성공
-        console.log('✅ Wav2Lip 결과 영상 URL 조회 성공:', response.upload_url);
         setUrl(response.upload_url);
         setError(null);
         setLoading(false);
@@ -118,15 +113,15 @@ export function useCompositedVideoPolling(
         if (abortRef.current) {
           abortRef.current = null;
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         // 취소된 요청이면 종료
-        if (axios.isCancel(e) || e?.name === 'CanceledError' || e?.message?.includes('cancel')) {
+        const error = e as { name?: string, message?: string, response?: { status?: number } };
+        if (axios.isCancel(e) || error?.name === 'CanceledError' || error?.message?.includes('cancel')) {
           return;
         }
 
         // 202: 계속 폴링
-        if (e?.response?.status === 202) {
-          console.log(`⏳ Wav2Lip 영상 합성 중... (시도 ${triesRef.current}/${maxTries})`);
+        if (error?.response?.status === 202) {
 
           if (triesRef.current >= maxTries) {
             setLoading(false);
@@ -150,15 +145,13 @@ export function useCompositedVideoPolling(
             nextInterval = Math.min(60_000, Math.floor(baseIntervalMs * factor) + jitter);
           }
 
-          console.log(`⏰ 다음 폴링 예약: ${nextInterval / 1000}초 후`);
           timerRef.current = setTimeout(() => {
-            console.log(`⏰ 예약된 폴링 실행: ${triesRef.current + 1}번째`);
             doPoll();
           }, nextInterval);
         } else {
           // 기타 에러
           setLoading(false);
-          const errorMessage = getCompositedVideoErrorMessage(e);
+          const errorMessage = getCompositedVideoErrorMessage(error);
           setError(errorMessage);
           console.error('❌ Wav2Lip 결과 영상 URL 조회 실패:', errorMessage);
           busyRef.current = false;
