@@ -78,6 +78,9 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
     }
     
     onSubmit(audioBlob, graphImageBlob);
+    
+    // 제출 후 canvas 초기화
+    graphRef.current?.clearCanvas();
   };
 
   return (

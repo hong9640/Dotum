@@ -19,6 +19,7 @@ type Props = {
 export type AudioLevelGraphRef = {
   captureImage: () => Promise<Blob | null>;
   calibrateBaseline: () => void; // 최근 프레임 평균값으로 기준점 캘리브레이션
+  clearCanvas: () => void; // 캔버스 초기화
 };
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
@@ -115,6 +116,25 @@ const AudioLevelGraph = forwardRef<AudioLevelGraphRef, Props>(
           refRmsRef.current = Math.max(mean, EPS);
           calibWindowRef.current = [];
         }
+      },
+      clearCanvas: () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        
+        // 캔버스 전체를 흰색으로 초기화
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, width, height);
+        
+        // dB 눈금 다시 그리기
+        drawDbScale(ctx);
+        
+        // 상태 초기화
+        emaDbRef.current = null;
+        emaDeltaRef.current = null;
+        xRef.current = LEFT_PAD + 1;
+        calibWindowRef.current = [];
       },
     }));
 
