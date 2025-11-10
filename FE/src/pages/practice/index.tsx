@@ -71,18 +71,13 @@ const PracticePage: React.FC = () => {
           return;
         }
         
-        // 현재 아이템이 이미 해당 인덱스와 일치하면 스킵 (중복 로드 방지)
-        if (currentItem && currentItem.item_index === currentItemIndex && !isLoading) {
-          return;
-        }
-        
         // 세션 정보와 현재 아이템을 병렬로 조회
-        const [sessionData, currentItemData] = await Promise.all([
+        const [fetchedSessionData, currentItemData] = await Promise.all([
           getTrainingSession(sessionId),
           getSessionItemByIndex(sessionId, currentItemIndex)
         ]);
         
-        setSessionDataState(sessionData);
+        setSessionDataState(fetchedSessionData);
         setCurrentItem(currentItemData);
         
         // userVideoUrl 설정 (video_url이 있으면 설정)
@@ -120,7 +115,7 @@ const PracticePage: React.FC = () => {
         const targetText = currentItemData.word || currentItemData.sentence || '';
         
         // 세션 데이터 설정 (실제 API 데이터 반영)
-        setSessionData(sessionIdParam, sessionTypeParam, [targetText], sessionData?.total_items || 10, currentItemData.item_index);
+        setSessionData(sessionIdParam, sessionTypeParam, [targetText], fetchedSessionData?.total_items || 10, currentItemData.item_index);
         
         // 아이템이 완료된 경우 결과 페이지 표시
         if (currentItemData.is_completed) {
@@ -634,6 +629,7 @@ const PracticePage: React.FC = () => {
   return (
     <>
       <TrainingLayout
+        key={`${sessionIdParam}-${sessionTypeParam}`}
         currentItem={currentItem}
         sessionData={sessionData}
         onNext={handleNextWord}

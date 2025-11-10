@@ -1,5 +1,26 @@
 import { apiClient } from "../axios";
-import type { PraatMetrics } from "./praat";
+
+// Praat 분석 결과 타입 (나중에 확장될 수 있음)
+export interface PraatResult {
+  id?: number;
+  praat_id?: number;
+  media_id?: number;
+  jitter_local?: number;
+  shimmer_local?: number;
+  hnr?: number;
+  nhr?: number;
+  f0?: number;
+  max_f0?: number;
+  min_f0?: number;
+  cpp?: number;
+  csid?: number;
+  lh_ratio_mean_db?: number;
+  lh_ratio_sd_db?: number;
+  f1?: number;
+  f2?: number;
+  intensity_mean?: number;
+}
+
 
 // 단일 아이템 상세 조회 응답 타입
 export interface SessionItemResponse {
@@ -15,7 +36,7 @@ export interface SessionItemResponse {
   media_file_id?: number | null;
   composited_media_file_id?: number | null;
   has_next?: boolean;
-  praat?: PraatMetrics | null;
+  praat?: PraatResult | null;
 }
 
 // 에러 응답 타입
