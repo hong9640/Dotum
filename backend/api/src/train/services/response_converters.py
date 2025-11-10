@@ -116,7 +116,7 @@ async def build_current_item_response(
         media_file_id=item.media_file_id,
         composited_media_file_id=composited_media_file_id,
         has_next=has_next,
-        praat=(await convert_praat_to_response(praat) if praat else None),
+        praat=(await convert_praat_to_response(praat, item=item) if praat else None),
         integrate_voice_url=integrate_voice_url
     )
 
@@ -336,10 +336,19 @@ def convert_media_to_response(media) -> MediaResponse:
     )
 
 
-async def convert_praat_to_response(praat) -> Optional[PraatFeaturesResponse]:
-    """PraatFeatures 모델을 PraatFeaturesResponse로 변환"""
+async def convert_praat_to_response(
+    praat, 
+    item=None
+) -> Optional[PraatFeaturesResponse]:
+    """PraatFeatures 모델을 PraatFeaturesResponse로 변환
+    
+    Args:
+        praat: PraatFeatures 모델 객체
+        item: TrainingItem 모델 객체 (image_url 추가용)
+    """
     if praat is None:
         return None
+    
     return PraatFeaturesResponse(
         praat_id=praat.id,
         media_id=praat.media_id,
@@ -356,5 +365,6 @@ async def convert_praat_to_response(praat) -> Optional[PraatFeaturesResponse]:
         lh_ratio_sd_db=praat.lh_ratio_sd_db,
         f1=praat.f1,
         f2=praat.f2,
-        intensity_mean=praat.intensity_mean
+        intensity_mean=praat.intensity_mean,
+        image_url=item.image_url if item else None
     )
