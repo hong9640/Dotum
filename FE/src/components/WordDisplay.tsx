@@ -1,6 +1,6 @@
 import React from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+// import { ChevronLeft, ChevronRight } from "lucide-react";
+// import { Button } from "@/components/ui/button";
 
 interface WordDisplayProps {
   targetWord: string;
@@ -13,10 +13,10 @@ interface WordDisplayProps {
 
 const WordDisplay: React.FC<WordDisplayProps> = ({
   targetWord,
-  onPrevious,
-  onNext,
-  showPrevious = false,
-  showNext = false,
+  onPrevious: _onPrevious,
+  onNext: _onNext,
+  showPrevious: _showPrevious = false,
+  showNext: _showNext = false,
   type = 'word'
 }) => {
   return (

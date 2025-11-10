@@ -18,7 +18,7 @@ const PraatMetricTile: React.FC<MetricTileProps> = ({
   title,
   value,
   unit,
-  normalText,
+  normalText: _normalText,
   status,
   className,
 }) => {
