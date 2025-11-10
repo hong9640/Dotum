@@ -31,6 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Toaster } from '@/components/ui/sonner';
 
 const AppContent: React.FC<{
   isLoggedIn: boolean;

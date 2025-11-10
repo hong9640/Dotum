@@ -86,10 +86,10 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ isLoggedIn, onLogout }) =
               {/* <span className="mr-1 text-3xl font-semibold text-slate-700 leading-10">
                 🌿
               </span> */}
-              <span className="mr-1.5 text-2xl sm:text-3xl font-semibold text-slate-700 leading-10">
+              <span className="mr-1.5 text-2xl lg:text-3xl font-semibold text-slate-700 leading-10">
                 🌱
               </span>
-              <span className="text-3xl sm:text-4xl font-semibold text-slate-700 leading-10">
+              <span className="text-3xl lg:text-4xl font-semibold text-slate-700 leading-10">
                 돋음
               </span>
             </a>
@@ -100,27 +100,27 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ isLoggedIn, onLogout }) =
             <a
               href="/voice-training"
               onClick={handleMaxVoiceTraining}
-              className={`hidden sm:block px-3 py-2 text-2xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 [@media(min-width:850px)]:text-3xl ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              className={`hidden sm:block px-3 py-2 text-2xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 lg:text-3xl ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             >
               발성 연습
             </a>
             <a
               href="/practice"
               onClick={handleWordTraining}
-              className={`hidden sm:block px-3 py-2 text-2xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 [@media(min-width:850px)]:text-3xl ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              className={`hidden sm:block px-3 py-2 text-2xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 lg:text-3xl ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             >
               단어 연습
             </a>
             <a
               href="/practice"
               onClick={handleSentenceTraining}
-              className={`hidden sm:block px-3 py-2 text-2xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 [@media(min-width:850px)]:text-3xl ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              className={`hidden sm:block px-3 py-2 text-2xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 lg:text-3xl ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             >
               문장 연습
             </a>
             <Link
               to="/training-history"
-              className="hidden sm:block px-3 py-2 text-2xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 [@media(min-width:850px)]:text-3xl"
+              className="hidden sm:block px-3 py-2 text-2xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 lg:text-3xl"
             >
               훈련 기록
             </Link>
@@ -129,9 +129,9 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ isLoggedIn, onLogout }) =
               <button
                 type="button"
                 onClick={onLogout}
-                className="flex items-center gap-2 px-3 py-2 text-2xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 [@media(min-width:850px)]:text-3xl"
+                className="flex items-center gap-2 px-3 py-2 text-2xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 lg:text-3xl"
               >
-                <LogOut className="h-7 w-7 [@media(min-width:850px)]:h-8 [@media(min-width:850px)]:w-8" strokeWidth={2.5} />
+                <LogOut className="h-7 w-7 lg:h-8 lg:w-8" strokeWidth={2.5} />
                 <span className="hidden md:flex">로그아웃</span>
               </button>
             ) : (

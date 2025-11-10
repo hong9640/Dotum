@@ -299,7 +299,7 @@ const AudioLevelGraph = forwardRef<AudioLevelGraphRef, Props>(
     }, []);
 
     return (
-      <div className="border border-slate-200 rounded-lg p-2 bg-white">
+      <div className="border border-slate-200 rounded-lg p-2 bg-white overflow-hidden">
         <canvas
           ref={canvasRef}
           width={width}
