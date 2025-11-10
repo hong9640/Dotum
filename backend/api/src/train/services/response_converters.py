@@ -111,7 +111,6 @@ async def build_current_item_response(
         word=word,
         sentence=sentence,
         is_completed=item.is_completed,
-        completed_at=item.completed_at,
         video_url=video_url,
         composited_video_url=composited_video_url,
         media_file_id=item.media_file_id,

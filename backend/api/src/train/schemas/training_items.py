@@ -38,7 +38,6 @@ class CurrentItemResponse(BaseModel):
     word: Optional[str] = None
     sentence: Optional[str] = None
     is_completed: bool
-    completed_at: Optional[datetime] = None
     video_url: Optional[str] = None
     composited_video_url: Optional[str] = None
     media_file_id: Optional[int] = None
