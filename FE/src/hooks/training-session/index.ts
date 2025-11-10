@@ -60,10 +60,10 @@ export const useTrainingSession = ({ onSessionCreated }: UseTrainingSessionProps
 
   /**
    * 문장 훈련 세션 생성
-   * @param itemCount 아이템 개수 (기본값: 5)
+   * @param itemCount 아이템 개수 (기본값: 10)
    * @param sessionName 세션 이름 (선택사항)
    */
-  const createSentenceSession = async (itemCount: number = 5, sessionName?: string) => {
+  const createSentenceSession = async (itemCount: number = 10, sessionName?: string) => {
     setIsLoading(true);
     setApiError(null);
 
