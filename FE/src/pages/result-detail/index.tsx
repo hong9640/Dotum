@@ -69,7 +69,8 @@ const ResultDetailPage: React.FC = () => {
         
         // Praat 데이터 설정 (아이템 상세 조회 API 응답에 포함된 praat 데이터 사용)
         if (itemDetailData.praat) {
-          setPraatData(itemDetailData.praat);
+          // praat_id를 id로 매핑하여 PraatMetrics 타입에 맞춤
+          setPraatData({ ...itemDetailData.praat, id: itemDetailData.praat.id ?? itemDetailData.praat.praat_id ?? 0 } as PraatMetrics);
         } else {
           setPraatData(null);
         }
