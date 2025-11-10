@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useSearchParams } from 'react-router-dom';
 import NavigationBar from '@/components/NavigationBar';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import ScrollToTop from '@/components/ScrollToTop';
@@ -31,6 +31,16 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Toaster } from '@/components/ui/sonner';
+
+// PracticePage를 sessionId와 type으로 완전히 새로 생성하는 Wrapper
+const PracticePageWrapper: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const sessionId = searchParams.get('sessionId');
+  const type = searchParams.get('type');
+  
+  // sessionId와 type이 바뀔 때마다 PracticePage를 완전히 새로 생성
+  return <PracticePage key={`${sessionId}-${type}`} />;
+};
 
 const AppContent: React.FC<{
   isLoggedIn: boolean;
@@ -99,7 +109,7 @@ const AppContent: React.FC<{
             path="/practice" 
             element={
               <ProtectedRoute isLoggedIn={isLoggedIn} requireAuth={true}>
-                <PracticePage />
+                <PracticePageWrapper />
               </ProtectedRoute>
             } 
           />
