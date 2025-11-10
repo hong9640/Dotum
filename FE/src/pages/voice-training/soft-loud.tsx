@@ -10,22 +10,6 @@ import {
   type CreateTrainingSessionResponse
 } from '@/api/training-session';
 import { submitVocalItem } from '@/api/voice-training';
-
-function getErrInfo(err: any): { status?: number; detail?: string } {
-  // axios 스타일
-  const resStatus = err?.response?.status;
-  const resDetail = err?.response?.data?.detail || err?.response?.data?.message;
-
-  // 래퍼 스타일(지금 콘솔 찍힌 형태)
-  const flatStatus = err?.status;
-  const flatDetail = err?.data?.detail || err?.data?.message;
-
-  const status = Number(resStatus ?? flatStatus);
-  const detail = resDetail ?? flatDetail ?? err?.message;
-
-  return { status, detail };
-}
-
 const SoftLoudPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -117,7 +101,7 @@ const SoftLoudPage: React.FC = () => {
               // ✅ setTimeout 제거 - 바로 이동
               navigate(`/result-list?sessionId=${sessionId}&type=vocal`);
               // 페이지 이동 후 언마운트되므로 setIsSubmitting 불필요
-            } catch (error: any) {
+            } catch (error: unknown) {
               console.error('세션 완료 처리 실패:', error);
               setResetTrigger(prev => prev + 1);
               // ✅ setTimeout 제거 - 바로 이동
