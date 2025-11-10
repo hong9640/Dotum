@@ -20,7 +20,7 @@ const PraatDetailPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [patientInfo, setPatientInfo] = useState<PatientInfo | null>(null);
-  const [itemId, setItemId] = useState<number | undefined>(undefined);
+  // const [itemId, setItemId] = useState<number | undefined>(undefined);
   const [praatValues, setPraatValues] = useState<PraatValues>({});
   const [isVocalExercise, setIsVocalExercise] = useState(false);
   const [sessionType, setSessionType] = useState<string | null>(null);
@@ -88,11 +88,11 @@ const PraatDetailPage: React.FC = () => {
         }
 
         // item_id 저장
-        if (itemDetailData.item_id) {
-          setItemId(itemDetailData.item_id);
-        } else {
-          console.error("item_id가 없습니다");
-        }
+        // if (itemDetailData.item_id) {
+        //   setItemId(itemDetailData.item_id);
+        // } else {
+        //   console.error("item_id가 없습니다");
+        // }
 
         // composited_video_url 설정 (발성연습일 때 사용)
         if (isVocal && itemDetailData.composited_video_url) {
@@ -193,10 +193,10 @@ const PraatDetailPage: React.FC = () => {
         // 해당 itemIndex의 아이템 데이터 조회
         const itemDetailData = await getSessionItemByIndex(sessionId, selectedItemIndex);
         
-        // item_id 업데이트 (Praat API 호출에 필요)
-        if (itemDetailData.item_id) {
-          setItemId(itemDetailData.item_id);
-        }
+        // // item_id 업데이트 (Praat API 호출에 필요)
+        // if (itemDetailData.item_id) {
+        //   setItemId(itemDetailData.item_id);
+        // }
         
         // composited_video_url 업데이트
         if (itemDetailData.composited_video_url) {
