@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -52,14 +52,19 @@ export const useSignup = ({ onSignup }: UseSignupProps = {}) => {
   } = form;
 
   const emailValue = watch("username") || "";
+  const prevEmailRef = useRef<string>("");
   
-  // 이메일 값이 변경되면 중복 확인 상태 리셋
+  // 이메일 값이 실제로 변경되면 중복 확인 상태 리셋
   useEffect(() => {
-    if (isEmailVerified) {
-      setIsEmailVerified(false);
-      setEmailVerificationStatus(null);
+    if (emailValue !== prevEmailRef.current) {
+      if (isEmailVerified) {
+        setIsEmailVerified(false);
+        setEmailVerificationStatus(null);
+      }
+      prevEmailRef.current = emailValue;
     }
-  }, [emailValue, isEmailVerified]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [emailValue]);
 
   // 이메일 인증 체크 함수 (AlertDialog 표시)
   const checkEmailVerification = () => {
@@ -112,32 +117,33 @@ export const useSignup = ({ onSignup }: UseSignupProps = {}) => {
   const handleEmailVerification = async () => {
     if (!emailValue) {
       setEmailVerificationStatus("이메일을 입력해주세요.");
+      setIsEmailVerified(false);
       return;
     }
 
     try {
       const result = await CheckEmailDuplication(emailValue);
       
-            if (result.status === "SUCCESS" && !result.data.is_duplicate) {
-                setIsEmailVerified(true);
-                setEmailVerificationStatus("사용 가능한 이메일입니다.");
-            } else {
+      // SUCCESS 상태이고 중복이 아닌 경우
+      if (result.status === "SUCCESS" && result.data?.is_duplicate === false) {
+        setIsEmailVerified(true);
+        setEmailVerificationStatus("사용 가능한 이메일입니다.");
+      } else {
+        // 중복이거나 다른 에러
         setIsEmailVerified(false);
-        const errorMessage = result.data.message || "";
-        if (errorMessage) {
-          setEmailVerificationStatus(errorMessage);
-        }
+        const errorMessage = result.data?.message || "이메일 확인에 실패했습니다.";
+        setEmailVerificationStatus(errorMessage);
       }
     } catch (error: unknown) {
       // 네트워크 에러 등 예외 상황
       console.error("이메일 확인 에러:", error);
-      // 서버 응답이 있으면 사용, 없으면 빈 문자열
+      setIsEmailVerified(false);
+      
       const axiosError = error as AxiosErrorResponse;
       const errorMessage = axiosError.response?.data?.error?.message || 
-                          axiosError.response?.data?.message || "";
-      if (errorMessage) {
-        setEmailVerificationStatus(errorMessage);
-      }
+                          axiosError.response?.data?.message || 
+                          "이메일 확인 중 오류가 발생했습니다.";
+      setEmailVerificationStatus(errorMessage);
     }
   };
 
