@@ -32,7 +32,7 @@ const PraatSectionCard: React.FC<PraatSectionCardProps> = ({
               </span>
             </span>
           ) : null}
-          <h3 className="text-gray-900 text-xl font-semibold font-['Roboto'] leading-8">{title}</h3>
+          <h3 className="text-gray-900 text-lg sm:text-xl font-semibold leading-8">{title}</h3>
         </div>
       </CardHeader>
       <CardContent>{children}</CardContent>

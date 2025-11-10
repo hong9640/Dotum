@@ -45,7 +45,7 @@ const RecordingTabs: React.FC<RecordingTabsProps> = ({
                   strokeWidth={2.5}
                 />
                 <div
-                  className={`text-center justify-center text-base font-semibold font-['Roboto'] leading-6 whitespace-nowrap ${
+                  className={`text-center justify-center text-base font-semibold leading-6 whitespace-nowrap ${
                     isActive
                       ? "text-blue-600"
                       : "text-gray-600"
