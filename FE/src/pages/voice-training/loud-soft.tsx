@@ -4,9 +4,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import WaveRecorder from './components/WaveRecorder';
 import PromptCardLoudSoft from './components/PromptCardLoudSoft';
 import { toast } from 'sonner';
-import { 
+import {
   getTrainingSession,
-  type CreateTrainingSessionResponse 
+  type CreateTrainingSessionResponse
 } from '@/api/training-session';
 import { submitVocalItem } from '@/api/voice-training';
 
@@ -15,7 +15,7 @@ const LoudSoftPage: React.FC = () => {
   const navigate = useNavigate();
   const attempt = parseInt(searchParams.get('attempt') || '1', 10);
   const sessionIdParam = searchParams.get('sessionId');
-  
+
   const [_blob, setBlob] = useState<Blob | null>(null);
   const [_url, setUrl] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -70,7 +70,7 @@ const LoudSoftPage: React.FC = () => {
     try {
       // Loud-Soft는 item_index 9, 10, 11 (attempt + 8)
       const itemIndex = attempt + 8;
-      
+
       const result = await submitVocalItem({
         sessionId,
         itemIndex,
@@ -120,15 +120,15 @@ const LoudSoftPage: React.FC = () => {
       <div className="max-w-4xl mx-auto">
         <Card className="border-0 shadow-none">
           <CardContent className="p-6 sm:p-8">
-            <PromptCardLoudSoft 
-              main="아아아아아" 
+            <PromptCardLoudSoft
+              main="아아아아아"
               subtitle="순간 강약 전환 훈련"
               attempt={attempt}
               totalAttempts={3}
             />
 
             <div className="mb-6">
-              <WaveRecorder 
+              <WaveRecorder
                 onRecordEnd={handleRecordEnd}
                 onSubmit={handleSubmit}
                 isSubmitting={isSubmitting}

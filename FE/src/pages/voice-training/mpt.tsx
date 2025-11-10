@@ -4,10 +4,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import WaveRecorder from './components/WaveRecorder';
 import PromptCardMPT from './components/PromptCardMPT';
 import { toast } from 'sonner';
-import { 
-  createTrainingSession, 
+import {
+  createTrainingSession,
   getTrainingSession,
-  type CreateTrainingSessionResponse 
+  type CreateTrainingSessionResponse
 } from '@/api/training-session';
 import { submitVocalItem } from '@/api/voice-training';
 
@@ -16,7 +16,7 @@ const MPTPage: React.FC = () => {
   const navigate = useNavigate();
   const attempt = parseInt(searchParams.get('attempt') || '1', 10);
   const sessionIdParam = searchParams.get('sessionId');
-  
+
   const [_blob, setBlob] = useState<Blob | null>(null);
   const [_url, setUrl] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,7 +33,7 @@ const MPTPage: React.FC = () => {
         try {
           // 오늘 날짜를 YYYY-MM-DD 형식으로
           const today = new Date().toISOString().split('T')[0];
-          
+
           const newSession = await createTrainingSession({
             session_name: '발성 연습',
             type: 'vocal',
@@ -90,7 +90,7 @@ const MPTPage: React.FC = () => {
     try {
       // MPT는 item_index 0, 1, 2 (attempt - 1)
       const itemIndex = attempt - 1;
-      
+
       const result = await submitVocalItem({
         sessionId,
         itemIndex,
@@ -142,8 +142,8 @@ const MPTPage: React.FC = () => {
         <Card className="border-0 shadow-none">
           <CardContent className="p-6 sm:p-8">
             {/* 프롬프트 카드 */}
-            <PromptCardMPT 
-              main="아" 
+            <PromptCardMPT
+              main="아"
               subtitle="최대 발성 지속 시간 훈련"
               attempt={attempt}
               totalAttempts={3}
@@ -151,8 +151,8 @@ const MPTPage: React.FC = () => {
 
             {/* 녹음 영역 */}
             <div className="mb-6">
-              <WaveRecorder 
-                onRecordEnd={handleRecordEnd} 
+              <WaveRecorder
+                onRecordEnd={handleRecordEnd}
                 onSubmit={handleSubmit}
                 isSubmitting={isSubmitting}
                 resetTrigger={resetTrigger}

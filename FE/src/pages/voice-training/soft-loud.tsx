@@ -4,19 +4,34 @@ import { Card, CardContent } from '@/components/ui/card';
 import WaveRecorder from './components/WaveRecorder';
 import PromptCardSoftLoud from './components/PromptCardSoftLoud';
 import { toast } from 'sonner';
-import { 
+import {
   getTrainingSession,
   completeTrainingSession,
-  type CreateTrainingSessionResponse 
+  type CreateTrainingSessionResponse
 } from '@/api/training-session';
 import { submitVocalItem } from '@/api/voice-training';
+
+function getErrInfo(err: any): { status?: number; detail?: string } {
+  // axios 스타일
+  const resStatus = err?.response?.status;
+  const resDetail = err?.response?.data?.detail || err?.response?.data?.message;
+
+  // 래퍼 스타일(지금 콘솔 찍힌 형태)
+  const flatStatus = err?.status;
+  const flatDetail = err?.data?.detail || err?.data?.message;
+
+  const status = Number(resStatus ?? flatStatus);
+  const detail = resDetail ?? flatDetail ?? err?.message;
+
+  return { status, detail };
+}
 
 const SoftLoudPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const attempt = parseInt(searchParams.get('attempt') || '1', 10);
   const sessionIdParam = searchParams.get('sessionId');
-  
+
   const [_blob, setBlob] = useState<Blob | null>(null);
   const [_url, setUrl] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -71,7 +86,7 @@ const SoftLoudPage: React.FC = () => {
     try {
       // Soft-Loud는 item_index 12, 13, 14 (attempt + 11)
       const itemIndex = attempt + 11;
-      
+
       const result = await submitVocalItem({
         sessionId,
         itemIndex,
@@ -102,7 +117,7 @@ const SoftLoudPage: React.FC = () => {
               // ✅ setTimeout 제거 - 바로 이동
               navigate(`/result-list?sessionId=${sessionId}&type=vocal`);
               // 페이지 이동 후 언마운트되므로 setIsSubmitting 불필요
-            } catch (error) {
+            } catch (error: any) {
               console.error('세션 완료 처리 실패:', error);
               setResetTrigger(prev => prev + 1);
               // ✅ setTimeout 제거 - 바로 이동
@@ -131,15 +146,15 @@ const SoftLoudPage: React.FC = () => {
       <div className="max-w-4xl mx-auto">
         <Card className="border-0 shadow-none">
           <CardContent className="p-6 sm:p-8">
-            <PromptCardSoftLoud 
-              main="아아아아아" 
+            <PromptCardSoftLoud
+              main="아아아아아"
               subtitle="연속 강약 조절 훈련"
               attempt={attempt}
               totalAttempts={3}
             />
 
             <div className="mb-6">
-              <WaveRecorder 
+              <WaveRecorder
                 onRecordEnd={handleRecordEnd}
                 onSubmit={handleSubmit}
                 isSubmitting={isSubmitting}

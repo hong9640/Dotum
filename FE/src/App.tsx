@@ -259,6 +259,7 @@ const App: React.FC = () => {
         handleLogout={handleLogout}
         handleSignup={handleSignup}
       />
+      <Toaster position="top-center" richColors closeButton />
     </Router>
   );
 };
