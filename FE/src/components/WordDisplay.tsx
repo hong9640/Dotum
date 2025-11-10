@@ -8,6 +8,7 @@ interface WordDisplayProps {
   onNext?: () => void;
   showPrevious?: boolean;
   showNext?: boolean;
+  type?: 'word' | 'sentence' | 'vocal';
 }
 
 const WordDisplay: React.FC<WordDisplayProps> = ({
@@ -15,7 +16,8 @@ const WordDisplay: React.FC<WordDisplayProps> = ({
   onPrevious,
   onNext,
   showPrevious = false,
-  showNext = false
+  showNext = false,
+  type = 'word'
 }) => {
   return (
     <div className="flex flex-col items-center gap-6">
@@ -75,7 +77,7 @@ const WordDisplay: React.FC<WordDisplayProps> = ({
         )}
       </div>
       <div className="text-center text-slate-500 text-xl sm:text-2xl md:text-3xl font-semibold">
-        위 단어를 또박또박 발음해주세요
+        {type?.toLowerCase() === 'sentence' ? '위 문장을 또박또박 발음해주세요' : '위 단어를 또박또박 발음해주세요'}
       </div>
     </div>
   );

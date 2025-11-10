@@ -150,7 +150,7 @@ export const createTrainingSession = async (
  * @returns 훈련 세션 생성 결과
  */
 export const createWordTrainingSession = async (
-  itemCount: number = 2,
+  itemCount: number = 10,
   sessionName?: string
 ): Promise<CreateTrainingSessionResponse> => {
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
