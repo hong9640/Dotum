@@ -228,12 +228,13 @@ class AIService:
                     return None
                 
                 # 후처리: 원본 해상도로 리사이즈 (고품질 스케일링) + FPS 조정
-                logger.info(f"Resizing output to original resolution: {original_resolution} @ {target_fps}fps")
+                logger.info(f"Resizing output to original resolution: {original_resolution} @ {target_fps}fps with HIGH QUALITY")
                 resize_success = await self._resize_video_to_resolution(
                     input_path=output_temp,
                     output_path=output_local,
                     resolution=original_resolution,
-                    target_fps=target_fps
+                    target_fps=target_fps,
+                    original_video_path=face_local  # 원본 영상 경로 전달 (비트레이트 추출용)
                 )
                 
                 if not resize_success or not os.path.exists(output_local):
@@ -288,40 +289,23 @@ class AIService:
             logger.error(f"Failed to get video resolution: {e}")
             return "1280x720"  # 기본값
     
-    async def _resize_video_to_resolution(
-        self,
-        input_path: str,
-        output_path: str,
-        resolution: str,
-        target_fps: int = 18
-    ) -> bool:
+    async def _get_video_bitrate(self, video_path: str) -> str:
         """
-        FFmpeg를 사용하여 영상을 특정 해상도로 리사이즈
+        FFprobe를 사용하여 영상의 비트레이트를 추출
         
-        Args:
-            input_path: 입력 영상 경로
-            output_path: 출력 영상 경로
-            resolution: 목표 해상도 "widthxheight" (예: "1280x720")
-            target_fps: 목표 프레임률 (기본값: 25fps)
-            
         Returns:
-            bool: 성공 여부
+            str: 비트레이트 (예: "5000k") 또는 None
         """
         try:
-            # lanczos 알고리즘 사용 (고품질 스케일링) + FPS 조정
             cmd = [
-                "ffmpeg",
-                "-y",  # 기존 파일 덮어쓰기
-                "-i", input_path,
-                "-vf", f"scale={resolution}:flags=lanczos,fps={target_fps}",  # 고품질 스케일링 + FPS 설정
-                "-c:v", "libx264",  # H.264 코덱
-                "-preset", "medium",  # 인코딩 속도/품질 균형
-                "-crf", "18",  # 품질 (18 = 시각적으로 무손실에 가까움)
-                "-c:a", "copy",  # 오디오는 복사 (재인코딩 안함)
-                output_path
+                "ffprobe",
+                "-v", "error",
+                "-select_streams", "v:0",
+                "-show_entries", "stream=bit_rate",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                video_path
             ]
             
-            logger.info(f"Resizing video: {' '.join(cmd)}")
             result = subprocess.run(
                 cmd,
                 capture_output=True,
@@ -329,7 +313,93 @@ class AIService:
                 check=True
             )
             
-            logger.info(f"Video resized successfully to {resolution}")
+            bitrate = result.stdout.strip()
+            if bitrate and bitrate.isdigit():
+                # bps를 kbps로 변환
+                bitrate_kbps = int(int(bitrate) / 1000)
+                logger.info(f"Detected video bitrate: {bitrate_kbps}k")
+                return f"{bitrate_kbps}k"
+            
+            logger.warning("Could not detect bitrate, will use CRF mode")
+            return None
+            
+        except subprocess.CalledProcessError as e:
+            logger.error(f"FFprobe bitrate detection failed: {e.stderr}")
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get video bitrate: {e}")
+            return None
+    
+    async def _resize_video_to_resolution(
+        self,
+        input_path: str,
+        output_path: str,
+        resolution: str,
+        target_fps: int = 18,
+        original_video_path: str = None
+    ) -> bool:
+        """
+        FFmpeg를 사용하여 영상을 특정 해상도로 리사이즈 (최고 품질)
+        
+        Args:
+            input_path: 입력 영상 경로
+            output_path: 출력 영상 경로
+            resolution: 목표 해상도 "widthxheight" (예: "1280x720")
+            target_fps: 목표 프레임률 (기본값: 18fps)
+            original_video_path: 원본 영상 경로 (비트레이트 추출용)
+            
+        Returns:
+            bool: 성공 여부
+        """
+        try:
+            # 원본 비트레이트 추출 (원본 화질 유지)
+            original_bitrate = None
+            if original_video_path:
+                original_bitrate = await self._get_video_bitrate(original_video_path)
+            
+            # 최고 품질 인코딩 설정
+            cmd = [
+                "ffmpeg",
+                "-y",  # 기존 파일 덮어쓰기
+                "-i", input_path,
+                "-vf", f"scale={resolution}:flags=lanczos,fps={target_fps}",  # 고품질 스케일링 + FPS 설정
+                "-c:v", "libx264",  # H.264 코덱
+                "-preset", "slow",  # 느리지만 최고 품질 (medium -> slow)
+            ]
+            
+            # 비트레이트 기반 또는 CRF 기반 인코딩
+            if original_bitrate:
+                # 원본 비트레이트 사용 (원본과 동일한 화질)
+                cmd.extend([
+                    "-b:v", original_bitrate,
+                    "-maxrate", original_bitrate,
+                    "-bufsize", f"{int(original_bitrate.replace('k', '')) * 2}k",
+                ])
+                logger.info(f"Using original bitrate: {original_bitrate}")
+            else:
+                # CRF 모드: 15 (거의 무손실 수준, 18 -> 15)
+                cmd.extend(["-crf", "15"])
+                logger.info("Using CRF 15 (near-lossless quality)")
+            
+            # 추가 품질 옵션
+            cmd.extend([
+                "-pix_fmt", "yuv420p",  # 호환성 최대화
+                "-profile:v", "high",   # High Profile (최고 압축 효율)
+                "-level", "4.2",        # Level 4.2 (4K 지원)
+                "-movflags", "+faststart",  # 웹 스트리밍 최적화
+                "-c:a", "copy",  # 오디오는 복사 (재인코딩 안함)
+                output_path
+            ])
+            
+            logger.info(f"High-quality encoding: {' '.join(cmd)}")
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            
+            logger.info(f"Video resized successfully to {resolution} with high quality")
             return True
             
         except subprocess.CalledProcessError as e:
