@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import WaveRecorder from './components/WaveRecorder';
@@ -24,6 +24,7 @@ const CrescendoPage: React.FC = () => {
   );
   const [_session, setSession] = useState<CreateTrainingSessionResponse | null>(null);
   const [resetTrigger, setResetTrigger] = useState(0);
+  const promptCardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const loadSession = async () => {
@@ -53,6 +54,16 @@ const CrescendoPage: React.FC = () => {
       setResetTrigger(prev => prev + 1);
     }
     prevAttemptRef.current = attempt;
+  }, [attempt]);
+
+  // 페이지 진입 시 또는 attempt 변경 시 PromptCardCrescendo로 스크롤
+  useEffect(() => {
+    if (promptCardRef.current) {
+      promptCardRef.current.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+    }
   }, [attempt]);
 
   const handleRecordEnd = (b: Blob, u: string) => {
@@ -119,13 +130,15 @@ const CrescendoPage: React.FC = () => {
     <div className="w-full min-h-[calc(100vh-96px)] p-4 sm:p-8">
       <div className="max-w-4xl mx-auto">
         <Card className="border-0 shadow-none">
+        <div id="prompt-card-crescendo" ref={promptCardRef}>
+
           <CardContent className="p-6 sm:p-8">
-            <PromptCardCrescendo 
-              main="아아아아" 
-              subtitle="크레셴도 훈련"
-              attempt={attempt}
-              totalAttempts={3}
-            />
+              <PromptCardCrescendo 
+                main="아아아아" 
+                subtitle="크레셴도 훈련"
+                attempt={attempt}
+                totalAttempts={3}
+              />
 
             <div className="mb-6">
               <WaveRecorder 
@@ -136,6 +149,7 @@ const CrescendoPage: React.FC = () => {
               />
             </div>
           </CardContent>
+          </div>
         </Card>
       </div>
     </div>

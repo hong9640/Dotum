@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import ProgressHeader from "@/components/ProgressHeader";
 import WordDisplay from "@/components/WordDisplay";
 import { type SessionItemResponse } from "@/api/training-session/sessionItemSearch";
@@ -19,6 +19,18 @@ const TrainingLayout: React.FC<TrainingLayoutProps> = ({
   onPrevious,
   children
 }) => {
+  const wordDisplayRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // 컴포넌트가 마운트되거나 currentItem이 변경될 때 WordDisplay로 스크롤
+    if (wordDisplayRef.current) {
+      wordDisplayRef.current.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+    }
+  }, [currentItem]);
+
   return (
     <div className="min-h-screen">
       <div className="min-h-[1105px] px-8 sm:px-12 md:px-24 lg:px-32 py-6 flex justify-center items-start">
@@ -30,14 +42,16 @@ const TrainingLayout: React.FC<TrainingLayoutProps> = ({
           />
 
           {/* 발음할 단어 표시 */}
-          <WordDisplay 
-            targetWord={currentItem ? (currentItem.word || currentItem.sentence || '') : ''}
-            onNext={onNext}
-            onPrevious={onPrevious}
-            showNext={currentItem ? currentItem.has_next : false}
-            showPrevious={currentItem ? currentItem.item_index > 0 : false}
-            type={sessionData?.type}
-          />
+          <div id="word-display" ref={wordDisplayRef}>
+            <WordDisplay 
+              targetWord={currentItem ? (currentItem.word || currentItem.sentence || '') : ''}
+              onNext={onNext}
+              onPrevious={onPrevious}
+              showNext={currentItem ? currentItem.has_next : false}
+              showPrevious={currentItem ? currentItem.item_index > 0 : false}
+              type={sessionData?.type}
+            />
+          </div>
 
           {/* 하위 컴포넌트 (practice 또는 result) */}
           {children}
