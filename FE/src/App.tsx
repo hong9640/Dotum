@@ -233,7 +233,8 @@ const App: React.FC = () => {
   };
 
   const handleSignup = () => {
-    setIsLoggedIn(true);
+    // 회원가입 후 자동 로그인하지 않음
+    // 사용자가 로그인 페이지에서 직접 로그인해야 함
   };
 
   // 초기 로드 시 인증 상태 확인 (리다이렉트 없이)
@@ -270,7 +271,7 @@ const App: React.FC = () => {
         handleLogout={handleLogout}
         handleSignup={handleSignup}
       />
-      <Toaster position="top-center" richColors closeButton />
+      <Toaster position="top-center" richColors closeButton duration={1000} />
     </Router>
   );
 };

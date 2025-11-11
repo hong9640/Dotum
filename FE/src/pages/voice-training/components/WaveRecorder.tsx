@@ -2,10 +2,19 @@ import React, { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { RotateCcw, Upload, Loader2 } from 'lucide-react';
 import { useAudioRecorder } from '@/hooks/useAudioRecorder';
-import { useMediaQuery } from '@/hooks/useMediaQuery'; // 1. 훅 임포트
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import RecordToggle from './RecordToggle';
 import AudioPlayer from './AudioPlayer';
 import AudioLevelGraph, { type AudioLevelGraphRef } from './AudioLevelGraph';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface WaveRecorderProps {
   onRecordEnd?: (blob: Blob, url: string) => void;
@@ -29,7 +38,8 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
     startRecording, 
     stopRecording, 
     reset,
-    analyser
+    analyser,
+    permissionError
   } = useAudioRecorder();
   const graphRef = useRef<AudioLevelGraphRef>(null);
   const prevResetTriggerRef = useRef(resetTrigger);
@@ -178,6 +188,40 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
 
       <AudioPlayer src={audioUrl} />
       </div>
+      
+      {/* 권한 에러 다이얼로그 */}
+      <AlertDialog open={!!permissionError}>
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader className="text-center space-y-4">
+            <AlertDialogTitle className="text-[30px]">마이크 접근 실패</AlertDialogTitle>
+            <div className="text-[20px] text-muted-foreground space-y-3">
+              <p>브라우저에서 권한이 차단된 상태입니다.</p>
+              <div className="text-left bg-slate-100 p-4 rounded-lg space-y-2 text-[18px]">
+                <p className="font-semibold">권한 허용 방법:</p>
+                <ol className="list-decimal list-inside space-y-1">
+                  <li>주소창 왼쪽의 ℹ️ 아이콘 클릭</li>
+                  <li>"마이크" 권한 변경</li>
+                  <li>페이지 새로고침</li>
+                </ol>
+              </div>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-3 sm:flex-col">
+            <AlertDialogAction 
+              onClick={() => window.location.reload()}
+              className="w-full text-[30px] h-16"
+            >
+              페이지 새로고침
+            </AlertDialogAction>
+            <AlertDialogCancel 
+              onClick={() => window.history.back()}
+              className="w-full text-[30px] h-16 m-0"
+            >
+              취소
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

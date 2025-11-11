@@ -26,7 +26,7 @@ export function TrainingSetCard({ trainingSet, onClick }: TrainingSetCardProps) 
       const minutes = date.getMinutes();
       
       return '훈련일: '+`${year}년 ${month}월 ${day}일 ${hours}시 ${minutes}분`;
-    } catch (error) {
+    } catch {
       // 파싱 실패 시 원본 문자열 반환
       return '훈련일: '+dateString;
     }
