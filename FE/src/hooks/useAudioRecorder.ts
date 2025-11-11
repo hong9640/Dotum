@@ -1,6 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
 import RecordRTC from 'recordrtc';
-import { toast } from 'sonner';
 
 export interface UseAudioRecorderReturn {
   isRecording: boolean;
@@ -12,6 +11,7 @@ export interface UseAudioRecorderReturn {
   stream: MediaStream | null;
   analyser: AnalyserNode | null;
   audioContext: AudioContext | null;
+  permissionError: string | null;
 }
 
 export function useAudioRecorder(): UseAudioRecorderReturn {
@@ -21,6 +21,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+  const [permissionError, setPermissionError] = useState<string | null>(null);
   
   const recorderRef = useRef<RecordRTC | null>(null);
   const streamRef = useRef<MediaStream | null>(null);  // ref로도 보관
@@ -79,9 +80,11 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
       recorderRef.current = recorder;
       recorder.startRecording();
       setIsRecording(true);
+      setPermissionError(null);
     } catch (error) {
       console.error('마이크 접근 오류:', error);
-      toast.error('마이크 접근 권한이 필요합니다.');
+      const errorMessage = error instanceof Error ? error.message : 'Permission denied';
+      setPermissionError(errorMessage);
     }
   }, []);
 
@@ -158,6 +161,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
     stream,
     analyser,
     audioContext,
+    permissionError,
   };
 }
 

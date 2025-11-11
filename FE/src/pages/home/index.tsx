@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { BookOpen, ClipboardList, Languages, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -14,6 +14,8 @@ const HomePage: React.FC<HomePageProps> = ({ isLoggedIn }) => {
   const navigate = useNavigate();
   const { createWordSession, createSentenceSession, createVocalSession: _createVocalSession, isLoading, apiError } = useTrainingSession();
   const { showAlert, AlertDialog: LoginRequiredDialog } = useAlertDialog();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const timeoutRef = useRef<number | null>(null);
 
   // 로그인이 필요한 경우 알림
   const handleAuthRequired = () => {
@@ -25,31 +27,59 @@ const HomePage: React.FC<HomePageProps> = ({ isLoggedIn }) => {
   };
 
   const handleWordTraining = async () => {
+    // 이미 처리 중이면 무시
+    if (isProcessing || isLoading) return;
+    
     // 로그인 확인
     if (!isLoggedIn) {
       handleAuthRequired();
       return;
     }
+    
+    setIsProcessing(true);
+    
     // 로그인한 상태면 바로 시작
     try {
-      await createWordSession(2); // 2개 단어
+      await createWordSession(10); // 10개 단어
     } catch (error) {
       console.error('단어 훈련 세션 생성 실패:', error);
     }
+    
+    // 1초 후 재클릭 가능
+    if (timeoutRef.current) {
+      window.clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = window.setTimeout(() => {
+      setIsProcessing(false);
+    }, 1000);
   };
 
   const handleSentenceTraining = async () => {
+    // 이미 처리 중이면 무시
+    if (isProcessing || isLoading) return;
+    
     // 로그인 확인
     if (!isLoggedIn) {
       handleAuthRequired();
       return;
     }
+    
+    setIsProcessing(true);
+    
     // 로그인한 상태면 바로 시작
     try {
-      await createSentenceSession(2); // 2개 문장
+      await createSentenceSession(10); // 10개 문장
     } catch (error) {
       console.error('문장 훈련 세션 생성 실패:', error);
     }
+    
+    // 1초 후 재클릭 가능
+    if (timeoutRef.current) {
+      window.clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = window.setTimeout(() => {
+      setIsProcessing(false);
+    }, 1000);
   };
 
   const handleTrainingHistory = () => {
@@ -57,13 +87,27 @@ const HomePage: React.FC<HomePageProps> = ({ isLoggedIn }) => {
   };
 
   const handleMaxVoiceTraining = () => {
+    // 이미 처리 중이면 무시
+    if (isProcessing || isLoading) return;
+    
     // 로그인 확인
     if (!isLoggedIn) {
       handleAuthRequired();
       return;
     }
+    
+    setIsProcessing(true);
+    
     // 발성 훈련 페이지로 이동
     navigate('/voice-training');
+    
+    // 1초 후 재클릭 가능
+    if (timeoutRef.current) {
+      window.clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = window.setTimeout(() => {
+      setIsProcessing(false);
+    }, 1000);
   };
 
   return (
@@ -111,7 +155,7 @@ const HomePage: React.FC<HomePageProps> = ({ isLoggedIn }) => {
           <Button
             size="lg"
             onClick={handleMaxVoiceTraining}
-            disabled={isLoading}
+            disabled={isLoading || isProcessing}
             className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex justify-center items-center gap-3 hover:from-emerald-600 hover:to-teal-600 disabled:opacity-50 shadow-md hover:shadow-lg transition-all duration-200"
           >
             <Mic size={32} className="size-7 lg:size-9 text-white" strokeWidth={2.5} />
@@ -124,7 +168,7 @@ const HomePage: React.FC<HomePageProps> = ({ isLoggedIn }) => {
           <Button
             size="lg"
             onClick={handleWordTraining}
-            disabled={isLoading}
+            disabled={isLoading || isProcessing}
             className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-green-500 rounded-xl flex justify-center items-center gap-3 hover:bg-green-600 disabled:opacity-50 shadow-md hover:shadow-lg transition-all duration-200"
           >
             <Languages size={32} className="size-7 lg:size-9 text-white" strokeWidth={2.5} />
@@ -137,7 +181,7 @@ const HomePage: React.FC<HomePageProps> = ({ isLoggedIn }) => {
           <Button
             size="lg"
             onClick={handleSentenceTraining}
-            disabled={isLoading}
+            disabled={isLoading || isProcessing}
             className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-emerald-500 rounded-xl flex justify-center items-center gap-3 hover:bg-emerald-600 disabled:opacity-50 shadow-md hover:shadow-lg transition-all duration-200"
           >
             <BookOpen size={32} className="size-7 lg:size-9 text-white" strokeWidth={2.5} />

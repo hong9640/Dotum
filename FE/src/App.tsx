@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useSearchParams } from 'react-router-dom';
 import NavigationBar from '@/components/NavigationBar';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import ScrollToTop from '@/components/ScrollToTop';
+// import ScrollToTop from '@/components/ScrollToTop';
 import HomePage from '@/pages/home';
 import PracticePage from '@/pages/practice';
 import LoginPage from '@/pages/login';
@@ -31,6 +31,16 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Toaster } from '@/components/ui/sonner';
+
+// PracticePage를 sessionId와 type으로 완전히 새로 생성하는 Wrapper
+const PracticePageWrapper: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const sessionId = searchParams.get('sessionId');
+  const type = searchParams.get('type');
+  
+  // sessionId와 type이 바뀔 때마다 PracticePage를 완전히 새로 생성
+  return <PracticePage key={`${sessionId}-${type}`} />;
+};
 
 const AppContent: React.FC<{
   isLoggedIn: boolean;
@@ -99,7 +109,7 @@ const AppContent: React.FC<{
             path="/practice" 
             element={
               <ProtectedRoute isLoggedIn={isLoggedIn} requireAuth={true}>
-                <PracticePage />
+                <PracticePageWrapper />
               </ProtectedRoute>
             } 
           />
@@ -223,7 +233,8 @@ const App: React.FC = () => {
   };
 
   const handleSignup = () => {
-    setIsLoggedIn(true);
+    // 회원가입 후 자동 로그인하지 않음
+    // 사용자가 로그인 페이지에서 직접 로그인해야 함
   };
 
   // 초기 로드 시 인증 상태 확인 (리다이렉트 없이)
@@ -253,14 +264,14 @@ const App: React.FC = () => {
 
   return (
     <Router>
-      <ScrollToTop />
+      {/* <ScrollToTop /> */}
       <AppContent 
         isLoggedIn={isLoggedIn}
         handleLogin={handleLogin}
         handleLogout={handleLogout}
         handleSignup={handleSignup}
       />
-      <Toaster position="top-center" richColors closeButton />
+      <Toaster position="top-center" richColors closeButton duration={1000} />
     </Router>
   );
 };

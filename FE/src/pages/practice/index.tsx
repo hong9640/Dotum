@@ -71,18 +71,13 @@ const PracticePage: React.FC = () => {
           return;
         }
         
-        // 현재 아이템이 이미 해당 인덱스와 일치하면 스킵 (중복 로드 방지)
-        if (currentItem && currentItem.item_index === currentItemIndex && !isLoading) {
-          return;
-        }
-        
         // 세션 정보와 현재 아이템을 병렬로 조회
-        const [sessionData, currentItemData] = await Promise.all([
+        const [fetchedSessionData, currentItemData] = await Promise.all([
           getTrainingSession(sessionId),
           getSessionItemByIndex(sessionId, currentItemIndex)
         ]);
         
-        setSessionDataState(sessionData);
+        setSessionDataState(fetchedSessionData);
         setCurrentItem(currentItemData);
         
         // userVideoUrl 설정 (video_url이 있으면 설정)
@@ -120,7 +115,7 @@ const PracticePage: React.FC = () => {
         const targetText = currentItemData.word || currentItemData.sentence || '';
         
         // 세션 데이터 설정 (실제 API 데이터 반영)
-        setSessionData(sessionIdParam, sessionTypeParam, [targetText], sessionData?.total_items || 10, currentItemData.item_index);
+        setSessionData(sessionIdParam, sessionTypeParam, [targetText], fetchedSessionData?.total_items || 10, currentItemData.item_index);
         
         // 아이템이 완료된 경우 결과 페이지 표시
         if (currentItemData.is_completed) {
@@ -230,6 +225,9 @@ const PracticePage: React.FC = () => {
   };
 
   const handleUpload = async () => {
+    // 이미 업로드 중이면 중복 실행 방지
+    if (isUploading) return;
+    
     if (!recordedFile || !sessionIdParam || !currentItem) {
       setUploadError('업로드할 파일이나 세션 정보가 없습니다.');
       return;
@@ -431,15 +429,38 @@ const PracticePage: React.FC = () => {
       console.error('📥 영상 업로드 실패:', err);
       
       const axiosError = err as { response?: { status?: number } };
-      let errorMessage = '영상 업로드에 실패했습니다.';
+      const status = axiosError.response?.status;
       
-      if (axiosError.response?.status === 401) {
-        errorMessage = '인증이 필요합니다. 다시 로그인해주세요.';
-      } else if (axiosError.response?.status === 404) {
-        errorMessage = '세션을 찾을 수 없습니다.';
-      } else if (axiosError.response?.status === 422) {
-        errorMessage = '업로드할 파일이 올바르지 않습니다.';
+      // 401: 인증 오류 - 강제 로그인 페이지 이동
+      if (status === 401) {
+        toast.error('세션이 만료되었습니다. 다시 로그인해주세요.');
+        setIsUploading(false);
+        setTimeout(() => {
+          navigate('/login');
+        }, 1500);
+        return;
       }
+      
+      // 404: 세션 없음 - 강제 홈으로 이동
+      if (status === 404) {
+        toast.error('세션을 찾을 수 없습니다. 홈에서 다시 시작해주세요.');
+        setIsUploading(false);
+        setTimeout(() => {
+          navigate('/');
+        }, 1500);
+        return;
+      }
+      
+      // 422: 파일 오류 - 강제 다시 녹화
+      if (status === 422) {
+        toast.error('파일이 올바르지 않습니다. 다시 녹화해주세요.');
+        setIsUploading(false);
+        handleRetake(); // 자동으로 초기화
+        return;
+      }
+      
+      // 그 외 에러 (네트워크, 서버 오류) - 재시도 가능
+      let errorMessage = '영상 업로드에 실패했습니다.';
       
       const axiosErrorWithDetail = err as { response?: { data?: { detail?: string } } };
       if (axiosErrorWithDetail.response?.data?.detail) {
@@ -634,10 +655,12 @@ const PracticePage: React.FC = () => {
   return (
     <>
       <TrainingLayout
+        key={`${sessionIdParam}-${sessionTypeParam}`}
         currentItem={currentItem}
         sessionData={sessionData}
         onNext={handleNextWord}
         onPrevious={handlePreviousWord}
+        recordingState={recordingState}
       >
         {showResult ? (
           <ResultComponent 
@@ -648,6 +671,7 @@ const PracticePage: React.FC = () => {
             onNext={handleNextWord}
             hasNext={currentItem?.has_next ?? false}
             onRetake={handleRetake}
+            isUploading={isUploading}
           />
         ) : (
           <PracticeComponent

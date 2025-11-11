@@ -2,10 +2,20 @@ import React, { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { RotateCcw, Upload, Loader2 } from 'lucide-react';
 import { useAudioRecorder } from '@/hooks/useAudioRecorder';
-import { useMediaQuery } from '@/hooks/useMediaQuery'; // 1. 훅 임포트
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { stopAllTTS } from '@/utils/tts';
 import RecordToggle from './RecordToggle';
 import AudioPlayer from './AudioPlayer';
 import AudioLevelGraph, { type AudioLevelGraphRef } from './AudioLevelGraph';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface WaveRecorderProps {
   onRecordEnd?: (blob: Blob, url: string) => void;
@@ -13,6 +23,7 @@ interface WaveRecorderProps {
   isSubmitting?: boolean;
   isLastSubmit?: boolean; // 마지막 제출 여부 (메시지 변경용)
   resetTrigger?: number; // 리셋 트리거 (값이 변경되면 리셋)
+  onRecordingStateChange?: (isRecording: boolean) => void; // 녹음 상태 변경 콜백
 }
 
 const WaveRecorder: React.FC<WaveRecorderProps> = ({ 
@@ -20,7 +31,8 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
   onSubmit,
   isSubmitting = false,
   isLastSubmit = false,
-  resetTrigger = 0
+  resetTrigger = 0,
+  onRecordingStateChange
 }) => {
   const { 
     isRecording, 
@@ -29,7 +41,8 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
     startRecording, 
     stopRecording, 
     reset,
-    analyser
+    analyser,
+    permissionError
   } = useAudioRecorder();
   const graphRef = useRef<AudioLevelGraphRef>(null);
   const prevResetTriggerRef = useRef(resetTrigger);
@@ -56,6 +69,11 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
     }
   }, [audioBlob, audioUrl, onRecordEnd]);
   
+  // 녹음 상태 변경 시 콜백 호출
+  useEffect(() => {
+    onRecordingStateChange?.(isRecording);
+  }, [isRecording, onRecordingStateChange]);
+  
   // 컴포넌트 언마운트 시 모든 리소스 정리
   useEffect(() => {
     return () => {
@@ -68,16 +86,22 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
     if (isRecording) {
       stopRecording();
     } else {
+      // 녹음 시작 시 TTS 중지
+      stopAllTTS();
       startRecording();
     }
   };
 
   const handleRetake = () => {
-    startRecording();
+    reset();
+    // 그래프 초기화
+    graphRef.current?.clearCanvas();
+    // 녹음 시작 버튼을 표시 (사용자가 수동으로 클릭)
   };
 
   const handleSubmit = async () => {
-    if (!audioBlob || !onSubmit) return;
+    // 이미 제출 중이면 중복 실행 방지
+    if (!audioBlob || !onSubmit || isSubmitting) return;
     
     const graphImageBlob = await graphRef.current?.captureImage();
     if (!graphImageBlob) {
@@ -131,7 +155,8 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
       
       {/* 제출 중일 때는 메인 콘텐츠 비활성화 (시각적으로는 보이게) */}
       <div className={isSubmitting ? 'pointer-events-none opacity-30' : ''}>
-        {/* 4. 캔버스를 감싸서 가운데 정렬 (선택 사항이지만 권장) */}
+        {/* 녹음 시작했거나 녹음 결과가 있을 때만 그래프 표시 */}
+        {(isRecording || audioUrl) && (
           <AudioLevelGraph
             ref={graphRef}
             active={isRecording}
@@ -143,6 +168,7 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
             minDb={-60}
             maxDb={0}
           />
+        )}
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-4">
           {!audioUrl ? (
@@ -178,6 +204,40 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
 
       <AudioPlayer src={audioUrl} />
       </div>
+      
+      {/* 권한 에러 다이얼로그 */}
+      <AlertDialog open={!!permissionError}>
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader className="text-center space-y-4">
+            <AlertDialogTitle className="text-[30px]">마이크 접근 실패</AlertDialogTitle>
+            <div className="text-[20px] text-muted-foreground space-y-3">
+              <p>브라우저에서 권한이 차단된 상태입니다.</p>
+              <div className="text-left bg-slate-100 p-4 rounded-lg space-y-2 text-[18px]">
+                <p className="font-semibold">권한 허용 방법:</p>
+                <ol className="list-decimal list-inside space-y-1">
+                  <li>주소창 왼쪽의 ℹ️ 아이콘 클릭</li>
+                  <li>"마이크" 권한 변경</li>
+                  <li>페이지 새로고침</li>
+                </ol>
+              </div>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-3 sm:flex-col">
+            <AlertDialogAction 
+              onClick={() => window.location.reload()}
+              className="w-full text-[30px] h-16"
+            >
+              페이지 새로고침
+            </AlertDialogAction>
+            <AlertDialogCancel 
+              onClick={() => window.history.back()}
+              className="w-full text-[30px] h-16 m-0"
+            >
+              취소
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

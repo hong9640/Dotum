@@ -33,7 +33,7 @@ export function WordChip({ word, isSentence = false, className = '' }: WordChipP
   return (
     <span
       className={`
-        inline-flex items-center px-2.5 py-1 rounded-md text-sm font-medium
+        inline-flex items-center px-2.5 py-1 sm:px-3 rounded-md sm:rounded-lg text-sm sm:text-base font-medium
         bg-gray-100 text-gray-700 border border-gray-200
         hover:bg-gray-200 transition-colors duration-200
         ${className}

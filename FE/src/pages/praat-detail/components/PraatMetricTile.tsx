@@ -18,7 +18,7 @@ const PraatMetricTile: React.FC<MetricTileProps> = ({
   title,
   value,
   unit,
-  normalText,
+  normalText: _normalText,
   status,
   className,
 }) => {
@@ -57,7 +57,7 @@ const PraatMetricTile: React.FC<MetricTileProps> = ({
           ) : null}
         </div>
         <div className="pt-1">
-          <div className="text-gray-500 text-xs sm:text-sm">정상 범위: {normalText}</div>
+          {/* <div className="text-gray-500 text-xs sm:text-sm">정상 범위: {normalText}</div> */}
         </div>
       </div>
     </div>

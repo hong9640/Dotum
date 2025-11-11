@@ -3,7 +3,15 @@ import RecordingPreview from "./RecordingPreview";
 import RecordingControls from "./RecordingControls";
 import RecordingResult from "./RecordingResult";
 import RecordingTips from "./RecordingTips";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { RefObject } from "react";
 
 interface PracticeComponentProps {
@@ -54,16 +62,39 @@ const PracticeComponent: React.FC<PracticeComponentProps> = ({
         {/* 녹화 팁 */}
         <RecordingTips />
 
-        {/* 권한/오류 안내 */}
-        {permissionError && (
-          <Alert variant="destructive" className="max-w-[896px] mx-auto">
-            <AlertTitle>카메라/마이크 접근 실패</AlertTitle>
-            <AlertDescription>
-              {permissionError} <br />
-              브라우저 주소창의 카메라/마이크 아이콘을 눌러 권한을 허용하거나, 다른 브라우저에서 시도해보세요.
-            </AlertDescription>
-          </Alert>
-        )}
+        {/* 권한 에러 다이얼로그 */}
+        <AlertDialog open={!!permissionError}>
+          <AlertDialogContent className="max-w-lg">
+            <AlertDialogHeader className="text-center space-y-4">
+              <AlertDialogTitle className="text-[30px]">카메라/마이크 접근 실패</AlertDialogTitle>
+              <div className="text-[20px] text-muted-foreground space-y-3">
+                <p>브라우저에서 권한이 차단된 상태입니다.</p>
+                <div className="text-left bg-slate-100 p-4 rounded-lg space-y-2 text-[18px]">
+                  <p className="font-semibold">권한 허용 방법:</p>
+                  <ol className="list-decimal list-inside space-y-1">
+                    <li>주소창 왼쪽의 ℹ️ 아이콘 클릭</li>
+                    <li>"카메라" 및 "마이크" 권한 변경</li>
+                    <li>페이지 새로고침</li>
+                  </ol>
+                </div>
+              </div>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-col gap-3 sm:flex-col">
+              <AlertDialogAction 
+                onClick={() => window.location.reload()}
+                className="w-full text-[30px] h-16"
+              >
+                페이지 새로고침
+              </AlertDialogAction>
+              <AlertDialogCancel 
+                onClick={() => window.history.back()}
+                className="w-full text-[30px] h-16 m-0"
+              >
+                취소
+              </AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </>
     );
   }
@@ -93,16 +124,39 @@ const PracticeComponent: React.FC<PracticeComponentProps> = ({
       {/* 녹화 팁 */}
       <RecordingTips />
 
-      {/* 권한/오류 안내 */}
-      {permissionError && (
-        <Alert variant="destructive" className="max-w-[896px] mx-auto">
-          <AlertTitle>카메라/마이크 접근 실패</AlertTitle>
-          <AlertDescription>
-            {permissionError} <br />
-            브라우저 주소창의 카메라/마이크 아이콘을 눌러 권한을 허용하거나, 다른 브라우저에서 시도해보세요.
-          </AlertDescription>
-        </Alert>
-      )}
+      {/* 권한 에러 다이얼로그 */}
+      <AlertDialog open={!!permissionError}>
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader className="text-center space-y-4">
+            <AlertDialogTitle className="text-[30px]">카메라/마이크 접근 실패</AlertDialogTitle>
+            <div className="text-[20px] text-muted-foreground space-y-3">
+              <p>브라우저에서 권한이 차단된 상태입니다.</p>
+              <div className="text-left bg-slate-100 p-4 rounded-lg space-y-2 text-[18px]">
+                <p className="font-semibold">권한 허용 방법:</p>
+                <ol className="list-decimal list-inside space-y-1">
+                  <li>주소창 왼쪽의 ℹ️ 아이콘 클릭</li>
+                  <li>"카메라" 및 "마이크" 권한 변경</li>
+                  <li>페이지 새로고침</li>
+                </ol>
+              </div>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-3 sm:flex-col">
+            <AlertDialogAction 
+              onClick={() => window.location.reload()}
+              className="w-full text-[30px] h-16"
+            >
+              페이지 새로고침
+            </AlertDialogAction>
+            <AlertDialogCancel 
+              onClick={() => window.history.back()}
+              className="w-full text-[30px] h-16 m-0"
+            >
+              취소
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

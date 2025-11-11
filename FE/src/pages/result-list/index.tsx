@@ -48,9 +48,10 @@ const WordSetResults: React.FC = () => {
   const [lhRatioSdDb, setLhRatioSdDb] = useState<number | null>(null);
   const [isVoiceTraining, setIsVoiceTraining] = useState<boolean>(false);
   const [_overallFeedback, setOverallFeedback] = useState<string>('피드백 정보가 없습니다.');
+  const [isRetrying, setIsRetrying] = useState(false);
   
   // 훈련 세션 훅 사용 (새로운 훈련 시작 시 사용)
-  const { createWordSession, createSentenceSession } = useTrainingSession();
+  const { createWordSession, createSentenceSession, isLoading: isCreatingSession } = useTrainingSession();
   
   // AlertDialog 훅 사용
   const { showAlert, AlertDialog: AlertDialogComponent } = useAlertDialog();
@@ -59,6 +60,11 @@ const WordSetResults: React.FC = () => {
   const sessionIdParam = searchParams.get('sessionId');
   const typeParam = searchParams.get('type') as 'word' | 'sentence' | 'vocal' | null;
   const dateParam = searchParams.get('date'); // training-history에서 온 경우 날짜 파라미터
+
+  // 페이지 진입 시 상단으로 스크롤
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [sessionIdParam, typeParam]);
 
   // 세션 상세 조회 API 호출
   useEffect(() => {
@@ -306,6 +312,9 @@ const WordSetResults: React.FC = () => {
   };
 
   const handleRetry = async () => {
+    // 이미 재훈련 중이면 중복 실행 방지
+    if (isRetrying) return;
+    
     if (!sessionIdParam) {
       console.error('세션 ID가 없습니다.');
       showAlert({ description: '세션 정보를 찾을 수 없습니다.' });
@@ -313,9 +322,12 @@ const WordSetResults: React.FC = () => {
     }
 
     try {
+      setIsRetrying(true);
+      
       const sessionId = Number(sessionIdParam);
       if (isNaN(sessionId)) {
         showAlert({ description: '유효하지 않은 세션 ID입니다.' });
+        setIsRetrying(false);
         return;
       }
 
@@ -327,11 +339,13 @@ const WordSetResults: React.FC = () => {
         navigate(`/practice?sessionId=${retrySession.session_id}&type=${retrySession.type}&itemIndex=0`);
       } else {
         showAlert({ description: '재훈련 세션 정보가 올바르지 않습니다.' });
+        setIsRetrying(false);
       }
     } catch (error: unknown) {
       console.error('재훈련 세션 생성 실패:', error);
       const errorWithMessage = error as { message?: string };
       showAlert({ description: errorWithMessage.message || '재훈련 세션 생성에 실패했습니다.' });
+      setIsRetrying(false);
     }
   };
 
@@ -340,10 +354,10 @@ const WordSetResults: React.FC = () => {
     try {
       if (sessionType === 'word') {
         // 단어 연습 시작과 동일하게 동작
-        await createWordSession(2);
+        await createWordSession(10);
       } else {
         // 문장 연습 시작과 동일하게 동작
-        await createSentenceSession(2);
+        await createSentenceSession(10);
       }
     } catch (error) {
       // 에러는 훅에서 처리됨 (toast 메시지 표시)
@@ -427,6 +441,8 @@ const WordSetResults: React.FC = () => {
           <ActionButtons
             onRetry={handleRetry}
             onNewTraining={handleNewTraining}
+            isRetrying={isRetrying}
+            isLoading={isCreatingSession}
           />
         )}
       </div>
