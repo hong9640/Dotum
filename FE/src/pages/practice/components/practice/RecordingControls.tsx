@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Square, RotateCcw, Upload } from "lucide-react";
+import { stopAllTTS } from "@/utils/tts";
 // import { useNavigate } from "react-router-dom";
 
 interface RecordingControlsProps {
@@ -63,6 +64,9 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   
   const handleStartRecording = () => {
     if (isProcessing || recordingState !== "idle") return;
+    
+    // TTS 재생 중지
+    stopAllTTS();
     
     setIsProcessing(true);
     onStartRecording();

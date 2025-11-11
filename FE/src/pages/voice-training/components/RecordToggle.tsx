@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { stopAllTTS } from '@/utils/tts';
 
 interface RecordToggleProps {
   isRecording: boolean;
@@ -29,6 +30,11 @@ const RecordToggle: React.FC<RecordToggleProps> = ({ isRecording, onToggle, disa
   
   const handleToggle = () => {
     if (isProcessing || disabled) return;
+    
+    // 녹음 시작 시 TTS 중지
+    if (!isRecording) {
+      stopAllTTS();
+    }
     
     setIsProcessing(true);
     onToggle();
