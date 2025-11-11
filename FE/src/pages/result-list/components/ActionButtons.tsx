@@ -5,9 +5,16 @@ import { Button } from "@/components/ui/button";
 interface ActionButtonsProps {
   onRetry: () => void;
   onNewTraining: () => void;
+  isRetrying?: boolean;
+  isLoading?: boolean;
 }
 
-const ActionButtons: React.FC<ActionButtonsProps> = ({ onRetry, onNewTraining }) => {
+const ActionButtons: React.FC<ActionButtonsProps> = ({ 
+  onRetry, 
+  onNewTraining,
+  isRetrying = false,
+  isLoading = false,
+}) => {
   return (
     <div className="w-full max-w-[1220.40px] p-6 bg-white rounded-2xl outline outline-[3px] outline-offset-[-3px] outline-slate-200 flex flex-col justify-start items-center gap-9">
       <div className="self-stretch h-auto md:h-10 inline-flex justify-center items-center gap-3">
@@ -25,21 +32,23 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onRetry, onNewTraining })
       <div className="h-auto inline-flex flex-col md:flex-row justify-start items-start gap-4 w-full">
         <Button
           variant="outline"
-          className="w-full md:w-[571px] min-h-10 h-auto px-6 py-4 bg-white rounded-xl outline outline-2 outline-green-500 flex justify-center items-center gap-3 text-green-500 hover:bg-green-50 transition-colors"
+          className="w-full md:w-[571px] min-h-10 h-auto px-6 py-4 bg-white rounded-xl outline outline-2 outline-green-500 flex justify-center items-center gap-3 text-green-500 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           onClick={onRetry}
+          disabled={isRetrying || isLoading}
         >
           <RefreshCw className="w-6 h-6 md:w-8 md:h-8" strokeWidth={2.5} />
           <span className="text-center justify-center text-xl md:text-3xl font-semibold leading-snug md:leading-9">
-            다시 연습하기
+            {isRetrying ? "세션 생성 중..." : "다시 연습하기"}
           </span>
         </Button>
         <Button
-          className="w-full md:w-[571px] min-h-10 h-auto px-6 py-4 bg-gradient-to-r from-violet-500 via-indigo-400 to-cyan-400 rounded-xl flex justify-center items-center gap-3 text-white hover:opacity-90 transition-opacity"
+          className="w-full md:w-[571px] min-h-10 h-auto px-6 py-4 bg-gradient-to-r from-violet-500 via-indigo-400 to-cyan-400 rounded-xl flex justify-center items-center gap-3 text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
           onClick={onNewTraining}
+          disabled={isRetrying || isLoading}
         >
           <Sparkles className="w-6 h-6 md:w-8 md:h-8" strokeWidth={2.5} />
           <span className="text-center justify-center text-xl md:text-3xl font-semibold leading-snug md:leading-9">
-            새로운 훈련 시작
+            {isLoading ? "세션 생성 중..." : "새로운 훈련 시작"}
           </span>
         </Button>
       </div>

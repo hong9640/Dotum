@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import ReactPlayer from "react-player";
 import { Play, Pause, Video, Upload } from "lucide-react";
 
@@ -20,9 +20,28 @@ const RecordingResult: React.FC<RecordingResultProps> = ({
   isVisible,
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const timeoutRef = useRef<number | null>(null);
+
+  // isUploading이 true가 되면 isProcessing 해제
+  React.useEffect(() => {
+    if (isUploading) {
+      setIsProcessing(false);
+      if (timeoutRef.current) {
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    }
+  }, [isUploading]);
 
   if (!isVisible || !recordedBlobUrl) return null;
 
+  const handleUploadClick = () => {
+    if (isProcessing || isUploading || !onUpload) return;
+    
+    setIsProcessing(true);
+    onUpload();
+  };
 
   return (
     <div className="flex justify-center">
@@ -75,15 +94,16 @@ const RecordingResult: React.FC<RecordingResultProps> = ({
             </button>
             <button
               onClick={onRetake}
-              className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-4 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold transition-all duration-200 shadow-md hover:shadow-lg text-base sm:text-lg md:text-xl"
+              disabled={isUploading}
+              className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-4 bg-red-500 hover:bg-red-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none text-base sm:text-lg md:text-xl"
             >
               <Video className="size-5 sm:size-6" />
               <span>다시 녹화</span>
             </button>
             {onUpload && (
               <button
-                onClick={onUpload}
-                disabled={isUploading}
+                onClick={handleUploadClick}
+                disabled={isUploading || isProcessing}
                 className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-4 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none text-base sm:text-lg md:text-xl"
               >
                 <Upload className="size-5 sm:size-6" />

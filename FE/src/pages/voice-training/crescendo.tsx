@@ -61,6 +61,9 @@ const CrescendoPage: React.FC = () => {
   };
 
   const handleSubmit = async (audioBlob: Blob, graphImageBlob: Blob) => {
+    // 이미 제출 중이면 중복 실행 방지
+    if (isSubmitting) return;
+    
     if (!sessionId) {
       toast.error('세션 정보가 없습니다.');
       return;
@@ -106,11 +109,37 @@ const CrescendoPage: React.FC = () => {
       }
     } catch (error: unknown) {
       console.error('제출 실패:', error);
-      const axiosError = error as { response?: { data?: { detail?: string } } };
+      
+      const axiosError = error as { response?: { status?: number; data?: { detail?: string } } };
+      const status = axiosError.response?.status;
+      
+      // 401: 인증 오류 - 강제 로그인 페이지 이동
+      if (status === 401) {
+        toast.error('세션이 만료되었습니다. 다시 로그인해주세요.');
+        setIsSubmitting(false);
+        setTimeout(() => navigate('/login'), 1500);
+        return;
+      }
+      
+      // 404: 세션 없음 - 강제 홈으로 이동
+      if (status === 404) {
+        toast.error('세션을 찾을 수 없습니다. 홈에서 다시 시작해주세요.');
+        setIsSubmitting(false);
+        setTimeout(() => navigate('/'), 1500);
+        return;
+      }
+      
+      // 422: 파일 오류 - 새로고침 권장
+      if (status === 422) {
+        toast.error('파일이 올바르지 않습니다. 페이지를 새로고침해주세요.');
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // 그 외 에러
       toast.error(axiosError.response?.data?.detail || '제출에 실패했습니다.');
-      setIsSubmitting(false);  // ✅ 에러 시에만 해제
+      setIsSubmitting(false);
     }
-    // ❌ finally 제거
   };
 
 

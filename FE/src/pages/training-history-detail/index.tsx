@@ -26,6 +26,7 @@ export default function TrainingDayDetail({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [totalSessions, setTotalSessions] = useState<number>(0);
+  const [isCompleting, setIsCompleting] = useState(false);
 
   const { statistics } = useTrainingDayDetail({ trainingSets: actualTrainingSets });
 
@@ -78,11 +79,16 @@ export default function TrainingDayDetail({
   };
 
   const handleTrainingSetClick = async (trainingSet: TrainingSet) => {
+    // 이미 세션 완료 처리 중이면 중복 실행 방지
+    if (isCompleting) return;
+    
     // 세션이 완료되지 않은 경우
     if (trainingSet.status !== 'completed') {
       // 총 아이템 수와 완료된 아이템 수가 같은 경우 (실제로는 완료되었지만 status가 in_progress인 경우)
       if (trainingSet.completedItems !== undefined && trainingSet.totalItems === trainingSet.completedItems) {
         try {
+          setIsCompleting(true);
+          
           // 세션 종료 API 호출
           await completeTrainingSession(trainingSet.sessionId);
 
@@ -98,6 +104,7 @@ export default function TrainingDayDetail({
           console.error('세션 종료 실패:', error);
           const errorWithMessage = error as { message?: string };
           toast.error(errorWithMessage.message || '세션을 종료하는데 실패했습니다.');
+          setIsCompleting(false);
         }
         return;
       }

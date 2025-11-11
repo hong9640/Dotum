@@ -75,6 +75,9 @@ export const useSignup = ({ onSignup }: UseSignupProps = {}) => {
   };
 
   const onSubmit = async (data: SignupFormValues) => {
+    // 이미 로딩 중이면 중복 실행 방지
+    if (isLoading) return;
+    
     setIsLoading(true);
     setApiError(null);
 

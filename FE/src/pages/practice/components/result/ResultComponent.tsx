@@ -19,6 +19,7 @@ interface ResultComponentProps {
   onRetake?: () => void; // 다시 녹화 핸들러
   praatData?: PraatMetrics | null;
   praatLoading?: boolean;
+  isUploading?: boolean;
 }
 
 const ResultComponent: React.FC<ResultComponentProps> = ({
@@ -32,6 +33,7 @@ const ResultComponent: React.FC<ResultComponentProps> = ({
   onRetake,
   praatData,
   praatLoading = false,
+  isUploading = false,
 }) => {
   const navigate = useNavigate();
   const { sessionId } = usePracticeStore();
@@ -47,6 +49,9 @@ const ResultComponent: React.FC<ResultComponentProps> = ({
   };
 
   const handleViewAllResults = async () => {
+    // 이미 처리 중이면 중복 실행 방지
+    if (isCompletingSession) return;
+    
     if (!sessionId) {
       console.error('세션 ID가 없습니다.');
       toast.error('세션 정보를 찾을 수 없습니다. 홈페이지에서 다시 시작해주세요.');
@@ -132,6 +137,7 @@ const ResultComponent: React.FC<ResultComponentProps> = ({
         onNext={onBack ? undefined : onNext}
         hasNext={hasNext}
         isCompletingSession={isCompletingSession}
+        isUploading={isUploading}
         onBack={onBack}
       />
     </>

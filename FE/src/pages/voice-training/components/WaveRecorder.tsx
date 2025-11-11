@@ -87,7 +87,8 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
   };
 
   const handleSubmit = async () => {
-    if (!audioBlob || !onSubmit) return;
+    // 이미 제출 중이면 중복 실행 방지
+    if (!audioBlob || !onSubmit || isSubmitting) return;
     
     const graphImageBlob = await graphRef.current?.captureImage();
     if (!graphImageBlob) {

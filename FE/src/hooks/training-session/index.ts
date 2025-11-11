@@ -24,6 +24,9 @@ export const useTrainingSession = ({ onSessionCreated }: UseTrainingSessionProps
    * @param sessionName 세션 이름 (선택사항)
    */
   const createWordSession = async (itemCount: number = 10, sessionName?: string) => {
+    // 이미 로딩 중이면 중복 실행 방지
+    if (isLoading) return;
+    
     setIsLoading(true);
     setApiError(null);
 
@@ -64,6 +67,9 @@ export const useTrainingSession = ({ onSessionCreated }: UseTrainingSessionProps
    * @param sessionName 세션 이름 (선택사항)
    */
   const createSentenceSession = async (itemCount: number = 10, sessionName?: string) => {
+    // 이미 로딩 중이면 중복 실행 방지
+    if (isLoading) return;
+    
     setIsLoading(true);
     setApiError(null);
 
@@ -104,6 +110,9 @@ export const useTrainingSession = ({ onSessionCreated }: UseTrainingSessionProps
    * @param sessionName 세션 이름 (선택사항)
    */
   const createVocalSession = async (itemCount: number = 15, sessionName?: string) => {
+    // 이미 로딩 중이면 중복 실행 방지
+    if (isLoading) return;
+    
     setIsLoading(true);
     setApiError(null);
 
