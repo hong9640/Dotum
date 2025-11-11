@@ -108,7 +108,7 @@ function CalendarGrid({ matrix, counts, onDateClick }: CalendarGridProps) {
                 {/* <div className="flex-1 flex items-center justify-center w-full">
                   <div className={`hidden sm:flex w-full rounded-xl text-center ${badgeClass} items-center justify-center`}>
                     <span className="text-white text-[10px] sm:text-xs md:text-sm font-semibold text-center"> */}
-                      {setCnt}회 학습
+                      {setCnt}회 연습
                     </span>
                   </div>
                 </div>
