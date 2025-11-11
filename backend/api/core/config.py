@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     # ElevenLabs API Key
     ELEVENLABS_API_KEY: str = ""
 
+    # Wav2Lip Processing Control
+    ENABLE_WAV2LIP: bool = True  # wav2lip 처리 활성화 여부
+
     # CORS Settings
     CORS_ORIGINS: str | None = None
 
