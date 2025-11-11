@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useSearchParams } from 'react-router-dom';
 import NavigationBar from '@/components/NavigationBar';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import ScrollToTop from '@/components/ScrollToTop';
+// import ScrollToTop from '@/components/ScrollToTop';
 import HomePage from '@/pages/home';
 import PracticePage from '@/pages/practice';
 import LoginPage from '@/pages/login';
@@ -264,7 +264,7 @@ const App: React.FC = () => {
 
   return (
     <Router>
-      <ScrollToTop />
+      {/* <ScrollToTop /> */}
       <AppContent 
         isLoggedIn={isLoggedIn}
         handleLogin={handleLogin}

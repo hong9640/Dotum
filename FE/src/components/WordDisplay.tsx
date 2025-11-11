@@ -17,7 +17,7 @@ const WordDisplay: React.FC<WordDisplayProps> = ({
   onNext: _onNext,
   showPrevious: _showPrevious = false,
   showNext: _showNext = false,
-  type = 'word'
+  // type = 'word'
 }) => {
   return (
     <div className="flex flex-col items-center gap-6">
@@ -76,9 +76,9 @@ const WordDisplay: React.FC<WordDisplayProps> = ({
           </div>
         )} */}
       </div>
-      <div className="text-center text-slate-500 text-xl sm:text-2xl md:text-3xl font-semibold">
+      {/* <div className="text-center text-slate-500 text-xl sm:text-2xl md:text-3xl font-semibold">
         {type?.toLowerCase() === 'sentence' ? '위 문장을 또박또박 발음해주세요' : '위 단어를 또박또박 발음해주세요'}
-      </div>
+      </div> */}
     </div>
   );
 };
