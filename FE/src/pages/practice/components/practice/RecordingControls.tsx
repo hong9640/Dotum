@@ -29,17 +29,19 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   const timeoutRef = useRef<number | null>(null);
   const prevRecordingStateRef = useRef(recordingState);
   
-  // recordingState나 isUploading이 실제로 변경되면 isProcessing 해제
+  // recordingState가 변경되어도 1초 후에 활성화
   React.useEffect(() => {
-    if (prevRecordingStateRef.current !== recordingState) {
-      setIsProcessing(false);
+    if (prevRecordingStateRef.current !== recordingState && isProcessing) {
+      // 상태가 변경되었지만 1초 대기
       if (timeoutRef.current) {
         window.clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
       }
+      timeoutRef.current = window.setTimeout(() => {
+        setIsProcessing(false);
+      }, 1000);
     }
     prevRecordingStateRef.current = recordingState;
-  }, [recordingState]);
+  }, [recordingState, isProcessing]);
   
   // isUploading이 true가 되면 isProcessing 해제
   React.useEffect(() => {

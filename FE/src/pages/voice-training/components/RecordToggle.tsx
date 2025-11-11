@@ -13,17 +13,19 @@ const RecordToggle: React.FC<RecordToggleProps> = ({ isRecording, onToggle, disa
   const timeoutRef = useRef<number | null>(null);
   const prevRecordingRef = useRef(isRecording);
   
-  // isRecording 상태가 실제로 변경되면 isProcessing 해제
+  // isRecording 상태가 변경되어도 1초 후에 활성화
   React.useEffect(() => {
-    if (prevRecordingRef.current !== isRecording) {
-      setIsProcessing(false);
+    if (prevRecordingRef.current !== isRecording && isProcessing) {
+      // 상태가 변경되었지만 1초 대기
       if (timeoutRef.current) {
         window.clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
       }
+      timeoutRef.current = window.setTimeout(() => {
+        setIsProcessing(false);
+      }, 1000);
     }
     prevRecordingRef.current = isRecording;
-  }, [isRecording]);
+  }, [isRecording, isProcessing]);
   
   const handleToggle = () => {
     if (isProcessing || disabled) return;
