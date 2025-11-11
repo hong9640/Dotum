@@ -87,7 +87,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
       {recordingState === "idle" && !blobUrl && (
         <Button 
           size="lg" 
-          className="px-8 py-6 text-xl bg-red-500 hover:bg-red-600 flex items-center gap-3" 
+          className="px-8 py-6 text-xl bg-red-500 hover:bg-red-600 disabled:opacity-20 disabled:cursor-not-allowed flex items-center gap-3" 
           onClick={handleStartRecording}
           disabled={isProcessing || recordingState !== "idle"}
         >
@@ -102,7 +102,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
       {recordingState === "recording" && (
         <Button 
           size="lg" 
-          className="px-8 py-6 text-xl bg-slate-800 hover:bg-slate-900 flex items-center gap-3" 
+          className="px-8 py-6 text-xl bg-slate-800 hover:bg-slate-900 disabled:opacity-20 disabled:cursor-not-allowed flex items-center gap-3" 
           onClick={handleStopRecording}
           disabled={isProcessing || recordingState !== "recording"}
         >

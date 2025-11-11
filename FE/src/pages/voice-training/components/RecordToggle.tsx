@@ -39,7 +39,7 @@ const RecordToggle: React.FC<RecordToggleProps> = ({ isRecording, onToggle, disa
       {!isRecording ? (
         <Button 
           size="lg" 
-          className="px-5 sm:px-8 py-4 sm:py-6 text-lg sm:text-xl bg-red-500 hover:bg-red-600 flex items-center gap-3" 
+          className="px-5 sm:px-8 py-4 sm:py-6 text-lg sm:text-xl bg-red-500 hover:bg-red-600 disabled:opacity-20 disabled:cursor-not-allowed flex items-center gap-3" 
           onClick={handleToggle}
           disabled={disabled || isProcessing}
         >
@@ -52,7 +52,7 @@ const RecordToggle: React.FC<RecordToggleProps> = ({ isRecording, onToggle, disa
       ) : (
         <Button 
           size="lg" 
-          className="px-5 sm:px-8 py-4 sm:py-6 text-lg sm:text-xl bg-slate-800 hover:bg-slate-900 flex items-center gap-3" 
+          className="px-5 sm:px-8 py-4 sm:py-6 text-lg sm:text-xl bg-slate-800 hover:bg-slate-900 disabled:opacity-20 disabled:cursor-not-allowed flex items-center gap-3" 
           onClick={handleToggle}
           disabled={disabled || isProcessing}
         >
