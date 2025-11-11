@@ -10,6 +10,7 @@ interface TrainingLayoutProps {
   onNext: () => void;
   onPrevious: () => void;
   children: React.ReactNode;
+  recordingState?: "idle" | "recording" | "processing" | "error";
 }
 
 const TrainingLayout: React.FC<TrainingLayoutProps> = ({
@@ -17,7 +18,8 @@ const TrainingLayout: React.FC<TrainingLayoutProps> = ({
   sessionData,
   onNext,
   onPrevious,
-  children
+  children,
+  recordingState = 'idle'
 }) => {
   const wordDisplayRef = useRef<HTMLDivElement>(null);
 
@@ -50,6 +52,7 @@ const TrainingLayout: React.FC<TrainingLayoutProps> = ({
               showNext={currentItem ? currentItem.has_next : false}
               showPrevious={currentItem ? currentItem.item_index > 0 : false}
               type={sessionData?.type}
+              recordingState={recordingState}
             />
           </div>
 

@@ -25,6 +25,7 @@ const MPTPage: React.FC = () => {
   );
   const [_session, setSession] = useState<CreateTrainingSessionResponse | null>(null);
   const [resetTrigger, setResetTrigger] = useState(0);
+  const [isRecording, setIsRecording] = useState(false);
   const promptCardRef = useRef<HTMLDivElement>(null);
 
   // 세션 생성 (첫 시도일 때)
@@ -188,6 +189,7 @@ const MPTPage: React.FC = () => {
                 subtitle="최대 발성 지속 시간 훈련"
                 attempt={attempt}
                 totalAttempts={3}
+                isRecording={isRecording}
               />
             {/* 녹음 영역 */}
             <div className="mb-6">
@@ -196,6 +198,7 @@ const MPTPage: React.FC = () => {
                 onSubmit={handleSubmit}
                 isSubmitting={isSubmitting}
                 resetTrigger={resetTrigger}
+                onRecordingStateChange={setIsRecording}
               />
             </div>
           </CardContent>
