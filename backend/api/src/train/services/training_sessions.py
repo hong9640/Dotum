@@ -411,21 +411,25 @@ class TrainingSessionService:
 
             # [이동된 로직] Wav2Lip 처리 요청
             # ElevenLabs로 생성된 가이드 음성을 사용하여 Wav2Lip 처리를 트리거합니다.
-            output_object_key = f"results/{user.username}/{session_id}/result_item_{item_id}.mp4"
-            user_video_full_path = f"{gcs_service.bucket_name}/{original_video_object_key}"
-            output_video_full_path = f"{gcs_service.bucket_name}/{output_object_key}"
-            guide_audio_full_path = f"{gcs_service.bucket_name}/{guide_audio_object_key}"
+            # 환경변수로 wav2lip 처리 활성화 여부를 제어합니다.
+            if settings.ENABLE_WAV2LIP:
+                output_object_key = f"results/{user.username}/{session_id}/result_item_{item_id}.mp4"
+                user_video_full_path = f"{gcs_service.bucket_name}/{original_video_object_key}"
+                output_video_full_path = f"{gcs_service.bucket_name}/{output_object_key}"
+                guide_audio_full_path = f"{gcs_service.bucket_name}/{guide_audio_object_key}"
 
-            print(f"[WAV2LIP] ElevenLabs 가이드 음성으로 Wav2Lip 처리 요청 - item_id: {item_id}")
-            print(f"[WAV2LIP] 가이드 음성: {guide_audio_full_path}")
-            print(f"[WAV2LIP] 사용자 비디오: {user_video_full_path}")
-            await self.trigger_wav2lip_processing(
-                guide_audio_gs_path=guide_audio_full_path,  # ElevenLabs 생성 가이드 음성
-                user_video_gs_path=user_video_full_path,
-                output_video_gs_path=output_video_full_path,
-                user_id=user.id,
-                output_object_key=output_object_key
-            )
+                print(f"[WAV2LIP] ElevenLabs 가이드 음성으로 Wav2Lip 처리 요청 - item_id: {item_id}")
+                print(f"[WAV2LIP] 가이드 음성: {guide_audio_full_path}")
+                print(f"[WAV2LIP] 사용자 비디오: {user_video_full_path}")
+                await self.trigger_wav2lip_processing(
+                    guide_audio_gs_path=guide_audio_full_path,  # ElevenLabs 생성 가이드 음성
+                    user_video_gs_path=user_video_full_path,
+                    output_video_gs_path=output_video_full_path,
+                    user_id=user.id,
+                    output_object_key=output_object_key
+                )
+            else:
+                logger.info(f"[WAV2LIP] Wav2Lip 처리가 비활성화되어 있습니다 (ENABLE_WAV2LIP=False) - item_id: {item_id}")
 
         except Exception as e:
             await self.db.rollback()

@@ -19,6 +19,7 @@ services:
       - GCS_CREDENTIALS_PATH=${GCS_CREDENTIALS_PATH}
       - ML_SERVER_URL=${ML_SERVER_URL}
       - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - ENABLE_WAV2LIP=${ENABLE_WAV2LIP:-true}
     volumes:
       - ./api:/code/api
       - ./migrations:/code/migrations
