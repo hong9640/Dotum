@@ -36,7 +36,7 @@ export function Calendar({ counts, onDateClick, onMonthChange }: CalendarProps) 
           onYearChange={setYear}
         />
       </CardHeader>
-      <CardContent className="w-full px-2 sm:px-4 md:px-6">
+      <CardContent className="w-full px-2.5 sm:px-4 md:px-6">
         <CalendarGrid matrix={matrix} counts={counts} onDateClick={onDateClick} />
         <CalendarLegend />
       </CardContent>
