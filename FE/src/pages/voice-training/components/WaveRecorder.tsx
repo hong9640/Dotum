@@ -155,7 +155,8 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
       
       {/* 제출 중일 때는 메인 콘텐츠 비활성화 (시각적으로는 보이게) */}
       <div className={isSubmitting ? 'pointer-events-none opacity-30' : ''}>
-        {/* 4. 캔버스를 감싸서 가운데 정렬 (선택 사항이지만 권장) */}
+        {/* 녹음 시작했거나 녹음 결과가 있을 때만 그래프 표시 */}
+        {(isRecording || audioUrl) && (
           <AudioLevelGraph
             ref={graphRef}
             active={isRecording}
@@ -167,6 +168,7 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
             minDb={-60}
             maxDb={0}
           />
+        )}
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-4">
           {!audioUrl ? (

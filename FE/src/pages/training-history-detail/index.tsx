@@ -195,7 +195,7 @@ export default function TrainingDayDetail({
         />
       </div>
 
-      <main className="container mx-auto px-6 xl:px-8 py-8">
+      <main className="container mx-auto px-6 xl:px-8 py-2.5 sm:py-8">
         <div className="max-w-4xl mx-auto space-y-6">
           <div className="space-y-4">
             <TrainingSetGrid
