@@ -10,6 +10,7 @@ interface ActionButtonsProps {
   hasNext?: boolean;
   isCompletingSession?: boolean;
   onBack?: () => void; // result-detail 페이지용 맨 위로 버튼 표시 여부 (실제 동작은 페이지 상단 스크롤)
+  isUploading?: boolean;
 }
 
 /**
@@ -22,6 +23,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
   hasNext = false,
   isCompletingSession = false,
   onBack,
+  isUploading = false,
 }) => {
   const handleNextWord = () => {
     if (onNext) {
@@ -67,7 +69,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
             variant="outline"
             size="lg"
             onClick={onRetake}
-            className="w-full md:w-auto h-auto min-h-10 px-6 py-4 bg-white text-slate-700 border-slate-200 border-2 hover:bg-slate-100 hover:text-slate-700 rounded-xl text-xl md:text-3xl font-semibold leading-9"
+            disabled={isCompletingSession || isUploading}
+            className="w-full md:w-auto h-auto min-h-10 px-6 py-4 bg-white text-slate-700 border-slate-200 border-2 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-xl md:text-3xl font-semibold leading-9"
           >
             <RotateCcw className="w-8 h-8 mr-2" strokeWidth={2.5} />
             다시 녹화
@@ -101,7 +104,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
             variant="default"
             size="lg"
             onClick={handleNextWord}
-            className="w-full md:w-auto h-auto min-h-10 px-6 py-4 bg-green-500 text-white hover:bg-green-600 rounded-xl text-xl md:text-3xl font-semibold leading-9"
+            disabled={isUploading}
+            className="w-full md:w-auto h-auto min-h-10 px-6 py-4 bg-green-500 text-white hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed rounded-xl text-xl md:text-3xl font-semibold leading-9"
           >
             <ArrowRight className="w-8 h-8 mr-2" strokeWidth={3} />
             다음으로

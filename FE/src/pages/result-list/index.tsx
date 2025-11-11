@@ -48,9 +48,10 @@ const WordSetResults: React.FC = () => {
   const [lhRatioSdDb, setLhRatioSdDb] = useState<number | null>(null);
   const [isVoiceTraining, setIsVoiceTraining] = useState<boolean>(false);
   const [_overallFeedback, setOverallFeedback] = useState<string>('피드백 정보가 없습니다.');
+  const [isRetrying, setIsRetrying] = useState(false);
   
   // 훈련 세션 훅 사용 (새로운 훈련 시작 시 사용)
-  const { createWordSession, createSentenceSession } = useTrainingSession();
+  const { createWordSession, createSentenceSession, isLoading: isCreatingSession } = useTrainingSession();
   
   // AlertDialog 훅 사용
   const { showAlert, AlertDialog: AlertDialogComponent } = useAlertDialog();
@@ -311,6 +312,9 @@ const WordSetResults: React.FC = () => {
   };
 
   const handleRetry = async () => {
+    // 이미 재훈련 중이면 중복 실행 방지
+    if (isRetrying) return;
+    
     if (!sessionIdParam) {
       console.error('세션 ID가 없습니다.');
       showAlert({ description: '세션 정보를 찾을 수 없습니다.' });
@@ -318,9 +322,12 @@ const WordSetResults: React.FC = () => {
     }
 
     try {
+      setIsRetrying(true);
+      
       const sessionId = Number(sessionIdParam);
       if (isNaN(sessionId)) {
         showAlert({ description: '유효하지 않은 세션 ID입니다.' });
+        setIsRetrying(false);
         return;
       }
 
@@ -332,11 +339,13 @@ const WordSetResults: React.FC = () => {
         navigate(`/practice?sessionId=${retrySession.session_id}&type=${retrySession.type}&itemIndex=0`);
       } else {
         showAlert({ description: '재훈련 세션 정보가 올바르지 않습니다.' });
+        setIsRetrying(false);
       }
     } catch (error: unknown) {
       console.error('재훈련 세션 생성 실패:', error);
       const errorWithMessage = error as { message?: string };
       showAlert({ description: errorWithMessage.message || '재훈련 세션 생성에 실패했습니다.' });
+      setIsRetrying(false);
     }
   };
 
@@ -432,6 +441,8 @@ const WordSetResults: React.FC = () => {
           <ActionButtons
             onRetry={handleRetry}
             onNewTraining={handleNewTraining}
+            isRetrying={isRetrying}
+            isLoading={isCreatingSession}
           />
         )}
       </div>

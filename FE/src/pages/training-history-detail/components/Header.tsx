@@ -22,11 +22,11 @@ export function Header({ date, totalSets, onBack }: HeaderProps) {
       {/* 돌아가기 버튼 - sm 미만일 때는 일반 플로우, sm 이상일 때는 absolute */}
       <Button
         variant="ghost"
-        className="px-0 md:px-0 py-2 md:py-3.5 sm:absolute sm:left-0 sm:top-4 md:top-[30px] rounded-lg flex justify-center items-center gap-2 md:gap-3 group transition-opacity hover:opacity-80 mb-4 sm:mb-0"
+        className="px-0 md:px-0 py-2 md:py-3.5 sm:absolute sm:left-0 sm:top-4 md:top-[30px] rounded-lg flex justify-center items-center gap-2 md:gap-3 group transition-opacity hover:opacity-80 mb-3 sm:mb-0"
         onClick={onBack}
       >
-        <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 text-slate-500" strokeWidth={2.5} />
-        <span className="justify-start text-slate-500 text-xl md:text-2xl font-normal leading-7 md:leading-9">
+        <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-slate-500" strokeWidth={2.5} />
+        <span className="justify-start text-slate-500 text-lg sm:text-xl md:text-2xl font-normal leading-7 md:leading-9">
           돌아가기
         </span>
       </Button>
