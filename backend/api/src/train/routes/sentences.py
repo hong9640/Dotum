@@ -3,6 +3,8 @@ from ..schemas import TrainSentenceCreate, TrainSentenceUpdate, TrainSentenceRes
 from ..schemas.common import NotFoundErrorResponse, ConflictErrorResponse
 from ..services import SentenceService
 from api.core.database import get_session
+from api.src.auth.auth_service import get_current_admin_user
+from api.src.user.user_model import User
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(
@@ -59,15 +61,17 @@ async def get_sentence_detail(
     response_model=TrainSentenceResponse,
     status_code=status.HTTP_201_CREATED,
     summary="문장 생성",
-    description="새로운 문장을 생성합니다. 문장은 4글자 이상 200글자 이하여야 하며, 공백만으로 이루어질 수 없습니다.",
+    description="새로운 문장을 생성합니다. 문장은 4글자 이상 200글자 이하여야 하며, 공백만으로 이루어질 수 없습니다. (관리자 권한 필요)",
     responses={
         201: {"description": "생성 성공"},
+        403: {"description": "관리자 권한이 필요합니다."},
         409: {"model": ConflictErrorResponse, "description": "문장 충돌 (중복 등)"}
     }
 )
 async def create_sentence(
     sentence_data: TrainSentenceCreate,
-    service: SentenceService = Depends(get_service)
+    service: SentenceService = Depends(get_service),
+    current_admin: User = Depends(get_current_admin_user)
 ):
     try:
         return await service.create_sentence(sentence_data)
@@ -82,9 +86,10 @@ async def create_sentence(
     "/{sentence_id}",
     response_model=TrainSentenceResponse,
     summary="문장 수정",
-    description="기존 문장의 내용을 수정합니다. 문장은 4글자 이상 200글자 이하여야 하며, 공백만으로 이루어질 수 없습니다.",
+    description="기존 문장의 내용을 수정합니다. 문장은 4글자 이상 200글자 이하여야 하며, 공백만으로 이루어질 수 없습니다. (관리자 권한 필요)",
     responses={
         200: {"description": "수정 성공"},
+        403: {"description": "관리자 권한이 필요합니다."},
         404: {"model": NotFoundErrorResponse, "description": "문장을 찾을 수 없음"},
         409: {"model": ConflictErrorResponse, "description": "문장 충돌 (중복 등)"}
     }
@@ -92,7 +97,8 @@ async def create_sentence(
 async def update_sentence(
     sentence_id: int,
     sentence_data: TrainSentenceUpdate,
-    service: SentenceService = Depends(get_service)
+    service: SentenceService = Depends(get_service),
+    current_admin: User = Depends(get_current_admin_user)
 ):
     try:
         updated_sentence = await service.update_sentence(sentence_id, sentence_data)
@@ -113,15 +119,17 @@ async def update_sentence(
     "/{sentence_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="문장 삭제",
-    description="지정된 ID의 문장을 삭제합니다.",
+    description="지정된 ID의 문장을 삭제합니다. (관리자 권한 필요)",
     responses={
         204: {"description": "삭제 성공"},
+        403: {"description": "관리자 권한이 필요합니다."},
         404: {"model": NotFoundErrorResponse, "description": "문장을 찾을 수 없음"}
     }
 )
 async def delete_sentence(
     sentence_id: int,
-    service: SentenceService = Depends(get_service)
+    service: SentenceService = Depends(get_service),
+    current_admin: User = Depends(get_current_admin_user)
 ):
     deleted = await service.delete_sentence(sentence_id)
     if not deleted:
