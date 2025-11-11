@@ -24,6 +24,7 @@ const DecrescendoPage: React.FC = () => {
   );
   const [_session, setSession] = useState<CreateTrainingSessionResponse | null>(null);
   const [resetTrigger, setResetTrigger] = useState(0);
+  const [isRecording, setIsRecording] = useState(false);
   const promptCardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -166,6 +167,7 @@ const DecrescendoPage: React.FC = () => {
                 subtitle="데크레셴도 훈련"
                 attempt={attempt}
                 totalAttempts={3}
+                isRecording={isRecording}
               />
 
             <div className="mb-6">
@@ -174,6 +176,7 @@ const DecrescendoPage: React.FC = () => {
                 onSubmit={handleSubmit}
                 isSubmitting={isSubmitting}
                 resetTrigger={resetTrigger}
+                onRecordingStateChange={setIsRecording}
               />
             </div>
             </CardContent>

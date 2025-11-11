@@ -24,6 +24,7 @@ const SoftLoudPage: React.FC = () => {
   );
   const [_session, setSession] = useState<CreateTrainingSessionResponse | null>(null);
   const [resetTrigger, setResetTrigger] = useState(0);
+  const [isRecording, setIsRecording] = useState(false);
 
   useEffect(() => {
     const loadSession = async () => {
@@ -164,6 +165,7 @@ const SoftLoudPage: React.FC = () => {
               subtitle="연속 강약 조절 훈련"
               attempt={attempt}
               totalAttempts={3}
+              isRecording={isRecording}
             />
 
             <div className="mb-6">
@@ -173,6 +175,7 @@ const SoftLoudPage: React.FC = () => {
                 isSubmitting={isSubmitting}
                 isLastSubmit={attempt === 3}
                 resetTrigger={resetTrigger}
+                onRecordingStateChange={setIsRecording}
               />
             </div>
           </CardContent>

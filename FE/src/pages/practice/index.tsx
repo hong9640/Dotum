@@ -660,6 +660,7 @@ const PracticePage: React.FC = () => {
         sessionData={sessionData}
         onNext={handleNextWord}
         onPrevious={handlePreviousWord}
+        recordingState={recordingState}
       >
         {showResult ? (
           <ResultComponent 
