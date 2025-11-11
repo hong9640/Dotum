@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { RotateCcw, Upload, Loader2 } from 'lucide-react';
 import { useAudioRecorder } from '@/hooks/useAudioRecorder';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { stopAllTTS } from '@/utils/tts';
 import RecordToggle from './RecordToggle';
 import AudioPlayer from './AudioPlayer';
 import AudioLevelGraph, { type AudioLevelGraphRef } from './AudioLevelGraph';
@@ -22,6 +23,7 @@ interface WaveRecorderProps {
   isSubmitting?: boolean;
   isLastSubmit?: boolean; // 마지막 제출 여부 (메시지 변경용)
   resetTrigger?: number; // 리셋 트리거 (값이 변경되면 리셋)
+  onRecordingStateChange?: (isRecording: boolean) => void; // 녹음 상태 변경 콜백
 }
 
 const WaveRecorder: React.FC<WaveRecorderProps> = ({ 
@@ -29,7 +31,8 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
   onSubmit,
   isSubmitting = false,
   isLastSubmit = false,
-  resetTrigger = 0
+  resetTrigger = 0,
+  onRecordingStateChange
 }) => {
   const { 
     isRecording, 
@@ -66,6 +69,11 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
     }
   }, [audioBlob, audioUrl, onRecordEnd]);
   
+  // 녹음 상태 변경 시 콜백 호출
+  useEffect(() => {
+    onRecordingStateChange?.(isRecording);
+  }, [isRecording, onRecordingStateChange]);
+  
   // 컴포넌트 언마운트 시 모든 리소스 정리
   useEffect(() => {
     return () => {
@@ -78,6 +86,8 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
     if (isRecording) {
       stopRecording();
     } else {
+      // 녹음 시작 시 TTS 중지
+      stopAllTTS();
       startRecording();
     }
   };
