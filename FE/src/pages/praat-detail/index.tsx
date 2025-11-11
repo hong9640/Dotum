@@ -38,6 +38,11 @@ const PraatDetailPage: React.FC = () => {
   const itemIndexParam = searchParams.get("itemIndex");
   const dateParam = searchParams.get("date"); // result-list에서 온 경우 날짜 파라미터
 
+  // 페이지 진입 시 상단으로 스크롤
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [sessionIdParam, itemIndexParam]);
+
   // 세션 아이템 데이터 로드
   useEffect(() => {
     const loadItemData = async () => {

@@ -61,6 +61,11 @@ const WordSetResults: React.FC = () => {
   const typeParam = searchParams.get('type') as 'word' | 'sentence' | 'vocal' | null;
   const dateParam = searchParams.get('date'); // training-history에서 온 경우 날짜 파라미터
 
+  // 페이지 진입 시 상단으로 스크롤
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [sessionIdParam, typeParam]);
+
   // 세션 상세 조회 API 호출
   useEffect(() => {
     const loadSessionDetail = async () => {

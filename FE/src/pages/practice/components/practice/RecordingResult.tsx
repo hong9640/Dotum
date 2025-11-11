@@ -47,13 +47,13 @@ const RecordingResult: React.FC<RecordingResultProps> = ({
     <div className="flex justify-center">
       <div className="w-full max-w-[800px]">
         {/* 완료 안내 메시지 */}
-        <div className="text-center mb-4">
+        {/* <div className="text-center mb-4">
           <div className="px-6 py-3 bg-green-600/90 rounded-full inline-block">
             <span className="text-white text-base sm:text-lg md:text-xl font-semibold">
               녹화 완료! 영상을 확인해보세요
             </span>
           </div>
-        </div>
+        </div> */}
 
         {/* 영상 */}
         <div className="w-full max-w-[800px] rounded-2xl overflow-hidden">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import WaveRecorder from './components/WaveRecorder';
@@ -25,6 +25,7 @@ const MPTPage: React.FC = () => {
   );
   const [_session, setSession] = useState<CreateTrainingSessionResponse | null>(null);
   const [resetTrigger, setResetTrigger] = useState(0);
+  const promptCardRef = useRef<HTMLDivElement>(null);
 
   // 세션 생성 (첫 시도일 때)
   useEffect(() => {
@@ -73,6 +74,16 @@ const MPTPage: React.FC = () => {
       setResetTrigger(prev => prev + 1);
     }
     prevAttemptRef.current = attempt;
+  }, [attempt]);
+
+  // 페이지 진입 시 또는 attempt 변경 시 PromptCardMPT로 스크롤
+  useEffect(() => {
+    if (promptCardRef.current) {
+      promptCardRef.current.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+    }
   }, [attempt]);
 
   const handleRecordEnd = (b: Blob, u: string) => {
@@ -169,15 +180,15 @@ const MPTPage: React.FC = () => {
     <div className="w-full min-h-[calc(100vh-96px)] p-4 sm:p-8">
       <div className="max-w-4xl mx-auto">
         <Card className="border-0 shadow-none">
+        <div id="prompt-card-mpt" ref={promptCardRef}>
           <CardContent className="p-6 sm:p-8">
             {/* 프롬프트 카드 */}
-            <PromptCardMPT
-              main="아"
-              subtitle="최대 발성 지속 시간 훈련"
-              attempt={attempt}
-              totalAttempts={3}
-            />
-
+              <PromptCardMPT
+                main="아"
+                subtitle="최대 발성 지속 시간 훈련"
+                attempt={attempt}
+                totalAttempts={3}
+              />
             {/* 녹음 영역 */}
             <div className="mb-6">
               <WaveRecorder
@@ -188,6 +199,7 @@ const MPTPage: React.FC = () => {
               />
             </div>
           </CardContent>
+          </div>
         </Card>
       </div>
     </div>

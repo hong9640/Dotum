@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import WaveRecorder from './components/WaveRecorder';
@@ -24,6 +24,7 @@ const DecrescendoPage: React.FC = () => {
   );
   const [_session, setSession] = useState<CreateTrainingSessionResponse | null>(null);
   const [resetTrigger, setResetTrigger] = useState(0);
+  const promptCardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const loadSession = async () => {
@@ -53,6 +54,16 @@ const DecrescendoPage: React.FC = () => {
       setResetTrigger(prev => prev + 1);
     }
     prevAttemptRef.current = attempt;
+  }, [attempt]);
+
+  // 페이지 진입 시 또는 attempt 변경 시 PromptCardDecrescendo로 스크롤
+  useEffect(() => {
+    if (promptCardRef.current) {
+      promptCardRef.current.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+    }
   }, [attempt]);
 
   const handleRecordEnd = (b: Blob, u: string) => {
@@ -148,13 +159,14 @@ const DecrescendoPage: React.FC = () => {
     <div className="w-full min-h-[calc(100vh-96px)] p-4 sm:p-8">
       <div className="max-w-4xl mx-auto">
         <Card className="border-0 shadow-none">
-          <CardContent className="p-6 sm:p-8">
-            <PromptCardDecrescendo
-              main="아아아아"
-              subtitle="데크레셴도 훈련"
-              attempt={attempt}
-              totalAttempts={3}
-            />
+          <div id="prompt-card-decrescendo" ref={promptCardRef}>
+            <CardContent className="p-6 sm:p-8">
+              <PromptCardDecrescendo
+                main="아아아아"
+                subtitle="데크레셴도 훈련"
+                attempt={attempt}
+                totalAttempts={3}
+              />
 
             <div className="mb-6">
               <WaveRecorder
@@ -164,7 +176,8 @@ const DecrescendoPage: React.FC = () => {
                 resetTrigger={resetTrigger}
               />
             </div>
-          </CardContent>
+            </CardContent>
+          </div>
         </Card>
       </div>
     </div>
