@@ -226,6 +226,17 @@ async def get_current_user(
         
     return user
 
+async def get_current_admin_user(
+    current_user: Annotated[User, Depends(get_current_user)]
+) -> User:
+    """현재 사용자가 ADMIN 권한을 가지고 있는지 확인"""
+    if current_user.role != UserRoleEnum.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="관리자 권한이 필요합니다."
+        )
+    return current_user
+
 async def logout_user(
     refresh_token: str, user_id: int, db: AsyncSession
 ) -> bool:
