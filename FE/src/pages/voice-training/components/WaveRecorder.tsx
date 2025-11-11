@@ -83,7 +83,10 @@ const WaveRecorder: React.FC<WaveRecorderProps> = ({
   };
 
   const handleRetake = () => {
-    startRecording();
+    reset();
+    // 그래프 초기화
+    graphRef.current?.clearCanvas();
+    // 녹음 시작 버튼을 표시 (사용자가 수동으로 클릭)
   };
 
   const handleSubmit = async () => {
