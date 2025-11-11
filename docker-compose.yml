@@ -120,6 +120,7 @@ services:
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173}
       - ML_SERVER_URL=${ML_SERVER_URL}
       - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - ENABLE_WAV2LIP=${ENABLE_WAV2LIP:-true}
     ports:
       - "8000:8000"
     volumes:
