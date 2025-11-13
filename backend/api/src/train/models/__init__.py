@@ -5,6 +5,8 @@ from .training_item import TrainingItem
 from .media import MediaFile, MediaType, MediaStatus
 from .praat import PraatFeatures
 from .session_praat_result import SessionPraatResult
+from .train_session_praat_feedback import TrainSessionPraatFeedback
+from .train_item_praat_feedback import TrainItemPraatFeedback
 
 __all__ = [
     "TrainWords",
@@ -17,5 +19,7 @@ __all__ = [
     "MediaType",
     "MediaStatus",
     "PraatFeatures",
-    "SessionPraatResult"
+    "SessionPraatResult",
+    "TrainSessionPraatFeedback",
+    "TrainItemPraatFeedback"
 ]
