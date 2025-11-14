@@ -22,6 +22,14 @@ try:
 except Exception as e:
     logger.warning(f"Failed to load lip video router: {e}")
 
+# STT API 라우터 추가
+try:
+    from api.routes.stt import router as stt_router
+    app.include_router(stt_router)
+    logger.info("STT router loaded successfully")
+except Exception as e:
+    logger.warning(f"Failed to load STT router: {e}")
+
 @app.get("/")
 def endpoint_check():
   return ({"server_staus": "running"})
