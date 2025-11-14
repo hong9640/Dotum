@@ -1,6 +1,6 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 import type { SignupFormValues } from "@/hooks/signup";
 import type { UseFormRegister } from "react-hook-form";
 

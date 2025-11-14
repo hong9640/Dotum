@@ -5,7 +5,7 @@ import PronunciationScore from "./PronunciationScore";
 import FeedbackSummary from "./FeedbackSummary";
 import DetailedEvaluationItems from "./DetailedEvaluationItems";
 import ImprovementPoints from "./ImprovementPoints";
-import type { PraatMetrics } from "@/api/training-session/praat";
+import type { PraatMetrics } from "@/api/trainingSession/praat";
 
 interface FeedbackCardProps {
   hideSections?: boolean; // result-detail 페이지에서 일부 섹션 숨김

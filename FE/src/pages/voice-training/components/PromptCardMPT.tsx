@@ -1,7 +1,7 @@
 import React from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useTTS } from '@/hooks/useTTS';
+import { useTTS } from '@/hooks/shared/useTTS';
 
 interface PromptCardMPTProps {
   main: string;

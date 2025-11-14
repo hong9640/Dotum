@@ -1,8 +1,8 @@
 import { apiClient } from "../axios";
-import type { SessionItemResponse } from "../training-session/sessionItemSearch";
-import type { CreateTrainingSessionResponse } from "../training-session";
+import type { SessionItemResponse } from "../trainingSession/sessionItemSearch";
+import type { CreateTrainingSessionResponse } from "../trainingSession";
 import type { MediaResponse } from "./index";
-import type { PraatMetrics } from "../training-session/praat";
+import type { PraatMetrics } from "../trainingSession/praat";
 
 // 재업로드 성공 응답 타입
 export interface VideoReuploadResponse {

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useSearchParams } from 'react-router-dom';
-import NavigationBar from '@/components/NavigationBar';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
+import NavigationBar from '@/components/layout/NavigationBar';
+import { ProtectedRoute } from '@/components/routing/ProtectedRoute';
 // import ScrollToTop from '@/components/ScrollToTop';
 import HomePage from '@/pages/home';
 import PracticePage from '@/pages/practice';
@@ -17,7 +17,9 @@ import CrescendoPage from '@/pages/voice-training/crescendo';
 import DecrescendoPage from '@/pages/voice-training/decrescendo';
 import LoudSoftPage from '@/pages/voice-training/loud-soft';
 import SoftLoudPage from '@/pages/voice-training/soft-loud';
-import { clearAuthCookies } from '@/lib/cookies';
+import ResultListMockup from '@/pages/mockup/result-list-mockup';
+import ResultDetailMockup from '@/pages/mockup/result-detail-mockup';
+import { clearAuthCookies } from '@/utils/cookies';
 import { checkAuthStatus } from '@/api/user';
 import { Logout } from '@/api/logout/Logout';
 import {
@@ -213,6 +215,10 @@ const AppContent: React.FC<{
               </ProtectedRoute>
             } 
           />
+          
+          {/* 목업 페이지 (개발용) */}
+          <Route path="/mockup/result-list" element={<ResultListMockup />} />
+          <Route path="/mockup/result-detail" element={<ResultDetailMockup />} />
         </Routes>
       </main>
     </div>

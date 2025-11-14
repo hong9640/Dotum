@@ -1,7 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { TrainingSet } from '../types';
+import type { TrainingSet } from '@/types/training-history-detail';
 import { ScoreChip } from './ScoreChip';
 import { WordChip } from './WordChip';
+import { formatDateTime } from '@/utils/dateFormatter';
 
 interface TrainingSetCardProps {
   trainingSet: TrainingSet;
@@ -15,22 +16,6 @@ export function TrainingSetCard({ trainingSet, onClick }: TrainingSetCardProps) 
     }
   };
 
-  // 날짜를 한국어 형식으로 포맷팅하는 함수
-  const formatDate = (dateString: string): string => {
-    try {
-      const date = new Date(dateString);
-      const year = date.getFullYear();
-      const month = date.getMonth() + 1; // getMonth()는 0부터 시작
-      const day = date.getDate();
-      const hours = date.getHours();
-      const minutes = date.getMinutes();
-      
-      return '훈련일: '+`${year}년 ${month}월 ${day}일 ${hours}시 ${minutes}분`;
-    } catch {
-      // 파싱 실패 시 원본 문자열 반환
-      return '훈련일: '+dateString;
-    }
-  };
 
   return (
     <Card 
@@ -68,9 +53,9 @@ export function TrainingSetCard({ trainingSet, onClick }: TrainingSetCardProps) 
                 ))
               ) : (
                 <span className="text-sm sm:text-base text-gray-500">
-                  {trainingSet.type === 'vocal' && trainingSet.created_at 
-                    ? formatDate(trainingSet.created_at)
-                    : '표시할 항목이 없습니다.'}
+                {trainingSet.type === 'vocal' && trainingSet.created_at 
+                  ? `훈련일: ${formatDateTime(trainingSet.created_at)}`
+                  : '표시할 항목이 없습니다.'}
                 </span>
               )}
             </div>

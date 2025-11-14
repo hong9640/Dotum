@@ -1,4 +1,4 @@
-import type { TrainingSet } from '../types';
+import type { TrainingSet } from '@/types/training-history-detail';
 import { TrainingSetCard } from './TrainingSetCard';
 import { EmptyState } from './EmptyState';
 

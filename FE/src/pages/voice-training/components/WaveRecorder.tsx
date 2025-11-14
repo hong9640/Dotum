@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { RotateCcw, Upload, Loader2 } from 'lucide-react';
-import { useAudioRecorder } from '@/hooks/useAudioRecorder';
-import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useAudioRecorder } from '@/hooks/voice-training';
+import { useMediaQuery } from '@/hooks/shared/useMediaQuery';
 import { stopAllTTS } from '@/utils/tts';
 import RecordToggle from './RecordToggle';
 import AudioPlayer from './AudioPlayer';

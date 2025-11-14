@@ -5,7 +5,7 @@ import * as z from "zod";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Login } from "@/api/login";
-import { setCookie } from "@/lib/cookies";
+import { setCookie } from "@/utils/cookies";
 import type { AxiosErrorResponse } from "@/types/api";
 
 const loginSchema = z.object({

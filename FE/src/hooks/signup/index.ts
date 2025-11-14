@@ -5,7 +5,7 @@ import * as z from "zod";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Signup, CheckEmailDuplication } from "@/api/signup";
-import { useAlertDialog } from "@/hooks/useAlertDialog";
+import { useAlertDialog } from "../shared/useAlertDialog";
 import type { AxiosErrorResponse } from "@/types/api";
 
 // Zod 유효성 검사 스키마

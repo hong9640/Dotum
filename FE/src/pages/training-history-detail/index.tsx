@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { TrainingSet } from './types';
+import type { TrainingSet } from '@/types/training-history-detail';
 import { Header, TrainingSetGrid } from './components';
-import { convertSessionsToTrainingSets } from './utils';
-import { useTrainingDayDetail } from '@/hooks/useTrainingDayDetail';
-import { getDailyRecordSearch } from '@/api/training-history/dailyRecordSearch';
-import { completeTrainingSession } from '@/api/training-session';
+import { convertSessionsToTrainingSets } from '@/utils/training-history-detail';
+import { useTrainingDayDetail } from '@/hooks/training-history-detail';
+import { getDailyRecordSearch } from '@/api/trainingHistory/dailyRecordSearch';
+import { completeTrainingSession } from '@/api/trainingSession';
 import { toast } from 'sonner';
 
 export interface TrainingDayDetailProps {
@@ -209,6 +209,5 @@ export default function TrainingDayDetail({
   );
 }
 
-// Export types and components
-export * from './types';
+// Export components
 export * from './components';

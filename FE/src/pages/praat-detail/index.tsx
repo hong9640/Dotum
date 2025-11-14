@@ -6,12 +6,12 @@ import PatientInfoSection, { type PatientInfo } from "./components/PatientInfoSe
 import PraatMetricsSections from "./components/PraatMetricsSections";
 import RecordingTabs from "./components/RecordingTabs";
 import PraatSectionCard from "./components/PraatSectionCard";
-import { getSessionItemByIndex, getSessionItemErrorMessage } from "@/api/training-session/sessionItemSearch";
-import { getTrainingSession } from "@/api/training-session";
-import type { PraatValues } from "./types";
-import { usePraat } from "@/hooks/usePraat";
-import { getPraatErrorMessage } from "@/api/training-session/praat";
-// import type { PraatMetrics } from "@/api/training-session/praat";
+import { getSessionItemByIndex, getSessionItemErrorMessage } from "@/api/trainingSession/sessionItemSearch";
+import { getTrainingSession } from "@/api/trainingSession";
+import type { PraatValues } from "@/types/praat-detail";
+import { usePraat } from "@/hooks/result-detail";
+import { getPraatErrorMessage } from "@/api/trainingSession/praat";
+// import type { PraatMetrics } from "@/api/trainingSession/praat";
 
 /**
  * Praat 상세 페이지

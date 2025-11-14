@@ -1,17 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { useMediaRecorder } from "@/hooks/useMediaRecorder";
-import { usePracticeStore } from "@/stores/practiceStore";
+import { useMediaRecorder, useCompositedVideoPolling } from "@/hooks/practice";
 import TrainingLayout from "@/pages/practice/components/TrainingLayout";
 import PracticeComponent from "@/pages/practice/components/practice/PracticeComponent";
 import ResultComponent from "@/pages/practice/components/result/ResultComponent";
-import { getSessionItemByIndex, getSessionItemErrorMessage, type SessionItemResponse } from "@/api/training-session/sessionItemSearch";
-import { getTrainingSession, completeTrainingSession, type CreateTrainingSessionResponse } from "@/api/training-session";
+import { getSessionItemByIndex, getSessionItemErrorMessage, type SessionItemResponse } from "@/api/trainingSession/sessionItemSearch";
+import { getTrainingSession, completeTrainingSession, type CreateTrainingSessionResponse } from "@/api/trainingSession";
 import { submitCurrentItem, type SubmitCurrentItemResponse } from "@/api/practice";
 import { reuploadVideo, type VideoReuploadResponse } from "@/api/practice/videoReupload";
-import { useCompositedVideoPolling } from "@/hooks/useCompositedVideoPolling";
 import { toast } from "sonner";
+import { createInitialUploadState, type UploadState, createInitialVideoState, type VideoState } from "@/types/practice";
 
 const PracticePage: React.FC = () => {
   const navigate = useNavigate();
@@ -21,19 +20,9 @@ const PracticePage: React.FC = () => {
   const [currentItem, setCurrentItem] = useState<SessionItemResponse | null>(null);
   const [sessionData, setSessionDataState] = useState<CreateTrainingSessionResponse | null>(null);
   const [showResult, setShowResult] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [recordedFile, setRecordedFile] = useState<File | null>(null);
-  const [userVideoUrl, setUserVideoUrl] = useState<string | undefined>(undefined);
-  const [compositedVideoUrl, setCompositedVideoUrl] = useState<string | undefined>(undefined);
-  const [compositedVideoError, setCompositedVideoError] = useState<string | null>(null);
-  const [isLoadingCompositedVideo, setIsLoadingCompositedVideo] = useState(false);
+  const [uploadState, setUploadState] = useState<UploadState>(createInitialUploadState());
+  const [videoState, setVideoState] = useState<VideoState>(createInitialVideoState());
   
-  // 상태 관리
-  const { 
-    addRecordedVideo,
-    setSessionData
-  } = usePracticeStore();
 
   // URL 파라미터에서 세션 정보 가져오기
   const sessionIdParam = searchParams.get('sessionId');
@@ -79,31 +68,35 @@ const PracticePage: React.FC = () => {
         
         setSessionDataState(fetchedSessionData);
         setCurrentItem(currentItemData);
-        
-        // userVideoUrl 설정 (video_url이 있으면 설정)
         if (currentItemData.video_url != null) {
-          setUserVideoUrl(currentItemData.video_url);
-        } else {
-          setUserVideoUrl(undefined);
-        }
-        
-        // composited_video_url이 있고 null이 아니면 바로 설정
-        // 필드가 없거나(null 또는 undefined) null이면 초기화 (폴링으로 가져올 예정)
-        if (currentItemData.composited_video_url != null) {
-          setCompositedVideoUrl(currentItemData.composited_video_url);
-          setCompositedVideoError(null);
-          setIsLoadingCompositedVideo(false);
-        } else {
-          // 없거나 null이면 초기화
-          setCompositedVideoUrl(undefined);
-          setCompositedVideoError(null);
-          
-          // is_completed가 true이고 composited_video_url이 없으면 폴링 시작
-          if (currentItemData.is_completed && !currentItemData.composited_video_url) {
-            // 폴링을 즉시 시작하도록 상태 설정
-            setIsLoadingCompositedVideo(true);
-            // 폴링은 useEffect 내에서 처리 (showResult 설정 후 실행될 것)
+          if (currentItemData.composited_video_url != null) {
+            // 합성 비디오가 이미 있는 경우
+            setVideoState({
+              userVideoUrl: currentItemData.video_url,
+              compositedVideoUrl: currentItemData.composited_video_url,
+              compositedVideoError: null,
+              isLoadingComposited: false,
+            });
+          } else if (currentItemData.is_completed) {
+            // 업로드는 완료됐지만 합성이 안된 경우 (폴링 시작)
+            setVideoState({
+              userVideoUrl: currentItemData.video_url,
+              compositedVideoUrl: undefined,
+              compositedVideoError: null,
+              isLoadingComposited: true,
+            });
+          } else {
+            // 업로드는 있지만 완료되지 않은 경우
+            setVideoState({
+              userVideoUrl: currentItemData.video_url,
+              compositedVideoUrl: undefined,
+              compositedVideoError: null,
+              isLoadingComposited: false,
+            });
           }
+        } else {
+          // 비디오가 아직 없는 경우
+          setVideoState(createInitialVideoState());
         }
         
         // URL에 itemIndex가 없거나 다른 경우 URL 업데이트
@@ -111,11 +104,6 @@ const PracticePage: React.FC = () => {
           updateUrl(currentItemData.item_index);
         }
         
-        // 현재 아이템의 단어/문장 설정
-        const targetText = currentItemData.word || currentItemData.sentence || '';
-        
-        // 세션 데이터 설정 (실제 API 데이터 반영)
-        setSessionData(sessionIdParam, sessionTypeParam, [targetText], fetchedSessionData?.total_items || 10, currentItemData.item_index);
         
         // 아이템이 완료된 경우 결과 페이지 표시
         if (currentItemData.is_completed) {
@@ -145,7 +133,7 @@ const PracticePage: React.FC = () => {
     sessionIdParam &&
     !isNaN(sessionIdNum || NaN) &&
     currentItem?.item_id &&
-    !compositedVideoUrl && // 이미 받은 로컬 URL 없음
+    !videoState.compositedVideoUrl && // 이미 받은 로컬 URL 없음
     !currentItem?.composited_video_url // 서버에도 없음
   );
 
@@ -164,9 +152,12 @@ const PracticePage: React.FC = () => {
   // 폴링 결과를 로컬 상태에 반영
   useEffect(() => {
     if (polledUrl) {
-      setCompositedVideoUrl(polledUrl);
-      setIsLoadingCompositedVideo(false);
-      setCompositedVideoError(null);
+      setVideoState(prev => ({
+        ...prev,
+        compositedVideoUrl: polledUrl,
+        isLoadingComposited: false,
+        compositedVideoError: null,
+      }));
       // currentItem에도 반영하여 중복 폴링 방지
       setCurrentItem((prev) =>
         prev ? { ...prev, composited_video_url: polledUrl } : prev
@@ -175,20 +166,18 @@ const PracticePage: React.FC = () => {
   }, [polledUrl]);
 
   useEffect(() => {
-    setIsLoadingCompositedVideo(pollingEnabled && polledLoading);
+    setVideoState(prev => ({ ...prev, isLoadingComposited: pollingEnabled && polledLoading }));
   }, [pollingEnabled, polledLoading]);
 
   useEffect(() => {
     if (polledError) {
-      setCompositedVideoError(polledError);
+      setVideoState(prev => ({ ...prev, compositedVideoError: polledError }));
     }
   }, [polledError]);
 
-  const handleSave = (file: File, blobUrl: string) => {
-    // 녹화된 비디오를 상태에 추가
-    addRecordedVideo(blobUrl);
+  const handleSave = (file: File, _blobUrl: string) => {
     // 녹화된 파일을 상태에 저장 (업로드용)
-    setRecordedFile(file);
+    setUploadState(prev => ({ ...prev, file }));
   };
 
   const {
@@ -216,46 +205,41 @@ const PracticePage: React.FC = () => {
     
     // 녹화 상태 초기화
     retake(); // useMediaRecorder 상태 초기화 (blobUrl 제거)
-    setRecordedFile(null); // 업로드용 파일 초기화
-    setUserVideoUrl(undefined); // 사용자 비디오 URL 초기화
-    setCompositedVideoUrl(undefined); // Wav2Lip 비디오 URL 초기화
-    setCompositedVideoError(null); // Wav2Lip 에러 초기화
-    setIsLoadingCompositedVideo(false); // 로딩 상태 초기화
-    setUploadError(null); // 업로드 에러 초기화
+    setUploadState(createInitialUploadState()); // 업로드 상태 초기화
+    setVideoState(createInitialVideoState()); // 비디오 상태 초기화
   };
 
   const handleUpload = async () => {
     // 이미 업로드 중이면 중복 실행 방지
-    if (isUploading) return;
+    if (uploadState.isUploading) return;
     
-    if (!recordedFile || !sessionIdParam || !currentItem) {
-      setUploadError('업로드할 파일이나 세션 정보가 없습니다.');
+    if (!uploadState.file || !sessionIdParam || !currentItem) {
+      setUploadState(prev => ({ ...prev, error: '업로드할 파일이나 세션 정보가 없습니다.' }));
       return;
     }
 
     const sessionId = Number(sessionIdParam);
     if (isNaN(sessionId)) {
-      setUploadError('유효하지 않은 세션 ID입니다.');
+      setUploadState(prev => ({ ...prev, error: '유효하지 않은 세션 ID입니다.' }));
       return;
     }
 
     try {
-      setIsUploading(true);
-      setUploadError(null);
+      setUploadState(prev => ({ ...prev, isUploading: true, error: null }));
       
       let response: SubmitCurrentItemResponse | VideoReuploadResponse;
       
       // is_completed가 true이면 재업로드 API 호출, 아니면 일반 업로드 API 호출
       if (currentItem.is_completed) {
         // 재업로드 API (PUT)
-        response = await reuploadVideo(sessionId, currentItem.item_id, recordedFile);
+        response = await reuploadVideo(sessionId, currentItem.item_id, uploadState.file);
       } else {
         // 일반 업로드 API (POST)
-        response = await submitCurrentItem(sessionId, recordedFile);
+        response = await submitCurrentItem(sessionId, uploadState.file);
       }
       
       // 업로드된 사용자 비디오 URL 저장 (있을 경우)
-      setUserVideoUrl(response.video_url || undefined);
+      setVideoState(prev => ({ ...prev, userVideoUrl: response.video_url || undefined }));
       
       // 응답에서 업데이트된 세션 데이터 반영
       if (response.session) {
@@ -279,23 +263,28 @@ const PracticePage: React.FC = () => {
             media_file_id: updatedItem.media_file_id ?? currentItem.media_file_id,
           });
           
-          // composited_video_url이 응답에 있고 null이 아니면 바로 설정
-          // 필드가 없거나 null이면 초기화 (폴링으로 가져올 예정)
+          // composited_video_url 상태 업데이트
           if (updatedItem.composited_video_url != null) {
-            setCompositedVideoUrl(updatedItem.composited_video_url);
-            setCompositedVideoError(null);
-            setIsLoadingCompositedVideo(false);
+            setVideoState(prev => ({
+              ...prev,
+              compositedVideoUrl: updatedItem.composited_video_url!,
+              compositedVideoError: null,
+              isLoadingComposited: false,
+            }));
           } else {
-            // 없거나 null이면 초기화하여 폴링이 시작되도록 함
-            setCompositedVideoUrl(undefined);
-            setCompositedVideoError(null);
+            // 없거나 null이면 폴링 대기 상태로
+            setVideoState(prev => ({
+              ...prev,
+              compositedVideoUrl: undefined,
+              compositedVideoError: null,
+            }));
           }
           
           // 업로드 성공 시 결과 페이지 표시하지 않음
           setShowResult(false);
           
           // 업로드 완료 후 파일 상태 초기화 (아이템 이동 전에 초기화)
-          setRecordedFile(null);
+          setUploadState(prev => ({ ...prev, file: null }));
           retake(); // useMediaRecorder 상태 초기화
           
           // 다음 아이템이 있으면 다음 아이템으로 이동
@@ -307,32 +296,32 @@ const PracticePage: React.FC = () => {
               // 다음 아이템 조회
               const nextItemData = await getSessionItemByIndex(sessionId, nextItemIndex);
               
-              // 다음 아이템의 단어/문장으로 업데이트
-              const targetText = nextItemData.word || nextItemData.sentence || '';
-              
               // 모든 상태를 한 번에 배치 업데이트 (React 18의 자동 배칭 활용)
               setCurrentItem(nextItemData);
               setShowResult(false);
               
-              // userVideoUrl 설정 (video_url이 있으면 설정)
+              // 비디오 상태 설정
               if (nextItemData.video_url != null) {
-                setUserVideoUrl(nextItemData.video_url);
+                if (nextItemData.composited_video_url != null) {
+                  setVideoState({
+                    userVideoUrl: nextItemData.video_url,
+                    compositedVideoUrl: nextItemData.composited_video_url,
+                    compositedVideoError: null,
+                    isLoadingComposited: false,
+                  });
+                } else {
+                  setVideoState({
+                    userVideoUrl: nextItemData.video_url,
+                    compositedVideoUrl: undefined,
+                    compositedVideoError: null,
+                    isLoadingComposited: false,
+                  });
+                }
               } else {
-                setUserVideoUrl(undefined);
+                setVideoState(createInitialVideoState());
               }
               
-              // composited_video_url 처리
-              if (nextItemData.composited_video_url != null) {
-                setCompositedVideoUrl(nextItemData.composited_video_url);
-                setCompositedVideoError(null);
-                setIsLoadingCompositedVideo(false);
-              } else {
-                setCompositedVideoUrl(undefined);
-                setCompositedVideoError(null);
-              }
-              
-              // 세션 데이터 설정
-              setSessionData(sessionIdParam, sessionTypeParam!, [targetText], sessionData?.total_items || 10, nextItemData.item_index);
+              // 세션 데이터는 이미 currentItem에 저장됨
               
               // URL 업데이트는 약간의 지연을 두어 상태 업데이트가 완료된 후 실행
               setTimeout(() => {
@@ -434,7 +423,7 @@ const PracticePage: React.FC = () => {
       // 401: 인증 오류 - 강제 로그인 페이지 이동
       if (status === 401) {
         toast.error('세션이 만료되었습니다. 다시 로그인해주세요.');
-        setIsUploading(false);
+        setUploadState(prev => ({ ...prev, isUploading: false }));
         setTimeout(() => {
           navigate('/login');
         }, 1500);
@@ -444,7 +433,7 @@ const PracticePage: React.FC = () => {
       // 404: 세션 없음 - 강제 홈으로 이동
       if (status === 404) {
         toast.error('세션을 찾을 수 없습니다. 홈에서 다시 시작해주세요.');
-        setIsUploading(false);
+        setUploadState(prev => ({ ...prev, isUploading: false }));
         setTimeout(() => {
           navigate('/');
         }, 1500);
@@ -454,7 +443,7 @@ const PracticePage: React.FC = () => {
       // 422: 파일 오류 - 강제 다시 녹화
       if (status === 422) {
         toast.error('파일이 올바르지 않습니다. 다시 녹화해주세요.');
-        setIsUploading(false);
+        setUploadState(prev => ({ ...prev, isUploading: false }));
         handleRetake(); // 자동으로 초기화
         return;
       }
@@ -467,9 +456,9 @@ const PracticePage: React.FC = () => {
         errorMessage = axiosErrorWithDetail.response.data.detail;
       }
       
-      setUploadError(errorMessage);
+      setUploadState(prev => ({ ...prev, error: errorMessage }));
     } finally {
-      setIsUploading(false);
+      setUploadState(prev => ({ ...prev, isUploading: false }));
     }
   };
 
@@ -494,37 +483,36 @@ const PracticePage: React.FC = () => {
       // 다음 아이템 조회
       const nextItemData = await getSessionItemByIndex(sessionId, nextItemIndex);
       
-      // 다음 아이템의 단어/문장으로 업데이트
-      const targetText = nextItemData.word || nextItemData.sentence || '';
-      
       // 모든 상태를 한 번에 배치 업데이트
       setCurrentItem(nextItemData);
       setShowResult(false);
       
-      // userVideoUrl 설정 (video_url이 있으면 설정)
+      // 비디오 상태 설정
       if (nextItemData.video_url != null) {
-        setUserVideoUrl(nextItemData.video_url);
+        if (nextItemData.composited_video_url != null) {
+          setVideoState({
+            userVideoUrl: nextItemData.video_url,
+            compositedVideoUrl: nextItemData.composited_video_url,
+            compositedVideoError: null,
+            isLoadingComposited: false,
+          });
+        } else {
+          setVideoState({
+            userVideoUrl: nextItemData.video_url,
+            compositedVideoUrl: undefined,
+            compositedVideoError: null,
+            isLoadingComposited: false,
+          });
+        }
       } else {
-        setUserVideoUrl(undefined);
-      }
-      
-      // composited_video_url 처리
-      // 필드가 있고 null이 아니면 설정, 없거나 null이면 초기화 (폴링으로 가져올 예정)
-      if (nextItemData.composited_video_url != null) {
-        setCompositedVideoUrl(nextItemData.composited_video_url);
-        setCompositedVideoError(null);
-        setIsLoadingCompositedVideo(false);
-      } else {
-        setCompositedVideoUrl(undefined);
-        setCompositedVideoError(null);
+        setVideoState(createInitialVideoState());
       }
 
       // 이전 아이템의 녹화 영상 상태 초기화
       retake(); // useMediaRecorder 상태 초기화 (blobUrl 제거)
-      setRecordedFile(null); // 업로드용 파일 초기화
+      setUploadState(prev => ({ ...prev, file: null })); // 업로드용 파일 초기화
       
-      // 세션 데이터 설정
-      setSessionData(sessionIdParam, sessionTypeParam!, [targetText], sessionData?.total_items || 10, nextItemData.item_index);
+      // 세션 데이터는 이미 currentItem에 저장됨
       
       // URL 업데이트는 약간의 지연을 두어 상태 업데이트가 완료된 후 실행
       setTimeout(() => {
@@ -553,37 +541,36 @@ const PracticePage: React.FC = () => {
       // 이전 아이템 조회
       const prevItemData = await getSessionItemByIndex(sessionId, prevItemIndex);
       
-      // 이전 아이템의 단어/문장으로 업데이트
-      const targetText = prevItemData.word || prevItemData.sentence || '';
-      
       // 모든 상태를 한 번에 배치 업데이트
       setCurrentItem(prevItemData);
       setShowResult(false);
       
-      // userVideoUrl 설정 (video_url이 있으면 설정)
+      // 비디오 상태 설정
       if (prevItemData.video_url != null) {
-        setUserVideoUrl(prevItemData.video_url);
+        if (prevItemData.composited_video_url != null) {
+          setVideoState({
+            userVideoUrl: prevItemData.video_url,
+            compositedVideoUrl: prevItemData.composited_video_url,
+            compositedVideoError: null,
+            isLoadingComposited: false,
+          });
+        } else {
+          setVideoState({
+            userVideoUrl: prevItemData.video_url,
+            compositedVideoUrl: undefined,
+            compositedVideoError: null,
+            isLoadingComposited: false,
+          });
+        }
       } else {
-        setUserVideoUrl(undefined);
-      }
-      
-      // composited_video_url 처리
-      // 필드가 있고 null이 아니면 설정, 없거나 null이면 초기화
-      if (prevItemData.composited_video_url != null) {
-        setCompositedVideoUrl(prevItemData.composited_video_url);
-        setCompositedVideoError(null);
-        setIsLoadingCompositedVideo(false);
-      } else {
-        setCompositedVideoUrl(undefined);
-        setCompositedVideoError(null);
+        setVideoState(createInitialVideoState());
       }
 
       // 이전 아이템의 녹화 영상 상태 초기화
       retake(); // useMediaRecorder 상태 초기화 (blobUrl 제거)
-      setRecordedFile(null); // 업로드용 파일 초기화
+      setUploadState(prev => ({ ...prev, file: null })); // 업로드용 파일 초기화
       
-      // 세션 데이터 설정
-      setSessionData(sessionIdParam, sessionTypeParam!, [targetText], sessionData?.total_items || 10, prevItemData.item_index);
+      // 세션 데이터는 이미 currentItem에 저장됨
       
       // URL 업데이트는 약간의 지연을 두어 상태 업데이트가 완료된 후 실행
       setTimeout(() => {
@@ -664,14 +651,16 @@ const PracticePage: React.FC = () => {
       >
         {showResult ? (
           <ResultComponent 
-            userVideoUrl={userVideoUrl}
-            compositedVideoUrl={compositedVideoUrl}
-            isLoadingCompositedVideo={isLoadingCompositedVideo}
-            compositedVideoError={compositedVideoError}
+            sessionId={sessionIdParam ? Number(sessionIdParam) : undefined}
+            sessionType={sessionTypeParam || undefined}
+            userVideoUrl={videoState.userVideoUrl}
+            compositedVideoUrl={videoState.compositedVideoUrl}
+            isLoadingCompositedVideo={videoState.isLoadingComposited}
+            compositedVideoError={videoState.compositedVideoError}
             onNext={handleNextWord}
             hasNext={currentItem?.has_next ?? false}
             onRetake={handleRetake}
-            isUploading={isUploading}
+            isUploading={uploadState.isUploading}
           />
         ) : (
           <PracticeComponent
@@ -684,8 +673,8 @@ const PracticePage: React.FC = () => {
             onRetake={retake}
             onViewResults={handleViewResults}
             onUpload={handleUpload}
-            isUploading={isUploading}
-            uploadError={uploadError}
+            isUploading={uploadState.isUploading}
+            uploadError={uploadState.error}
             isCameraReady={!!isCameraReady}
             videoRef={videoRef}
           />

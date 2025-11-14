@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import CalendarHeader from "./CalendarHeader";
 import CalendarGrid from "./CalendarGrid";
 import CalendarLegend from "./CalendarLegend";
-import { useCalendar } from "@/hooks/useCalendar";
+import { useCalendar } from "@/hooks/training-history";
 import { useEffect } from "react";
 
 // 훈련 세트 수 데이터 타입

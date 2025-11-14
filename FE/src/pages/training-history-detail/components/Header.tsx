@@ -1,5 +1,6 @@
 import { ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { formatDateKorean } from '@/utils/dateFormatter';
 
 interface HeaderProps {
   date: string;
@@ -8,14 +9,6 @@ interface HeaderProps {
 }
 
 export function Header({ date, totalSets, onBack }: HeaderProps) {
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
 
   return (
     <div className="px-0 sm:px-8 pt-0 pb-7 sm:pt-7 relative w-full max-w-7xl mx-auto flex flex-col sm:inline-flex sm:justify-center items-start gap-2.5 max-w-[900px]">
@@ -34,7 +27,7 @@ export function Header({ date, totalSets, onBack }: HeaderProps) {
         {/* 제목 */}
         <div className="self-stretch px-4 inline-flex justify-center items-center gap-2.5">
           <h1 className="text-center justify-start text-slate-700 text-2xl md:text-4xl font-bold leading-tight md:leading-[48px]">
-            {formatDate(date)}의 훈련 기록
+            {formatDateKorean(date)}의 훈련 기록
           </h1>
         </div>
         {/* 날짜 */}

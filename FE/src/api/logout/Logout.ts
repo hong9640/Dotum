@@ -1,5 +1,5 @@
 import { apiClient } from "../axios";
-import { clearAuthCookies } from "@/lib/cookies";
+import { clearAuthCookies } from "@/utils/cookies";
 import type { AxiosErrorResponse } from "@/types/api";
 
 // 로그아웃 성공 응답 타입

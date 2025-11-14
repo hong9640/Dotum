@@ -3,12 +3,13 @@ import { useNavigate } from "react-router-dom";
 import ResultVideoDisplay from "./ResultVideoDisplay";
 import FeedbackCard from "./FeedbackCard";
 import ActionButtons from "./ActionButtons";
-import { usePracticeStore } from "@/stores/practiceStore";
-import { getTrainingSession, completeTrainingSession, type CreateTrainingSessionResponse } from "@/api/training-session";
-import type { PraatMetrics } from "@/api/training-session/praat";
+import { getTrainingSession, completeTrainingSession, type CreateTrainingSessionResponse } from "@/api/trainingSession";
+import type { PraatMetrics } from "@/api/trainingSession/praat";
 import { toast } from "sonner";
 
 interface ResultComponentProps {
+  sessionId?: number;
+  sessionType?: 'word' | 'sentence' | 'vocal';
   userVideoUrl?: string;
   compositedVideoUrl?: string;
   isLoadingCompositedVideo?: boolean;
@@ -23,6 +24,8 @@ interface ResultComponentProps {
 }
 
 const ResultComponent: React.FC<ResultComponentProps> = ({
+  sessionId,
+  sessionType,
   userVideoUrl,
   compositedVideoUrl,
   isLoadingCompositedVideo = false,
@@ -36,7 +39,6 @@ const ResultComponent: React.FC<ResultComponentProps> = ({
   isUploading = false,
 }) => {
   const navigate = useNavigate();
-  const { sessionId } = usePracticeStore();
   const [isCompletingSession, setIsCompletingSession] = useState(false);
 
   const handleRetake = () => {
@@ -79,7 +81,7 @@ const ResultComponent: React.FC<ResultComponentProps> = ({
       await completeTrainingSession(Number(sessionId));
       
       // 세션 종료 성공 후 result-list 페이지로 이동 (sessionId와 type을 URL 파라미터로 전달)
-      const resultListUrl = `/result-list?sessionId=${sessionId}&type=${sessionData.type}`;
+      const resultListUrl = `/result-list?sessionId=${sessionId}&type=${sessionType || sessionData.type}`;
       
       navigate(resultListUrl);
     } catch (error: unknown) {

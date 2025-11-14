@@ -1,30 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import ResultHeader from './components/ResultHeader';
+import { ResultHeader } from '@/pages/common';
 import WordResultsList from './components/WordResultsList';
 import ActionButtons from './components/ActionButtons';
 import MetricCard from './components/MetricCard';
-import type { WordResult } from './types';
-import { getSessionDetail } from '@/api/result-list/sessionDetailSearch';
+import type { WordResult } from '@/types/result-list';
+import { getSessionDetail } from '@/api/resultList/sessionDetailSearch';
 import { useTrainingSession } from '@/hooks/training-session';
-import { retryTrainingSession } from '@/api/training-session/sessionRetry';
+import { retryTrainingSession } from '@/api/trainingSession/sessionRetry';
 import 도드미치료사 from "@/assets/도드미_치료사.png";
-import { useAlertDialog } from '@/hooks/useAlertDialog';
-
-// 날짜 포맷팅 함수 (시간 제외)
-const formatDate = (dateString: string): string => {
-  try {
-    const date = new Date(dateString);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    
-    return `${year}년 ${month}월 ${day}일 완료`;
-  } catch (error) {
-    console.error('날짜 포맷팅 실패:', error);
-    return '날짜 정보 없음';
-  }
-};
+import { useAlertDialog } from '@/hooks/shared/useAlertDialog';
+import { formatDate } from '@/utils/dateFormatter';
+import { createEmptyVoiceMetrics, type VoiceMetrics } from '@/types/result-list';
 
 const WordSetResults: React.FC = () => {
   const navigate = useNavigate();
@@ -35,17 +22,7 @@ const WordSetResults: React.FC = () => {
   const [sessionType, setSessionType] = useState<'word' | 'sentence' | 'vocal'>('word');
   const [formattedDate, setFormattedDate] = useState<string>('');
   const [totalItems, setTotalItems] = useState<number>(0);
-  const [cpp, setCpp] = useState<number | null>(null);
-  const [csid, setCsid] = useState<number | null>(null);
-  // 발성 연습 메트릭
-  const [jitter, setJitter] = useState<number | null>(null);
-  const [shimmer, setShimmer] = useState<number | null>(null);
-  const [nhr, setNhr] = useState<number | null>(null);
-  const [hnr, setHnr] = useState<number | null>(null);
-  const [maxF0, setMaxF0] = useState<number | null>(null);
-  const [minF0, setMinF0] = useState<number | null>(null);
-  const [lhRatioMeanDb, setLhRatioMeanDb] = useState<number | null>(null);
-  const [lhRatioSdDb, setLhRatioSdDb] = useState<number | null>(null);
+  const [voiceMetrics, setVoiceMetrics] = useState<VoiceMetrics>(createEmptyVoiceMetrics());
   const [isVoiceTraining, setIsVoiceTraining] = useState<boolean>(false);
   const [_overallFeedback, setOverallFeedback] = useState<string>('피드백 정보가 없습니다.');
   const [isRetrying, setIsRetrying] = useState(false);
@@ -155,34 +132,33 @@ const WordSetResults: React.FC = () => {
         if (isVoice) {
           // 발성 연습 메트릭 설정
           if (praatResult) {
-            setJitter(praatResult?.avg_jitter_local ?? null);
-            setShimmer(praatResult?.avg_shimmer_local ?? null);
-            setNhr(praatResult?.avg_nhr ?? null);
-            setHnr(praatResult?.avg_hnr ?? null);
-            setMaxF0(praatResult?.avg_max_f0 ?? null);
-            setMinF0(praatResult?.avg_min_f0 ?? null);
-            setLhRatioMeanDb(praatResult?.avg_lh_ratio_mean_db ?? null);
-            setLhRatioSdDb(praatResult?.avg_lh_ratio_sd_db ?? null);
+            setVoiceMetrics({
+              cpp: null,
+              csid: null,
+              jitter: praatResult?.avg_jitter_local ?? null,
+              shimmer: praatResult?.avg_shimmer_local ?? null,
+              nhr: praatResult?.avg_nhr ?? null,
+              hnr: praatResult?.avg_hnr ?? null,
+              maxF0: praatResult?.avg_max_f0 ?? null,
+              minF0: praatResult?.avg_min_f0 ?? null,
+              lhRatioMeanDb: praatResult?.avg_lh_ratio_mean_db ?? null,
+              lhRatioSdDb: praatResult?.avg_lh_ratio_sd_db ?? null,
+            });
           } else {
-            // session_praat_result가 없으면 null로 설정
-            setJitter(null);
-            setShimmer(null);
-            setNhr(null);
-            setHnr(null);
-            setMaxF0(null);
-            setMinF0(null);
-            setLhRatioMeanDb(null);
-            setLhRatioSdDb(null);
+            // session_praat_result가 없으면 빈 값으로 설정
+            setVoiceMetrics(createEmptyVoiceMetrics());
           }
         } else {
           // 일반 연습 메트릭 설정 (CPP/CSID)
           // 백엔드 API에서 세션 레벨의 CPP/CSID를 서버로부터 받아서 사용
           if (praatResult) {
-            setCpp(praatResult?.avg_cpp ?? null);
-            setCsid(praatResult?.avg_csid ?? null);
+            setVoiceMetrics({
+              ...createEmptyVoiceMetrics(),
+              cpp: praatResult?.avg_cpp ?? null,
+              csid: praatResult?.avg_csid ?? null,
+            });
           } else {
-            setCpp(null);
-            setCsid(null);
+            setVoiceMetrics(createEmptyVoiceMetrics());
           }
         }
         
@@ -395,24 +371,24 @@ const WordSetResults: React.FC = () => {
 
             {/* 메트릭 카드: 가변 영역 */}
             <div className="p-8 bg-white rounded-2xl shadow-lg inline-flex flex-col justify-start items-start gap-3.5 flex-1 min-w-0">
-              <div className="w-full inline-flex justify-start items-start gap-6 flex-wrap content-start">
+              <div className="w-full flex flex-col justify-start items-stretch gap-4">
                 {isVoiceTraining ? (
                   // 발성 연습: 8개 메트릭 카드
                   <>
-                    <MetricCard title="Jitter" value={jitter} unit="%"/>
-                    <MetricCard title="Shimmer" value={shimmer} unit="%"/>
-                    <MetricCard title="NHR" value={nhr} unit="dB"/>
-                    <MetricCard title="HNR" value={hnr} unit="dB"/>
-                    <MetricCard title="max_f0" value={maxF0} unit="Hz"/>
-                    <MetricCard title="min_f0" value={minF0} unit="Hz"/>
-                    <MetricCard title="LH_ratio_mean_db" value={lhRatioMeanDb} unit="dB"/>
-                    <MetricCard title="LH_ratio_sd_db" value={lhRatioSdDb} unit="dB"/>
+                    <MetricCard title="Jitter" value={voiceMetrics.jitter} unit="%"/>
+                    <MetricCard title="Shimmer" value={voiceMetrics.shimmer} unit="%"/>
+                    <MetricCard title="NHR" value={voiceMetrics.nhr} unit="dB"/>
+                    <MetricCard title="HNR" value={voiceMetrics.hnr} unit="dB"/>
+                    <MetricCard title="max_f0" value={voiceMetrics.maxF0} unit="Hz"/>
+                    <MetricCard title="min_f0" value={voiceMetrics.minF0} unit="Hz"/>
+                    <MetricCard title="LH_ratio_mean_db" value={voiceMetrics.lhRatioMeanDb} unit="dB"/>
+                    <MetricCard title="LH_ratio_sd_db" value={voiceMetrics.lhRatioSdDb} unit="dB"/>
                   </>
                 ) : (
                   // 일반 연습: CPP/CSID 2개 카드
                   <>
-                    <MetricCard title="CPP" value={cpp} normalRange="0" />
-                    <MetricCard title="CSID" value={csid} normalRange="0" />
+                    <MetricCard title="CPP" value={voiceMetrics.cpp} />
+                    <MetricCard title="CSID" value={voiceMetrics.csid} />
                   </>
                 )}
               </div>

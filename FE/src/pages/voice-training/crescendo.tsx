@@ -7,8 +7,8 @@ import { toast } from 'sonner';
 import { 
   getTrainingSession,
   type CreateTrainingSessionResponse 
-} from '@/api/training-session';
-import { submitVocalItem } from '@/api/voice-training';
+} from '@/api/trainingSession';
+import { submitVocalItem } from '@/api/voiceTraining';
 
 const CrescendoPage: React.FC = () => {
   const [searchParams] = useSearchParams();

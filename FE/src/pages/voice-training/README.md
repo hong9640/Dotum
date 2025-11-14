@@ -121,7 +121,7 @@ import AudioVisualizer from './components/AudioVisualizer';
 브라우저 네이티브 TTS를 사용한 음성 안내 Hook입니다.
 
 ```tsx
-import { useTTS } from '@/hooks/useTTS';
+import { useTTS } from '@/hooks/shared/useTTS';
 
 const { supported, ready, speaking, speak, cancel } = useTTS('ko-KR');
 
@@ -137,7 +137,7 @@ speak('안내 메시지', {
 오디오 녹음을 관리하는 Hook입니다.
 
 ```tsx
-import { useAudioRecorder } from '@/hooks/useAudioRecorder';
+import { useAudioRecorder } from './hooks/useAudioRecorder';
 
 const { 
   isRecording, 

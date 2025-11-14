@@ -6,7 +6,7 @@ import {
   createSentenceTrainingSession,
   createVocalTrainingSession,
   type CreateTrainingSessionResponse 
-} from "@/api/training-session";
+} from "@/api/trainingSession";
 import type { AxiosErrorResponse } from "@/types/api";
 
 interface UseTrainingSessionProps {

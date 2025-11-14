@@ -1,5 +1,5 @@
 import axios from "axios";
-import { getCookie, setCookie } from "@/lib/cookies";
+import { getCookie, setCookie } from "@/utils/cookies";
 
 // Base URL 설정 (환경 변수 또는 기본값)
 const API_BASE_URL = import.meta.env.VITE_BASE_URL || "http://localhost:8000/api/v1";

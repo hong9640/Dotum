@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import ResultHeader from '@/pages/result-list/components/ResultHeader';
-import ResultComponent from '@/pages/practice/components/result/ResultComponent';
-import { getSessionItemByIndex, getSessionItemErrorMessage, type SessionItemResponse } from '@/api/training-session/sessionItemSearch';
-import { useCompositedVideoPolling } from '@/hooks/useCompositedVideoPolling';
-import type { PraatMetrics } from '@/api/training-session/praat';
+import { ResultHeader } from '@/pages/common';
+import { ResultVideoDisplay, FeedbackCard } from './components';
+import { getSessionItemByIndex, getSessionItemErrorMessage, type SessionItemResponse } from '@/api/trainingSession/sessionItemSearch';
+import { useCompositedVideoPolling } from '@/hooks/practice';
+import type { PraatMetrics } from '@/api/trainingSession/praat';
 
 const ResultDetailPage: React.FC = () => {
   const navigate = useNavigate();
@@ -215,16 +215,16 @@ const ResultDetailPage: React.FC = () => {
 
       {/* 메인 콘텐츠 영역 */}
       <div className="p-4 md:p-8 flex flex-col justify-start items-center gap-8 w-full max-w-7xl mx-auto">
-        {/* 결과 컴포넌트 (비디오 표시 + 피드백 카드) */}
-        <ResultComponent
+        {/* 영상 비교 컴포넌트 */}
+        <ResultVideoDisplay
           userVideoUrl={itemData.video_url || undefined}
           compositedVideoUrl={compositedVideoUrl}
           isLoadingCompositedVideo={isLoadingCompositedVideo}
           compositedVideoError={compositedVideoError}
-          onBack={handleBack}
-          praatData={praatData}
-          praatLoading={false}
         />
+        
+        {/* 피드백 카드 */}
+        <FeedbackCard hideSections={true} praatData={praatData} praatLoading={false} />
       </div>
     </div>
   );

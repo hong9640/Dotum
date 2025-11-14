@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import 도드미안경 from '@/assets/도드미_안경.png';
 import { useTrainingSession } from '@/hooks/training-session';
-import { useAlertDialog } from '@/hooks/useAlertDialog';
+import { useAlertDialog } from '@/hooks/shared/useAlertDialog';
 
 interface HomePageProps {
   isLoggedIn: boolean;

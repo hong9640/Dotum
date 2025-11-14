@@ -2,7 +2,7 @@ import React from "react";
 import PraatSectionCard from "./PraatSectionCard";
 import PraatMetricTile from "./PraatMetricTile";
 import { statusBadgeByRule, nz } from "./StatusBadge";
-import type { PraatValues } from "../types";
+import type { PraatValues } from "@/types/praat-detail";
 
 export type PraatMetricsSectionsProps = {
   values: PraatValues;

@@ -2,7 +2,7 @@ import React, { useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Calendar } from "./components/Calendar";
 import TrainingDayDetail from "../training-history-detail";
-import { getTrainingCalendar } from "@/api/training-history";
+import { getTrainingCalendar } from "@/api/trainingHistory";
 
 // 훈련 세트 수 데이터 타입
 interface TrainingCountMap {

@@ -8,8 +8,8 @@ import {
   getTrainingSession,
   completeTrainingSession,
   type CreateTrainingSessionResponse
-} from '@/api/training-session';
-import { submitVocalItem } from '@/api/voice-training';
+} from '@/api/trainingSession';
+import { submitVocalItem } from '@/api/voiceTraining';
 const SoftLoudPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();

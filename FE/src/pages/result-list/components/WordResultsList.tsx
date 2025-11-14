@@ -1,7 +1,7 @@
 import React from 'react';
 import { ListChecks } from "lucide-react";
 import WordResultItem from "./WordResultItem";
-import type { WordResult } from "../types";
+import type { WordResult } from "@/types/result-list";
 
 interface WordResultsListProps {
   results: WordResult[];

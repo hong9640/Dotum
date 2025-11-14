@@ -8,8 +8,8 @@ import {
   createTrainingSession,
   getTrainingSession,
   type CreateTrainingSessionResponse
-} from '@/api/training-session';
-import { submitVocalItem } from '@/api/voice-training';
+} from '@/api/trainingSession';
+import { submitVocalItem } from '@/api/voiceTraining';
 
 const MPTPage: React.FC = () => {
   const [searchParams] = useSearchParams();
