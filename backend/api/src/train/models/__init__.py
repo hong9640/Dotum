@@ -7,6 +7,7 @@ from .praat import PraatFeatures
 from .session_praat_result import SessionPraatResult
 from .training_session_praat_feedback import TrainSessionPraatFeedback
 from .training_item_praat_feedback import TrainItemPraatFeedback
+from .ai_model import AIModel
 
 __all__ = [
     "TrainWords",
@@ -21,5 +22,6 @@ __all__ = [
     "PraatFeatures",
     "SessionPraatResult",
     "TrainSessionPraatFeedback",
-    "TrainItemPraatFeedback"
+    "TrainItemPraatFeedback",
+    "AIModel"
 ]

@@ -11,6 +11,7 @@ from api.src.train.models.training_session_praat_feedback import TrainSessionPra
 from api.src.train.models.training_item_praat_feedback import TrainItemPraatFeedback
 from api.src.train.models.session_praat_result import SessionPraatResult
 from api.src.train.models.praat import PraatFeatures
+from api.src.train.models.ai_model import AIModel
 from api.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -21,6 +22,35 @@ class FeedbackRepository:
     
     def __init__(self, db: AsyncSession):
         self.db = db
+    
+    # ==================== AIModel ====================
+    
+    async def get_or_create_ai_model(self, version: str) -> AIModel:
+        """
+        AI 모델 버전을 조회하거나 없으면 생성
+        
+        Args:
+            version: 모델 버전 문자열 (예: "gpt-5-mini")
+            
+        Returns:
+            AIModel 인스턴스
+        """
+        # 1. 기존 모델 조회
+        stmt = select(AIModel).where(AIModel.version == version)
+        result = await self.db.execute(stmt)
+        existing_model = result.scalar_one_or_none()
+        
+        if existing_model:
+            return existing_model
+        
+        # 2. 없으면 새로 생성
+        new_model = AIModel(version=version)
+        self.db.add(new_model)
+        await self.db.commit()
+        await self.db.refresh(new_model)
+        
+        logger.info(f"AIModel created: id={new_model.id}, version={version}")
+        return new_model
     
     # ==================== SessionPraatResult ====================
     
@@ -68,7 +98,7 @@ class FeedbackRepository:
         self,
         session_praat_result_id: int,
         feedback_text: str,
-        model_version: str
+        ai_model_id: int
     ) -> TrainSessionPraatFeedback:
         """
         세션 피드백 생성
@@ -76,7 +106,7 @@ class FeedbackRepository:
         Args:
             session_praat_result_id: SessionPraatResult ID
             feedback_text: 피드백 텍스트
-            model_version: LLM 모델 버전
+            ai_model_id: AI 모델 ID (FK)
             
         Returns:
             생성된 TrainSessionPraatFeedback
@@ -84,7 +114,7 @@ class FeedbackRepository:
         feedback = TrainSessionPraatFeedback(
             session_praat_result_id=session_praat_result_id,
             feedback_text=feedback_text,
-            model_version=model_version
+            ai_model_id=ai_model_id
         )
         self.db.add(feedback)
         await self.db.commit()
@@ -136,36 +166,24 @@ class FeedbackRepository:
     async def create_item_feedback(
         self,
         praat_features_id: int,
-        vowel_distortion_feedback: Optional[str],
-        sound_stability_feedback: Optional[str],
-        voice_clarity_feedback: Optional[str],
-        voice_health_feedback: Optional[str],
-        overall_feedback: Optional[str],
-        model_version: str
+        item_feedback: Optional[str],
+        ai_model_id: int
     ) -> TrainItemPraatFeedback:
         """
         아이템 피드백 생성
         
         Args:
             praat_features_id: PraatFeatures ID
-            vowel_distortion_feedback: 모음 왜곡도 피드백
-            sound_stability_feedback: 소리 안정도 피드백
-            voice_clarity_feedback: 음성 맑음도 피드백
-            voice_health_feedback: 음성 건강지수 피드백
-            overall_feedback: 종합 피드백
-            model_version: LLM 모델 버전
+            item_feedback: 아이템 피드백
+            ai_model_id: AI 모델 ID (FK)
             
         Returns:
             생성된 TrainItemPraatFeedback
         """
         feedback = TrainItemPraatFeedback(
             praat_features_id=praat_features_id,
-            vowel_distortion_feedback=vowel_distortion_feedback,
-            sound_stability_feedback=sound_stability_feedback,
-            voice_clarity_feedback=voice_clarity_feedback,
-            voice_health_feedback=voice_health_feedback,
-            overall_feedback=overall_feedback,
-            model_version=model_version
+            item_feedback=item_feedback,
+            ai_model_id=ai_model_id
         )
         self.db.add(feedback)
         await self.db.commit()

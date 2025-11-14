@@ -10,6 +10,7 @@ from sqlalchemy import Text
 
 if TYPE_CHECKING:
     from api.src.train.models.praat import PraatFeatures
+    from api.src.train.models.ai_model import AIModel
 
 
 class TrainItemPraatFeedback(SQLModel, table=True):
@@ -18,38 +19,16 @@ class TrainItemPraatFeedback(SQLModel, table=True):
     
     id: Optional[int] = Field(default=None, primary_key=True)
     praat_features_id: int = Field(index=True, description="PraatFeatures ID (논리 FK)")
+    ai_model_id: Optional[int] = Field(default=None, index=True, description="AI 모델 ID (논리 FK)")
     
-    # 세부 피드백 내용
-    vowel_distortion_feedback: Optional[str] = Field(
+    # 아이템 피드백
+    item_feedback: Optional[str] = Field(
         default=None,
         sa_column=Column(Text),
-        description="모음 왜곡도 피드백 (F1, F2 기반)"
-    )
-    sound_stability_feedback: Optional[str] = Field(
-        default=None,
-        sa_column=Column(Text),
-        description="소리의 안정도 피드백 (CPP 기반)"
-    )
-    voice_clarity_feedback: Optional[str] = Field(
-        default=None,
-        sa_column=Column(Text),
-        description="음성 맑음도 피드백 (HNR 기반)"
-    )
-    voice_health_feedback: Optional[str] = Field(
-        default=None,
-        sa_column=Column(Text),
-        description="음성 건강지수 피드백 (CSID 기반)"
-    )
-    
-    # 종합 피드백
-    overall_feedback: Optional[str] = Field(
-        default=None,
-        sa_column=Column(Text),
-        description="전체 종합 피드백"
+        description="아이템 피드백"
     )
     
     # 메타 정보
-    model_version: str = Field(description="LLM 모델 버전")
     created_at: datetime = Field(default_factory=datetime.now)
     
     # 관계 (논리 FK, 1:1)
@@ -58,6 +37,13 @@ class TrainItemPraatFeedback(SQLModel, table=True):
             "primaryjoin": "TrainItemPraatFeedback.praat_features_id==foreign(PraatFeatures.id)",
             "foreign_keys": "[TrainItemPraatFeedback.praat_features_id]",
             "uselist": False,  # 1:1 관계
+        }
+    )
+    
+    ai_model: Optional["AIModel"] = Relationship(
+        sa_relationship_kwargs={
+            "primaryjoin": "TrainItemPraatFeedback.ai_model_id==foreign(AIModel.id)",
+            "foreign_keys": "[TrainItemPraatFeedback.ai_model_id]",
         }
     )
 

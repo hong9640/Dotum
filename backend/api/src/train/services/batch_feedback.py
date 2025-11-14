@@ -44,6 +44,10 @@ class BatchFeedbackService:
         try:
             logger.info(f"[Batch] Starting feedback generation for session {session_id}")
             
+            # 0. AIModel 먼저 생성/조회
+            ai_model = await self.repository.get_or_create_ai_model(self.MODEL_VERSION)
+            logger.info(f"[Batch] Using AIModel: id={ai_model.id}, version={ai_model.version}")
+            
             # 1. SessionPraatResult 조회
             praat_result = await self.repository.get_session_praat_result_by_session_id(session_id)
             if not praat_result:
@@ -64,7 +68,7 @@ class BatchFeedbackService:
             if not items_data:
                 # 아이템 없으면 세션 피드백만 생성
                 logger.info(f"[Batch] No items, generating session feedback only")
-                await self._save_session_feedback_only(praat_result, user_name)
+                await self._save_session_feedback_only(praat_result, user_name, ai_model.id)
                 return True
             
             # 4. 배치 LLM 호출
@@ -76,14 +80,15 @@ class BatchFeedbackService:
             await self.repository.create_session_feedback(
                 session_praat_result_id=praat_result.id,
                 feedback_text=batch_result["session_feedback"],
-                model_version=batch_result["model_version"]
+                ai_model_id=ai_model.id
             )
             logger.info(f"[Batch] Session feedback saved")
             
             # 6. 아이템 피드백 저장
             await self._save_item_feedbacks(
                 batch_result.get("items", []),
-                items_data
+                items_data,
+                ai_model.id
             )
             
             logger.info(f"[Batch] ✅ All feedbacks saved for session {session_id}")
@@ -276,7 +281,9 @@ class BatchFeedbackService:
 {
   "session_feedback": "오늘 정말 수고 많으셨어요. 목소리를 하나하나 살펴보면서 따뜻한 순간들이 느껴졌어요.\\n\\n🌟 정말 잘하고 계신 부분\\n\\n1) 발음이 정말 또렷해요. '사과', '나무', '바람' 모두에서 끝소리까지 분명하게 들려서 좋았어요.\\n\\n2) 소리가 안정적으로 이어졌어요. 말하는 중간에 흐트러지지 않고 자연스러웠어요.\\n\\n3) 목에 힘이 거의 느껴지지 않았어요. 편안하게 발성하려는 노력이 보였어요.\\n\\n4) 호흡이 안정적이었어요. 중간에 끊기지 않고 매끄럽게 완성되었어요.\\n\\n💭 조금만 더 신경 쓰면 좋을 부분\\n\\n몇몇 순간 소리가 시작될 때 살짝 힘이 들어가는 느낌이 있었어요. 하지만 걱정하지 않으셔도 괜찮아요. 말 시작할 때만 부드럽게 숨을 내보내면 더 편안해질 거예요.\\n\\n🌱 함께 해볼 연습\\n\\n1) 말 시작 전 편안한 숨 내쉬기\\n2) 천천히 연습하기\\n3) 입술과 혀 준비 운동\\n\\n오늘 연습 정말 잘 해주셨어요. 당신의 목소리는 이미 멋진 가능성을 가지고 있어요. 우리, 천천히 같이 걸어봐요. 🌷",
   "items": [
-    {"item_index": 0, "vowel_distortion": "발음이 정확해요.", "sound_stability": "소리가 안정적이었어요.", "voice_clarity": "목소리가 맑게 들렸어요.", "voice_health": "목에 무리 없이 말하셨네요.", "overall": "정말 잘하셨어요!"}
+    {"item_index": 0, "item_feedback": "'사과' 발음이 정말 또렷했어요. 끝소리까지 분명하게 들려서 좋았고, 목에도 무리가 없어 보였어요. 정말 잘하셨어요!"},
+    {"item_index": 1, "item_feedback": "'나무'에서 소리가 안정적으로 이어졌어요. 중간에 흐트러지지 않고 자연스럽게 완성하셨네요!"},
+    {"item_index": 2, "item_feedback": "'바람' 발음도 훌륭해요. 편안하게 발성하려는 노력이 느껴졌어요."}
   ]
 }
 
@@ -285,7 +292,10 @@ class BatchFeedbackService:
 출력:
 {
   "session_feedback": "오늘도 연습해주셔서 고마워요. '구름', '꽃'처럼 어려운 단어를 연습하신 것만으로도 큰 의미가 있어요.\\n\\n🌟 잘하고 계신 부분\\n\\n1) 끝까지 연습을 완성하셨어요. 이것만으로도 충분히 칭찬받아야 해요.\\n\\n2) 단어를 정확히 따라하려는 노력이 보였어요.\\n\\n💭 조금만 더 신경 쓰면 좋을 부분\\n\\n소리가 시작될 때 힘이 들어가는 느낌이 있었어요. 하지만 괜찮아요! 조금만 더 편안하게 시작하면 훨씬 부드러워질 거예요. 입 모양이 빠르게 바뀌는 '꽃', '구름' 같은 단어는 천천히 말해보면 더 또렷해질 거예요.\\n\\n🌱 함께 해볼 연습\\n\\n1) 말 전 편안하게 숨 내쉬기\\n2) 천천히 연습하기\\n3) 입술 준비 운동\\n\\n조금씩 나아가고 있어요. 함께 해요! 💚",
-  "items": [...]
+  "items": [
+    {"item_index": 0, "item_feedback": "'구름'처럼 복잡한 발음을 끝까지 완성하신 게 대단해요. 조금만 더 천천히 말하면 더 또렷해질 거예요!"},
+    {"item_index": 1, "item_feedback": "'꽃' 발음도 끝까지 노력하셨어요. 입 모양 준비를 충분히 하면 더 자연스러워질 거예요."}
+  ]
 }
 """
         
@@ -311,11 +321,7 @@ class BatchFeedbackService:
   "items": [
     {{
       "item_index": number,
-      "vowel_distortion": "string (50-100자)",
-      "sound_stability": "string (50-100자)",
-      "voice_clarity": "string (50-100자)",
-      "voice_health": "string (50-100자)",
-      "overall": "string (100-150자)"
+      "item_feedback": "string (100-200자, 해당 아이템에 대한 따뜻한 피드백)"
     }}
   ]
 }}
@@ -366,8 +372,8 @@ class BatchFeedbackService:
 4. 연습 방법 3가지 (구체적, 실천 가능)
 5. 격려 마무리 (2문장)
 
-**items 피드백:**
-각 항목당 1-2문장, 자연스럽고 따뜻하게
+**items 피드백 (item_feedback):**
+각 아이템당 100-200자, 해당 단어/문장 발음에 대한 구체적이고 따뜻한 피드백
 
 **검증 체크리스트:**
 ✓ 연습 단어 중 최소 3개를 session_feedback에 언급했나요?
@@ -430,6 +436,8 @@ class BatchFeedbackService:
             for item in result["items"]:
                 if "item_index" not in item:
                     logger.warning(f"[Batch] Item missing item_index: {item}")
+                if "item_feedback" not in item:
+                    logger.warning(f"[Batch] Item missing item_feedback: {item}")
             
             result["model_version"] = self.MODEL_VERSION
             
@@ -489,7 +497,8 @@ class BatchFeedbackService:
     async def _save_item_feedbacks(
         self,
         items_feedbacks: List[Dict],
-        items_data: List[Dict]
+        items_data: List[Dict],
+        ai_model_id: int
     ):
         """개별 아이템 피드백 저장"""
         items_map = {item["item_index"]: item for item in items_data}
@@ -515,17 +524,13 @@ class BatchFeedbackService:
             # 저장
             await self.repository.create_item_feedback(
                 praat_features_id=praat_features_id,
-                vowel_distortion_feedback=feedback.get("vowel_distortion"),
-                sound_stability_feedback=feedback.get("sound_stability"),
-                voice_clarity_feedback=feedback.get("voice_clarity"),
-                voice_health_feedback=feedback.get("voice_health"),
-                overall_feedback=feedback.get("overall"),
-                model_version=self.MODEL_VERSION
+                item_feedback=feedback.get("item_feedback"),
+                ai_model_id=ai_model_id
             )
         
         logger.info(f"[Batch] Saved {len(items_feedbacks)} item feedbacks")
     
-    async def _save_session_feedback_only(self, praat_result: Any, user_name: str):
+    async def _save_session_feedback_only(self, praat_result: Any, user_name: str, ai_model_id: int):
         """세션 피드백만 생성 (아이템 없을 때)"""
         logger.info("[Batch] Generating session-only feedback (no items)")
         
@@ -575,7 +580,7 @@ class BatchFeedbackService:
         await self.repository.create_session_feedback(
             session_praat_result_id=praat_result.id,
             feedback_text=feedback_text,
-            model_version=self.MODEL_VERSION
+            ai_model_id=ai_model_id
         )
         
         logger.info("[Batch] ✅ Session-only feedback saved")
