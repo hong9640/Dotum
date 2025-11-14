@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 import json
 
-from api.src.train.repositories.feedback_repository import FeedbackRepository
+from api.src.train.repositories.feedback import FeedbackRepository
 from api.core.openai_provider import openai_provider
 from api.src.train.models.training_item import TrainingItem
 from api.src.train.models.praat import PraatFeatures

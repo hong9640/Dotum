@@ -164,7 +164,7 @@ async def extract_all_features(voice_data: bytes) -> dict:
         # soundfile이 인식하지 못하는 형식인 경우 (예: MP3)
         # FFmpeg를 사용하여 WAV로 변환 시도
         try:
-            from ..services.video_processor import VideoProcessor
+            from ..services.video import VideoProcessor
             video_processor = VideoProcessor()
             
             # MP3 등 다른 형식을 WAV로 변환

@@ -11,7 +11,7 @@ from ..schemas.training_items import CurrentItemResponse, TrainingItemResponse
 from ..schemas.media import MediaResponse
 from ..schemas.praat import PraatFeaturesResponse, SessionPraatResultResponse
 from ..services.training_sessions import TrainingSessionService
-from ..services.gcs_service import GCSService
+from ..services.gcs import GCSService
 from ..services.media import MediaService
 
 # Sentinel value: "조회하지 않음"을 나타내기 위한 특별한 객체

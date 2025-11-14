@@ -21,9 +21,9 @@ from ..schemas.praat import (
 from ..schemas.common import NotFoundErrorResponse, BadRequestErrorResponse, UnauthorizedErrorResponse, ProcessingErrorResponse
 from ..models.training_session import TrainingType, TrainingSessionStatus
 from ..services.training_sessions import TrainingSessionService
-from ..services.gcs_service import get_gcs_service, GCSService
+from ..services.gcs import get_gcs_service, GCSService
 from ..services.praat import get_praat_analysis_from_db
-from ..services.batch_feedback_service import BatchFeedbackService
+from ..services.batch_feedback import BatchFeedbackService
 from ..services.response_converters import (
     convert_session_to_response,
     convert_media_to_response,

@@ -24,12 +24,12 @@ from ..schemas.training_sessions import (
     DailyTrainingResponse
 )
 from ..models.media import MediaFile, MediaType
-from ..services.gcs_service import GCSService
-from ..services.video_processor import VideoProcessor
+from ..services.gcs import GCSService
+from ..services.video import VideoProcessor
 from ..services.media import MediaService
 from ..services.text_to_speech import TextToSpeechService
 from ..services.praat import get_praat_analysis_from_db, extract_all_features
-from ..services.praat_service import save_session_praat_result
+from ..services.praat_session import save_session_praat_result
 from api.src.user.user_model import User
 from api.core.config import settings
 

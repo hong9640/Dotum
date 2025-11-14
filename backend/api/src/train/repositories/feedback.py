@@ -7,8 +7,8 @@ from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from api.src.train.models.train_session_praat_feedback import TrainSessionPraatFeedback
-from api.src.train.models.train_item_praat_feedback import TrainItemPraatFeedback
+from api.src.train.models.training_session_praat_feedback import TrainSessionPraatFeedback
+from api.src.train.models.training_item_praat_feedback import TrainItemPraatFeedback
 from api.src.train.models.session_praat_result import SessionPraatResult
 from api.src.train.models.praat import PraatFeatures
 from api.core.logging import get_logger
