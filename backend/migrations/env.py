@@ -38,6 +38,7 @@ from api.src.train.models.session_praat_result import SessionPraatResult
 from api.src.train.models.ai_model import AIModel
 from api.src.train.models.training_session_praat_feedback import TrainSessionPraatFeedback
 from api.src.train.models.training_item_praat_feedback import TrainItemPraatFeedback
+from api.src.train.models.training_item_stt_results import TrainingItemSttResults
 from api.src.user.user_model import User
 from api.src.token.token_model import RefreshToken
 

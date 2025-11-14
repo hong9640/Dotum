@@ -693,11 +693,16 @@ async def submit_vocal_item(
             composited_media=composited_media
         )
     
+    # STT 결과 변환 (있는 경우에만)
+    from ..services.response_converters import convert_stt_to_response
+    stt_response = await convert_stt_to_response(result.get("stt_result")) if result.get("stt_result") else None
+    
     return ItemSubmissionResponse(
         session=await convert_session_to_response(session, service.db, gcs_service, current_user.username),
         next_item=next_item_response,
         media=convert_media_to_response(media_file),
         praat=await convert_praat_to_response(praat_feature),
+        stt=stt_response,
         video_url=video_url,
         image_url=image_url,
         video_image_url=video_image_url

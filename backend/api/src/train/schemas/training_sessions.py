@@ -7,6 +7,7 @@ from ..models.training_session import TrainingType, TrainingSessionStatus
 from .training_items import TrainingItemResponse, CurrentItemResponse
 from .media import MediaResponse
 from api.src.train.schemas.praat import PraatFeaturesResponse, SessionPraatResultResponse
+from .stt import SttResultResponse
 
 
 class TrainingSessionCreate(BaseModel):
@@ -86,6 +87,7 @@ class ItemSubmissionResponse(BaseModel):
     next_item: Optional[CurrentItemResponse] = None
     media: MediaResponse
     praat: Optional[PraatFeaturesResponse] = None
+    stt: Optional[SttResultResponse] = None
     video_url: str
     image_url: Optional[str] = None
     video_image_url: Optional[str] = None

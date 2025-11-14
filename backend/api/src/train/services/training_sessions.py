@@ -3,6 +3,7 @@ import httpx
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 import time
+import asyncio
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date
 import tempfile
@@ -15,6 +16,8 @@ from ..repositories.training_items import TrainingItemRepository
 from ..repositories.media import MediaRepository
 from ..repositories.praat import PraatRepository
 from ..repositories.session_praat import SessionPraatResultRepository
+from ..repositories.stt import SttResultsRepository
+from ..repositories.ai_model import AIModelRepository
 from ..schemas.training_sessions import (
     TrainingSessionCreate,
     TrainingSessionUpdate,
@@ -30,6 +33,7 @@ from ..services.media import MediaService
 from ..services.text_to_speech import TextToSpeechService
 from ..services.praat import get_praat_analysis_from_db, extract_all_features
 from ..services.praat_session import save_session_praat_result
+from ..services.stt import request_stt_transcription
 from api.src.user.user_model import User
 from api.core.config import settings
 
@@ -45,6 +49,8 @@ class TrainingSessionService:
         self.media_repo = MediaRepository(db)
         self.praat_repo = PraatRepository(db)
         self.session_praat_repo = SessionPraatResultRepository(db)
+        self.stt_repo = SttResultsRepository(db)
+        self.ai_model_repo = AIModelRepository(db)
     
     async def create_training_session(
         self, 
@@ -190,6 +196,11 @@ class TrainingSessionService:
         if session.total_items == 0 or session.completed_items != session.total_items:
             raise ValueError("모든 아이템이 완료되지 않았습니다.")
         
+        # WORD/SENTENCE 타입인 경우 STT 결과가 모두 완료될 때까지 대기
+        if session.type in (TrainingType.WORD, TrainingType.SENTENCE):
+            logger.info(f"[Complete] {session.type.value} 세션 완료 - STT 결과 대기 시작: session_id={session_id}")
+            await self._wait_for_stt_completion(session_id, session.total_items, max_wait_seconds=60)
+        
         # 세션 상태를 완료로 변경
         await self.repo.update_status(
             session_id, 
@@ -259,6 +270,100 @@ class TrainingSessionService:
         await self.db.commit()
         
         return await self.get_training_session(session_id, user_id)
+    
+    async def _wait_for_stt_completion(
+        self,
+        session_id: int,
+        expected_count: int,
+        max_wait_seconds: int = 60,
+        check_interval: float = 1.0
+    ):
+        """
+        세션의 모든 STT 결과가 완료될 때까지 대기
+        
+        Args:
+            session_id: 세션 ID
+            expected_count: 예상 STT 결과 개수 (total_items)
+            max_wait_seconds: 최대 대기 시간 (초)
+            check_interval: 확인 간격 (초)
+        """
+        start_time = time.time()
+        elapsed = 0
+        
+        while elapsed < max_wait_seconds:
+            # STT 결과 조회
+            stt_results = await self.stt_repo.get_by_session_id(session_id)
+            current_count = len(stt_results)
+            
+            logger.info(f"[STT Wait] session_id={session_id}, STT 완료: {current_count}/{expected_count}, 경과 시간: {elapsed:.1f}초")
+            
+            if current_count >= expected_count:
+                logger.info(f"[STT Wait] ✅ 모든 STT 처리 완료 - session_id={session_id}, 총 대기 시간: {elapsed:.1f}초")
+                return
+            
+            # 대기
+            await asyncio.sleep(check_interval)
+            elapsed = time.time() - start_time
+        
+        # 타임아웃
+        stt_results = await self.stt_repo.get_by_session_id(session_id)
+        current_count = len(stt_results)
+        logger.warning(
+            f"[STT Wait] ⚠️ STT 대기 타임아웃 - session_id={session_id}, "
+            f"완료: {current_count}/{expected_count}, 대기 시간: {elapsed:.1f}초"
+        )
+        # 타임아웃이어도 예외를 발생시키지 않고 계속 진행 (LLM 피드백은 가능한 결과만 사용)
+    
+    @staticmethod
+    async def _process_stt_with_independent_session(audio_gs_path: str, item_id: int):
+        """
+        독립적인 DB 세션에서 STT 처리를 수행하는 정적 메서드
+        BackgroundTasks에서 호출되므로 독립 세션 필요
+        """
+        from api.core.database import async_session
+        
+        async with async_session() as db:
+            try:
+                start_time = time.time()
+                logger.info(f"[Background STT] 시작 - item_id: {item_id}, audio_gs_path: {audio_gs_path}")
+                
+                # Repository 초기화
+                from ..repositories.stt import SttResultsRepository
+                from ..repositories.ai_model import AIModelRepository
+                stt_repo = SttResultsRepository(db)
+                ai_model_repo = AIModelRepository(db)
+                
+                # STT 요청
+                stt_response = await request_stt_transcription(audio_gs_path, timeout=120.0)
+                
+                if stt_response and stt_response.get("success"):
+                    transcription = stt_response.get("transcription", "")
+                    process_time_ms = stt_response.get("process_time_ms", 0)
+                    
+                    logger.info(f"[Background STT] STT 요청 성공 - item_id: {item_id}, transcription: {transcription}, process_time: {process_time_ms}ms")
+                    
+                    # AI 모델 조회 또는 생성
+                    model_version = stt_response.get("model_version", "whisper-large-v3")
+                    ai_model = await ai_model_repo.get_or_create(model_version)
+                    
+                    # STT 결과 저장
+                    stt_result = await stt_repo.create_and_flush(
+                        training_item_id=item_id,
+                        ai_model_id=ai_model.id,
+                        stt_result=transcription
+                    )
+                    
+                    await db.commit()
+                    
+                    elapsed_time = time.time() - start_time
+                    logger.info(f"[Background STT] ✅ 완료 - item_id: {item_id}, stt_id: {stt_result.id}, elapsed: {elapsed_time:.2f}초")
+                    
+                else:
+                    logger.warning(f"[Background STT] ❌ STT 요청 실패 - item_id: {item_id}")
+                    
+            except Exception as e:
+                logger.error(f"[Background STT] ❌ 예외 발생 - item_id: {item_id}, error: {e}", exc_info=True)
+                await db.rollback()
     
     async def trigger_wav2lip_processing(
         self,
@@ -558,6 +663,17 @@ class TrainingSessionService:
                     original_audio_object_key=audio_media_file.object_key,
                     gcs_service=gcs_service,
                     original_video_object_key=object_key
+                )
+
+            # 6-1. STT 백그라운드 처리 추가 (WORD/SENTENCE 타입)
+            if audio_media_file and session.type in (TrainingType.WORD, TrainingType.SENTENCE):
+                audio_gs_path = f"gs://{settings.GCS_BUCKET_NAME}/{audio_media_file.object_key}"
+                logger.info(f"[_submit_item_with_video] STT 백그라운드 처리 예약 - item_id: {item.id}, audio_gs_path: {audio_gs_path}")
+                
+                background_tasks.add_task(
+                    self._process_stt_with_independent_session,
+                    audio_gs_path,
+                    item.id
                 )
 
             # 7. 아이템 완료 처리
@@ -1203,6 +1319,7 @@ class TrainingSessionService:
             logger.error(f"[submit_vocal_item] Praat 분석 실패: {e}", exc_info=True)
             # Praat 분석 실패해도 아이템 완료는 계속 진행
         
+        # VOCAL 타입은 발성 훈련이므로 STT 불필요
         # 7. 아이템 완료 처리 (이미지 URL 저장, video_url은 선택사항)
         await self.item_repo.complete_item(
             item_id=item.id,
@@ -1243,6 +1360,7 @@ class TrainingSessionService:
             "next_item": next_item,
             "media_file": audio_media_file,  # 응답에는 오디오 파일 정보 반환
             "praat_feature": praat_feature,
+            "stt_result": None,  # STT는 백그라운드 처리이므로 응답에 포함되지 않음
             "video_url": video_url,  # graph_video가 제공된 경우에만 값이 있음
             "audio_url": audio_url,
             "image_url": image_url,
