@@ -206,12 +206,11 @@ async def complete_training_session(
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     service: TrainingSessionService = Depends(get_training_service),
-    gcs_service: GCSService = Depends(provide_gcs_service),
-    feedback_service: BatchFeedbackService = Depends(get_feedback_service)
+    gcs_service: GCSService = Depends(provide_gcs_service)
 ):
-    """훈련 세션 완료 (LLM 피드백 생성 포함)"""
+    """훈련 세션 완료 (LLM 피드백은 백그라운드에서 생성)"""
     try:
-        # 1. 세션 완료 처리
+        # 1. 세션 완료 처리 (즉시)
         session = await service.complete_training_session(session_id, current_user.id)
         if not session:
             raise HTTPException(
@@ -219,19 +218,15 @@ async def complete_training_session(
                 detail="훈련 세션을 찾을 수 없습니다."
             )
         
-        # 2. LLM 피드백 생성 (동기 처리 - 완료될 때까지 대기)
-        logger.info(f"[Complete] Generating feedback for session {session_id}")
-        try:
-            await feedback_service.generate_and_save_session_feedback(
-                session_id=session.id,
-                user_name=current_user.username
-            )
-            logger.info(f"[Complete] Feedback generation completed for session {session_id}")
-        except Exception as feedback_error:
-            # 피드백 생성 실패해도 세션 완료는 성공으로 처리
-            logger.error(f"[Complete] Feedback generation failed but session completed: {feedback_error}")
+        # 2. LLM 피드백 생성 (백그라운드 - 응답 후 처리)
+        background_tasks.add_task(
+            _generate_feedback_in_background,
+            session_id=session.id,
+            user_name=current_user.username
+        )
+        logger.info(f"[Complete] Session completed, feedback generation scheduled in background: session_id={session_id}")
         
-        # 3. 응답 반환
+        # 3. 즉시 응답 반환
         return await convert_session_to_response(session, service.db, gcs_service, current_user.username)
     except ValueError as e:
         raise HTTPException(
