@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 class TrainItemPraatFeedback(SQLModel, table=True):
     """개별 훈련 아이템의 Praat 분석 피드백 (vocal 타입 전용)"""
-    __tablename__ = "train_item_praat_feedback"
+    __tablename__ = "training_item_praat_feedback"
     
     id: Optional[int] = Field(default=None, primary_key=True)
     praat_features_id: int = Field(index=True, description="PraatFeatures ID (논리 FK)")

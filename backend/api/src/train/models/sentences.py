@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 
 
 class TrainSentences(SQLModel, table=True):
-    __tablename__ = "train_sentences"
+    __tablename__ = "training_sentences"
     id: int = Field(default=None, primary_key=True)
     sentence: str = Field(unique=True, index=True)
     created_at: datetime = Field(default_factory=datetime.now)
