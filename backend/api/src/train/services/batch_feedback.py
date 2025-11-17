@@ -9,8 +9,10 @@ from sqlmodel import select
 import json
 
 from api.src.train.repositories.feedback import FeedbackRepository
+from api.src.train.repositories.stt import SttResultsRepository
 from api.core.openai_provider import openai_provider
 from api.src.train.models.training_item import TrainingItem
+from api.src.train.models.training_session import TrainingSession, TrainingType
 from api.src.train.models.praat import PraatFeatures
 from api.src.train.models.media import MediaFile, MediaType
 from api.src.train.models.words import TrainWords
@@ -28,6 +30,7 @@ class BatchFeedbackService:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.repository = FeedbackRepository(db)
+        self.stt_repo = SttResultsRepository(db)
         self.provider = openai_provider
     
     async def generate_and_save_session_feedback(
@@ -62,8 +65,14 @@ class BatchFeedbackService:
                 logger.info(f"[Batch] Feedback already exists for session {session_id}")
                 return True
             
-            # 3. 아이템 데이터 조회
-            items_data = await self._get_items_with_praat(session_id)
+            # 3. 세션 타입 확인 (STT 사용 여부 결정)
+            session_stmt = select(TrainingSession).where(TrainingSession.id == session_id)
+            session_result = await self.db.execute(session_stmt)
+            session = session_result.scalar_one_or_none()
+            session_type = session.type if session else None
+            
+            # 4. 아이템 데이터 조회
+            items_data = await self._get_items_with_praat(session_id, session_type)
             
             if not items_data:
                 # 아이템 없으면 세션 피드백만 생성
@@ -71,9 +80,9 @@ class BatchFeedbackService:
                 await self._save_session_feedback_only(praat_result, user_name, ai_model.id)
                 return True
             
-            # 4. 배치 LLM 호출
+            # 5. 배치 LLM 호출
             batch_result = await self._generate_batch_feedback(
-                praat_result, items_data, user_name
+                praat_result, items_data, user_name, session_type
             )
             
             # 5. 세션 피드백 저장
@@ -101,7 +110,8 @@ class BatchFeedbackService:
     
     async def _get_items_with_praat(
         self,
-        session_id: int
+        session_id: int,
+        session_type: Optional[TrainingType] = None
     ) -> List[Dict[str, Any]]:
         """
         아이템 + Praat 데이터 조회 (최적화)
@@ -184,6 +194,25 @@ class BatchFeedbackService:
         # 5. AUDIO object_key -> (Item, PraatFeatures) 매핑
         audio_key_to_praat = {audio.object_key: praat for audio, praat in audio_praat_list}
         
+        # 5-1. STT 결과 일괄 조회 (WORD/SENTENCE 타입만)
+        item_ids = [item.id for item, _ in items_with_video]
+        stt_map = {}
+        # WORD/SENTENCE 타입일 때만 STT 조회 (VOCAL은 STT 불필요)
+        if item_ids and session_type in (TrainingType.WORD, TrainingType.SENTENCE):
+            from ..models.training_item_stt_results import TrainingItemSttResults
+            stt_stmt = select(TrainingItemSttResults).where(
+                TrainingItemSttResults.training_item_id.in_(item_ids)
+            ).order_by(TrainingItemSttResults.created_at.desc())
+            stt_result = await self.db.execute(stt_stmt)
+            stt_list = stt_result.scalars().all()
+            # 각 item_id별 최신 STT 결과만 저장
+            for stt in stt_list:
+                if stt.training_item_id not in stt_map:
+                    stt_map[stt.training_item_id] = stt.stt_result
+            logger.debug(f"[Batch] Loaded {len(stt_map)} STT results (type: {session_type})")
+        else:
+            logger.debug(f"[Batch] STT skipped (type: {session_type}, VOCAL은 Praat 지표만 사용)")
+        
         # 6. 데이터 조합
         items_data = []
         for item, video_media in items_with_video:
@@ -203,10 +232,14 @@ class BatchFeedbackService:
             elif item.sentence_id:
                 expected_text = sentences_map.get(item.sentence_id)
             
+            # STT 결과 조회
+            stt_result = stt_map.get(item.id)
+            
             items_data.append({
                 "item_index": item.item_index,
                 "praat_features_id": praat.id,
                 "expected_text": expected_text or f"item_{item.item_index}",
+                "stt_result": stt_result,  # STT 결과 추가
                 "praat": {
                     "f0": praat.f0,
                     "f1": praat.f1,
@@ -230,7 +263,8 @@ class BatchFeedbackService:
         self,
         praat_result: Any,
         items_data: List[Dict],
-        user_name: str
+        user_name: str,
+        session_type: Optional[TrainingType] = None
     ) -> Dict[str, Any]:
         """
         배치 LLM 호출
@@ -255,23 +289,33 @@ class BatchFeedbackService:
             "intensity": praat_result.avg_intensity_mean
         }
         
-        # 아이템 요약
-        items_summary = [
-            {
+        # 아이템 요약 (STT 결과 포함)
+        items_summary = []
+        for item in items_data:
+            item_summary = {
                 "index": item["item_index"],
-                "text": item["expected_text"],
                 "hnr": round(item["praat"]["hnr"], 1) if item["praat"]["hnr"] else None,
                 "cpp": round(item["praat"]["cpp"], 2) if item["praat"]["cpp"] else None,
                 "csid": round(item["praat"]["csid"], 1) if item["praat"]["csid"] else None,
+                "f0": round(item["praat"].get("f0", 0), 0) if item["praat"].get("f0") else None,
                 "f1": round(item["praat"]["f1"], 0) if item["praat"]["f1"] else None,
-                "f2": round(item["praat"]["f2"], 0) if item["praat"]["f2"] else None
+                "f2": round(item["praat"]["f2"], 0) if item["praat"]["f2"] else None,
+                "jitter": round(item["praat"]["jitter_local"], 3) if item["praat"].get("jitter_local") else None,
+                "shimmer": round(item["praat"]["shimmer_local"], 3) if item["praat"].get("shimmer_local") else None,
+                "intensity": round(item["praat"]["intensity_mean"], 1) if item["praat"].get("intensity_mean") else None
             }
-            for item in items_data
-        ]
+            # WORD/SENTENCE 타입만 expected_text와 stt_result 포함
+            if session_type in (TrainingType.WORD, TrainingType.SENTENCE):
+                item_summary["expected_text"] = item["expected_text"]  # 말해야 할 텍스트
+                item_summary["stt_result"] = item.get("stt_result")  # STT로 인식된 텍스트
+            items_summary.append(item_summary)
         
-        # 연습한 단어 리스트 추출
-        practiced_words = [item["text"] for item in items_summary]
-        words_str = ", ".join([f"'{w}'" for w in practiced_words[:10]])  # 최대 10개
+        # 연습한 단어 리스트 추출 (WORD/SENTENCE 타입만)
+        if session_type in (TrainingType.WORD, TrainingType.SENTENCE):
+            practiced_words = [item.get("expected_text") for item in items_summary if item.get("expected_text")]
+            words_str = ", ".join([f"'{w}'" for w in practiced_words[:10]])  # 최대 10개
+        else:
+            words_str = ""  # VOCAL 타입은 단어 없음
         
         # Few-shot 예시
         few_shot_examples = """
@@ -335,8 +379,34 @@ class BatchFeedbackService:
 ❌ 부정어 ("아직", "여전히", "부족")
 
 **필수 포함:**
-✅ 실제 연습 단어 최소 3개 언급
+✅ 실제 연습 단어 최소 3개 언급 (WORD/SENTENCE 타입)
 ✅ "우리 함께", "조금씩", "천천히" 같은 동행 표현"""
+
+        # WORD/SENTENCE 타입일 때만 STT 관련 프롬프트 추가
+        stt_pronunciation_guide = ""
+        if session_type in (TrainingType.WORD, TrainingType.SENTENCE):
+            stt_pronunciation_guide = """
+
+**한국어 발음 특성 고려 (WORD/SENTENCE 타입):**
+- **구개음화**: "굳이" → "구지" (정상, /ㄷ/이 /ㅈ/로 발음되는 현상)
+- **비음화**: "밥물" → "밤물" (정상)
+- **유음화**: "할 일" → "할릴" (정상)
+- **경음화**: "좋다" → "좋따" (정상)
+
+**STT 발음 판별 규칙:**
+1. **정상 발음**: 예상 텍스트와 STT 결과가 한국어 음운 규칙에 따라 변형된 경우
+   - 예: "굳이" → "구지" ✅ 정상 (구개음화)
+   - 예: "꽃이" → "꼬치" ✅ 정상 (구개음화)
+   
+2. **발음 오류**: 예상 텍스트와 STT 결과가 음운 규칙과 무관하게 다를 경우
+   - 예: "굳이" → "뭣이" ❌ 발음 오류
+   - 예: "꽃" → "꽅" ❌ 발음 오류
+
+3. **피드백 작성 시**:
+   - 정상 발음: 칭찬하고 넘어가기
+   - 발음 오류: "예상: '굳이', 인식: '뭣이'. '굳이'인데 '뭣이'라고 하셨어요. '굳이'처럼 발음해보시면 어떨까요?" 형식으로 부드럽게 교정 제안"""
+        
+        system_prompt = system_prompt + stt_pronunciation_guide
 
         user_prompt = f"""**{user_name}님의 훈련 분석 데이터:**
 
@@ -344,29 +414,76 @@ class BatchFeedbackService:
 {json.dumps(session_avg, ensure_ascii=False, indent=2)}
 
 **개별 연습 내용 ({len(items_summary)}개):**
-{json.dumps(items_summary, ensure_ascii=False, indent=2)}
+각 아이템에는 다음 정보가 포함되어 있습니다:"""
 
-**반드시 포함해야 할 연습 단어들:** {words_str}
+        # WORD/SENTENCE 타입: STT 정보 포함, VOCAL 타입: Praat 지표만
+        if session_type in (TrainingType.WORD, TrainingType.SENTENCE):
+            words_prompt = f"\n**반드시 포함해야 할 연습 단어들:** {words_str}" if words_str else ""
+            user_prompt_additional = f"""
+- expected_text: 말해야 할 텍스트
+- stt_result: STT로 실제 인식된 텍스트 (null일 수 있음)
+- hnr, cpp, csid, f1, f2: 음성 분석 지표
+
+{json.dumps(items_summary, ensure_ascii=False, indent=2)}{words_prompt}
 
 ---
 
 **단계별 분석 과정:**
 
-1. **데이터 해석:** 위 수치들을 보고 어떤 음성 특성이 좋았는지, 개선이 필요한지 먼저 생각하세요.
+1. **STT 발음 분석 (우선순위 1 - WORD/SENTENCE 타입):**
+   - 각 아이템의 expected_text와 stt_result를 비교하세요
+   - 한국어 음운 규칙(구개음화, 비음화, 유음화, 경음화)을 고려하여 발음이 정상인지 판별하세요
+   - 발음 오류가 있으면 구체적으로 어떤 부분이 다른지 파악하세요
+   - 예: "굳이" → "구지" ✅ 정상 / "굳이" → "뭣이" ❌ 오류
+
+2. **데이터 해석:** 위 수치들을 보고 어떤 음성 특성이 좋았는지, 개선이 필요한지 먼저 생각하세요.
    - hnr 15+ = 목소리 맑음 / cpp 8+ = 소리 안정 / csid 20- = 목 건강 좋음
 
-2. **긍정 요소 찾기:** 잘하고 있는 부분을 4가지 찾고, 위 연습 단어 중 최소 3개를 구체적 예시로 언급하세요.
+3. **긍정 요소 찾기:** 잘하고 있는 부분을 4가지 찾고, 위 연습 단어 중 최소 3개를 구체적 예시로 언급하세요.
+   - STT 발음이 정확한 경우도 칭찬 포인트입니다
+
+4. **개선 제안:** 부드럽고 희망적인 톤으로 1-2가지 제시하세요.
+   - 발음 오류가 있으면 한국어 음운 규칙을 고려하여 부드럽게 교정 제안하세요
+
+5. **JSON 생성:** 위 분석을 바탕으로 순수 JSON만 반환하세요."""
+        else:
+            # VOCAL 타입: Praat 지표만 사용 (STT 없음)
+            user_prompt_additional = f"""
+- hnr, cpp, csid, f0, f1, f2, jitter, shimmer, intensity: 음성 분석 지표 (Praat)
+- VOCAL 타입은 발성 훈련이므로 텍스트 발음 판별 없이 Praat 지표만으로 피드백 생성
+
+{json.dumps(items_summary, ensure_ascii=False, indent=2)}
+
+---
+
+**단계별 분석 과정 (VOCAL 타입 - Praat 지표 중심):**
+
+1. **데이터 해석:** 위 Praat 지표들을 보고 어떤 음성 특성이 좋았는지, 개선이 필요한지 먼저 생각하세요.
+   - hnr 15+ = 목소리 맑음 / cpp 8+ = 소리 안정 / csid 20- = 목 건강 좋음
+   - jitter 낮음 = 음정 안정 / shimmer 낮음 = 음량 안정
+
+2. **긍정 요소 찾기:** 잘하고 있는 부분을 4가지 찾으세요.
+   - Praat 지표가 양호한 경우 구체적으로 칭찬하세요
 
 3. **개선 제안:** 부드럽고 희망적인 톤으로 1-2가지 제시하세요.
+   - 발성 방법, 호흡, 목소리 사용 방법 등에 대한 제안
 
-4. **JSON 생성:** 위 분석을 바탕으로 순수 JSON만 반환하세요.
+4. **JSON 생성:** 위 분석을 바탕으로 순수 JSON만 반환하세요."""
+        
+        user_prompt = user_prompt + user_prompt_additional
+        
+        # 공통 피드백 구조
+        feedback_structure = """
 
 ---
 
 **session_feedback 구조 (500-1000자):**
 
 1. 따뜻한 인사 (1-2문장)
-2. 잘한 점 4가지 (각 2-3문장, **실제 단어 반드시 포함**)
+2. 잘한 점 4가지 (각 2-3문장, **실제 단어 반드시 포함** - WORD/SENTENCE 타입만)"""
+
+        if session_type in (TrainingType.WORD, TrainingType.SENTENCE):
+            feedback_structure += """
    - 예: "특히 '사과', '나무'에서 발음이 또렷했어요."
 3. 개선점 1-2가지 (부드럽게, "하지만 괜찮아요" 포함)
 4. 연습 방법 3가지 (구체적, 실천 가능)
@@ -375,12 +492,48 @@ class BatchFeedbackService:
 **items 피드백 (item_feedback):**
 각 아이템당 100-200자, 해당 단어/문장 발음에 대한 구체적이고 따뜻한 피드백
 
-**검증 체크리스트:**
-✓ 연습 단어 중 최소 3개를 session_feedback에 언급했나요?
+**STT 발음 피드백 작성 가이드 (WORD/SENTENCE 타입):**
+1. STT 결과가 정상인 경우 (예: "굳이" → "구지"):
+   - "발음이 정확했어요!" 또는 "구개음화가 자연스럽게 적용되어 좋았어요" 등으로 칭찬
+
+2. STT 결과가 오류인 경우 (예: "굳이" → "뭣이"):
+   - 부드럽게 지적: "예상: '굳이', 인식: '뭣이'. '굳이'인데 '뭣이'라고 하셨어요."
+   - 구체적인 교정 제안: "'굳이'처럼 발음해보시면 어떨까요? 입 모양을 조금만 더 조심해보세요."
+   - 절대 부정적이지 않게: "조금만 더 연습하면 완벽해질 거예요" 같은 격려 포함"""
+        else:
+            feedback_structure += """
+3. 개선점 1-2가지 (부드럽게, "하지만 괜찮아요" 포함)
+4. 연습 방법 3가지 (구체적, 실천 가능)
+5. 격려 마무리 (2문장)
+
+**items 피드백 (item_feedback):**
+각 아이템당 100-200자, 해당 아이템에 대한 구체적이고 따뜻한 피드백
+
+**Praat 지표 피드백 작성 가이드 (VOCAL 타입):**
+1. Praat 지표가 양호한 경우:
+   - "목소리가 맑고 안정적이에요!" 또는 "호흡이 자연스러웠어요" 등으로 칭찬
+
+2. 개선이 필요한 경우:
+   - 부드럽게 지적: "목소리를 조금만 더 편안하게 내면 좋을 것 같아요"
+   - 구체적인 발성 제안: "복식 호흡을 해보시면 어떨까요?" 또는 "턱을 조금만 더 내려주세요"
+   - 절대 부정적이지 않게: "조금만 더 연습하면 완벽해질 거예요" 같은 격려 포함"""
+        
+        user_prompt = user_prompt + feedback_structure
+
+        # 검증 체크리스트
+        checklist = """
+
+**검증 체크리스트:**"""
+        if session_type in (TrainingType.WORD, TrainingType.SENTENCE):
+            checklist += """
+✓ 연습 단어 중 최소 3개를 session_feedback에 언급했나요?"""
+        checklist += """
 ✓ 전문 용어, 수치, 부정어를 사용하지 않았나요?
 ✓ 순수 JSON만 반환했나요? (```json 블록 NO)
 
 이 체크리스트를 통과한 후 JSON을 반환하세요."""
+        
+        user_prompt = user_prompt + checklist
 
         messages = [
             {"role": "system", "content": system_prompt},

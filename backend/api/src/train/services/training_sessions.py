@@ -339,7 +339,7 @@ class TrainingSessionService:
                 retry_delays = [5.0, 30.0, 60.0]  # 첫 번째: 5초, 두 번째: 30초, 세 번째: 60초
                 
                 for attempt in range(max_retries):
-                    stt_response = await request_stt_transcription(audio_gs_path, timeout=60.0)
+                    stt_response = await request_stt_transcription(audio_gs_path, timeout=300.0)  # 5분으로 증가
                     
                     if stt_response and stt_response.get("success"):
                         break
@@ -401,7 +401,8 @@ class TrainingSessionService:
             print(f"[WAV2LIP] ML 서버로 Wav2Lip 요청 전송 중... URL: {WAV2LIP_API_URL}")
             print(f"[WAV2LIP] Payload: {payload}")
             
-            async with httpx.AsyncClient(timeout=120.0) as client:
+            # Wav2Lip 처리 시간은 예측 어려움 → 타임아웃 제거
+            async with httpx.AsyncClient(timeout=None) as client:
                 response = await client.post(WAV2LIP_API_URL, json=payload)
                 response.raise_for_status()
                 logger.info(f"Wav2Lip 작업 요청 성공: {response.json()}")

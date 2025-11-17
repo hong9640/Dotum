@@ -104,6 +104,38 @@ async def build_current_item_response(
     composited_video_url = composited_video_url if not isinstance(composited_video_url, Exception) else None
     integrate_voice_url = integrate_voice_url if not isinstance(integrate_voice_url, Exception) else None
 
+    # Item feedback 조회
+    item_feedback = None
+    try:
+        from sqlmodel import select
+        from ..models.training_item_praat_feedback import TrainItemPraatFeedback
+        from ..models.praat import PraatFeatures
+        from ..models.media import MediaFile
+        
+        # 아이템의 audio media 찾기
+        if item.media_file_id:
+            video_media = item.media_file
+            if video_media and video_media.object_key and video_media.object_key.endswith('.mp4'):
+                audio_key = video_media.object_key.replace('.mp4', '.wav').replace('.MP4', '.wav')
+                audio_media_stmt = select(MediaFile).where(MediaFile.object_key == audio_key)
+                audio_result = await service.db.execute(audio_media_stmt)
+                audio_media = audio_result.scalar_one_or_none()
+                if audio_media:
+                    praat_stmt = select(PraatFeatures).where(PraatFeatures.media_id == audio_media.id)
+                    praat_result = await service.db.execute(praat_stmt)
+                    praat_feature = praat_result.scalar_one_or_none()
+                    if praat_feature:
+                        feedback_stmt = select(TrainItemPraatFeedback).where(
+                            TrainItemPraatFeedback.praat_features_id == praat_feature.id
+                        ).order_by(TrainItemPraatFeedback.created_at.desc())
+                        feedback_result = await service.db.execute(feedback_stmt)
+                        feedback = feedback_result.scalar_one_or_none()
+                        if feedback:
+                            item_feedback = feedback.item_feedback
+    except Exception as e:
+        import logging
+        logging.warning(f"[build_current_item_response] Item {item.id} feedback 조회 실패: {type(e).__name__} - {e}")
+
     return CurrentItemResponse(
         item_id=item.id,
         item_index=item.item_index,
@@ -112,6 +144,7 @@ async def build_current_item_response(
         word=word,
         sentence=sentence,
         is_completed=item.is_completed,
+        feedback=item_feedback,  # 피드백 추가
         video_url=video_url,
         composited_video_url=composited_video_url,
         media_file_id=item.media_file_id,
@@ -134,6 +167,38 @@ async def convert_training_item_to_response(
         db, gcs_service, username, session_id, item.id
     )
     
+    # Item feedback 조회
+    item_feedback = None
+    try:
+        from sqlmodel import select
+        from ..models.training_item_praat_feedback import TrainItemPraatFeedback
+        from ..models.praat import PraatFeatures
+        from ..models.media import MediaFile
+        
+        # 아이템의 audio media 찾기
+        if item.media_file_id:
+            video_media = item.media_file
+            if video_media and video_media.object_key and video_media.object_key.endswith('.mp4'):
+                audio_key = video_media.object_key.replace('.mp4', '.wav').replace('.MP4', '.wav')
+                audio_media_stmt = select(MediaFile).where(MediaFile.object_key == audio_key)
+                audio_result = await db.execute(audio_media_stmt)
+                audio_media = audio_result.scalar_one_or_none()
+                if audio_media:
+                    praat_stmt = select(PraatFeatures).where(PraatFeatures.media_id == audio_media.id)
+                    praat_result = await db.execute(praat_stmt)
+                    praat = praat_result.scalar_one_or_none()
+                    if praat:
+                        feedback_stmt = select(TrainItemPraatFeedback).where(
+                            TrainItemPraatFeedback.praat_features_id == praat.id
+                        ).order_by(TrainItemPraatFeedback.created_at.desc())
+                        feedback_result = await db.execute(feedback_stmt)
+                        feedback = feedback_result.scalar_one_or_none()
+                        if feedback:
+                            item_feedback = feedback.item_feedback
+    except Exception as e:
+        import logging
+        logging.warning(f"[convert_training_item_to_response] Item {item.id} feedback 조회 실패: {type(e).__name__} - {e}")
+    
     return TrainingItemResponse(
         item_id=item.id,
         training_session_id=item.training_session_id,
@@ -143,6 +208,7 @@ async def convert_training_item_to_response(
         word=item.word.word if item.word else None,
         sentence=item.sentence.sentence if item.sentence else None,
         is_completed=item.is_completed,
+        feedback=item_feedback,  # 피드백 추가
         video_url=item.video_url,
         audio_url=item.audio_url,
         image_url=item.image_url,
@@ -188,6 +254,7 @@ async def convert_session_to_response(
     )
     
     session_praat_result = empty_praat_result
+    overall_feedback = None  # 세션 피드백
     
     try:
         praat_stmt = select(SessionPraatResult).where(
@@ -215,6 +282,20 @@ async def convert_session_to_response(
                 created_at=praat_data.created_at,
                 updated_at=praat_data.updated_at
             )
+            
+            # 세션 피드백 조회
+            try:
+                from ..models.training_session_praat_feedback import TrainSessionPraatFeedback
+                feedback_stmt = select(TrainSessionPraatFeedback).where(
+                    TrainSessionPraatFeedback.session_praat_result_id == praat_data.id
+                ).order_by(TrainSessionPraatFeedback.created_at.desc())
+                feedback_result = await db.execute(feedback_stmt)
+                session_feedback = feedback_result.scalar_one_or_none()
+                if session_feedback:
+                    overall_feedback = session_feedback.feedback_text
+            except Exception as e:
+                logging.warning(f"[convert_session_to_response] Session {session.id} Feedback 조회 실패: {type(e).__name__} - {e}")
+                
     except (sa_exc.SQLAlchemyError, Exception) as e:
         # 🔥 모든 DB 예외를 캐치 (테이블 없음 / 컬럼 불일치 / 기타 전부)
         logging.warning(f"[convert_session_to_response] Session {session.id} Praat 조회 실패: {type(e).__name__} - {e}")
@@ -266,6 +347,59 @@ async def convert_session_to_response(
     composited_video_urls = await asyncio.gather(*url_generation_tasks, return_exceptions=True)
     
     # 3단계: 결과 조립
+    # Item feedback 일괄 조회 (N+1 문제 해결)
+    item_feedback_map = {}
+    try:
+        from ..models.training_item_praat_feedback import TrainItemPraatFeedback
+        from ..models.praat import PraatFeatures
+        from ..models.media import MediaFile
+        
+        # 세션의 모든 아이템에 대한 PraatFeatures ID 수집
+        praat_ids = []
+        for item, _ in items_with_media:
+            # 아이템의 audio media 찾기
+            if item.media_file_id:
+                video_media = item.media_file
+                if video_media and video_media.object_key and video_media.object_key.endswith('.mp4'):
+                    audio_key = video_media.object_key.replace('.mp4', '.wav').replace('.MP4', '.wav')
+                    audio_media_stmt = select(MediaFile).where(MediaFile.object_key == audio_key)
+                    audio_result = await db.execute(audio_media_stmt)
+                    audio_media = audio_result.scalar_one_or_none()
+                    if audio_media:
+                        praat_stmt = select(PraatFeatures).where(PraatFeatures.media_id == audio_media.id)
+                        praat_result = await db.execute(praat_stmt)
+                        praat = praat_result.scalar_one_or_none()
+                        if praat:
+                            praat_ids.append(praat.id)
+        
+        # PraatFeatures ID로 피드백 조회
+        if praat_ids:
+            feedback_stmt = select(TrainItemPraatFeedback).where(
+                TrainItemPraatFeedback.praat_features_id.in_(praat_ids)
+            )
+            feedback_result = await db.execute(feedback_stmt)
+            feedbacks = feedback_result.scalars().all()
+            # PraatFeatures ID -> Item ID 매핑을 위해 다시 조회
+            for item, _ in items_with_media:
+                if item.media_file_id:
+                    video_media = item.media_file
+                    if video_media and video_media.object_key and video_media.object_key.endswith('.mp4'):
+                        audio_key = video_media.object_key.replace('.mp4', '.wav').replace('.MP4', '.wav')
+                        audio_media_stmt = select(MediaFile).where(MediaFile.object_key == audio_key)
+                        audio_result = await db.execute(audio_media_stmt)
+                        audio_media = audio_result.scalar_one_or_none()
+                        if audio_media:
+                            praat_stmt = select(PraatFeatures).where(PraatFeatures.media_id == audio_media.id)
+                            praat_result = await db.execute(praat_stmt)
+                            praat = praat_result.scalar_one_or_none()
+                            if praat:
+                                for feedback in feedbacks:
+                                    if feedback.praat_features_id == praat.id:
+                                        item_feedback_map[item.id] = feedback.item_feedback
+                                        break
+    except Exception as e:
+        logging.warning(f"[convert_session_to_response] Item feedback 조회 실패: {type(e).__name__} - {e}")
+    
     training_items = []
     for idx, (item, composited_media) in enumerate(items_with_media):
         # URL 생성 결과 가져오기 (예외 발생 시 None)
@@ -274,6 +408,9 @@ async def convert_session_to_response(
             composited_video_url = None
         
         composited_media_file_id = composited_media.id if composited_media else None
+        
+        # Item feedback 가져오기
+        item_feedback = item_feedback_map.get(item.id)
         
         item_response = TrainingItemResponse(
             item_id=item.id,
@@ -284,6 +421,7 @@ async def convert_session_to_response(
             word=item.word.word if item.word else None,
             sentence=item.sentence.sentence if item.sentence else None,
             is_completed=item.is_completed,
+            feedback=item_feedback,  # 피드백 추가
             video_url=item.video_url,
             audio_url=item.audio_url,
             image_url=item.image_url,
@@ -307,6 +445,7 @@ async def convert_session_to_response(
         completed_items=session.completed_items,
         current_item_index=session.current_item_index,
         progress_percentage=session.progress_percentage,
+        overall_feedback=overall_feedback,  # 세션 피드백 추가
         session_praat_result=session_praat_result,
         session_metadata=session.session_metadata,
         created_at=session.created_at,

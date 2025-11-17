@@ -38,6 +38,7 @@ class CurrentItemResponse(BaseModel):
     word: Optional[str] = None
     sentence: Optional[str] = None
     is_completed: bool
+    feedback: Optional[str] = None  # 아이템 피드백 추가
     video_url: Optional[str] = None
     composited_video_url: Optional[str] = None
     media_file_id: Optional[int] = None
