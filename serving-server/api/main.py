@@ -27,20 +27,20 @@ if PORT == 8000:
     except Exception as e:
         logger.warning(f"Failed to load lip video router: {e}")
         
-elif PORT == 8001:
-    # STT 서버 (8001 포트)
+elif PORT == 8080:
+    # STT 서버 (8080 포트)
     try:
         from api.routes.stt import router as stt_router
         app.include_router(stt_router)
-        logger.info("STT 서버 모드로 시작 (포트 8001) - STT router loaded")
+        logger.info("STT 서버 모드로 시작 (포트 8080) - STT router loaded")
     except Exception as e:
         logger.warning(f"Failed to load STT router: {e}")
 else:
-    logger.warning(f"Unknown port {PORT}, no routers loaded. Use PORT=8000 for Wav2Lip or PORT=8001 for STT")
+    logger.warning(f"Unknown port {PORT}, no routers loaded. Use PORT=8000 for Wav2Lip or PORT=8080 for STT")
 
 @app.get("/")
 def endpoint_check():
-    return {"server_status": "running", "port": PORT, "mode": "wav2lip" if PORT == 8000 else "stt" if PORT == 8001 else "unknown"}
+    return {"server_status": "running", "port": PORT, "mode": "wav2lip" if PORT == 8000 else "stt" if PORT == 8080 else "unknown"}
 
 @app.get("/health")
 async def health_check():
@@ -59,7 +59,7 @@ async def health_check():
                 "models_ready": wav2lip_model_exists,
                 "wav2lip_model_exists": wav2lip_model_exists
             }
-        elif PORT == 8001:
+        elif PORT == 8080:
             # STT 서버의 경우 기본 헬스 체크
             log_success("Health check completed", mode="stt")
             return {
