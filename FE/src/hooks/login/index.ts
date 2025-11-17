@@ -4,8 +4,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Login, GetErrorMessage } from "@/api/login";
+import { Login } from "@/api/login";
 import { setCookie } from "@/lib/cookies";
+import type { AxiosErrorResponse } from "@/types/api";
 
 const loginSchema = z.object({
     username: z.string().email("유효한 이메일 형식이 아닙니다."),
@@ -27,6 +28,7 @@ export const useLogin = ({ onLogin }:
         const form =
         useForm<LoginFormValues>({
             resolver: zodResolver(loginSchema),
+            mode: "onChange", // 실시간 검증
             defaultValues: {
                 username: "",
                 password: "",
@@ -40,6 +42,9 @@ export const useLogin = ({ onLogin }:
         } = form;
 
         const onSubmit = async (data: LoginFormValues) => {
+            // 이미 로딩 중이면 중복 실행 방지
+            if (isLoading) return;
+            
             setIsLoading(true);
             setApiError(null);
 
@@ -57,14 +62,23 @@ export const useLogin = ({ onLogin }:
                     toast.success("로그인이 완료되었습니다!");
                     onLogin?.();
                     navigate("/");
-                } else {
-                    const errorMessage =
-                    GetErrorMessage(result.error?.code, result.error?.message) ||
-                    "로그인에 실패했습니다.";
+                } else if (result.status === "FAIL") {
+                    // 서버에서 온 에러 메시지만 사용
+                    const errorMessage = result.error?.message || "";
+                    if (errorMessage) {
+                        setApiError(errorMessage);
+                    }
+                }
+            } catch (error: unknown) {
+                // 네트워크 에러 등 예외 상황
+                console.error("로그인 에러:", error);
+                // 서버 응답이 있으면 사용, 없으면 빈 문자열
+                const axiosError = error as AxiosErrorResponse;
+                const errorMessage = axiosError.response?.data?.error?.message ||
+                                    axiosError.response?.data?.message || "";
+                if (errorMessage) {
                     setApiError(errorMessage);
                 }
-            } catch {
-                setApiError("네트워크 오류가 발생했습니다. 다시 시도해주세요.");
             } finally {
                 setIsLoading(false);
             }

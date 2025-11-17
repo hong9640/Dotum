@@ -33,14 +33,17 @@ class Settings(BaseSettings):
     GCS_CREDENTIALS_PATH: str = ""  # 서비스 계정 키 파일 경로 (선택사항)
 
     #ML sever URL
-
     ML_SERVER_URL: str
+    STT_SERVER_URL: str
 
     # ElevenLabs API Key
     ELEVENLABS_API_KEY: str = ""
 
     # Wav2Lip Processing Control
     ENABLE_WAV2LIP: bool = True  # wav2lip 처리 활성화 여부
+
+    # OPEN_AI_API_KEY
+    OPEN_AI_API_KEY: str = ""
 
     # CORS Settings
     CORS_ORIGINS: str | None = None

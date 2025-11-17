@@ -5,9 +5,8 @@ from sqlalchemy.orm import foreign
 
 
 def get_current_datetime():
-    """현재 시간을 00:00:00으로 설정"""
-    now = datetime.now()
-    return now.replace(hour=0, minute=0, second=0, microsecond=0)
+    """현재 시간 반환"""
+    return datetime.now()
 
 
 if TYPE_CHECKING:

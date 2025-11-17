@@ -104,8 +104,8 @@ const VoiceTrainingIntro: React.FC = () => {
             <Card className="bg-slate-50 border-slate-200">
               <CardContent className="p-4 sm:p-6">
                 <div className="space-y-2 text-slate-700">
-                  <p className="text-base sm:text-lg font-semibold">📌 훈련 방법</p>
-                  <ul className="space-y-1 text-sm sm:text-base ml-4">
+                  <p className="text-lg sm:text-xl font-semibold">📌 훈련 방법</p>
+                  <ul className="space-y-1 text-sm sm:text-lg ml-4">
                     <li>• 각 훈련마다 3회씩 녹음할 수 있습니다</li>
                     <li>• 녹음 버튼을 눌러 발성을 녹음해보세요</li>
                     <li>• 재녹음을 원하시면 다시 녹음할 수 있습니다</li>

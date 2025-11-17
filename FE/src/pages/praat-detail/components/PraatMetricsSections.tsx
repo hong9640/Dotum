@@ -22,7 +22,7 @@ const PraatMetricsSections: React.FC<PraatMetricsSectionsProps> = ({
         titleIconClass="w-4 h-4 bg-amber-500"
         className="w-full"
       >
-        <div className="flex flex-wrap gap-4 sm:gap-6">
+        <div className="flex flex-wrap gap-4 sm:gap-6 overflow-hidden">
           <PraatMetricTile
             title="CPP (Cepstral Peak Prominence)"
             value={values.cpp}
@@ -49,7 +49,7 @@ const PraatMetricsSections: React.FC<PraatMetricsSectionsProps> = ({
       >
         <div className="flex flex-col gap-4 sm:gap-6">
           {/* 첫 번째 줄: HNR, NHR */}
-          <div className="flex flex-wrap gap-4 sm:gap-6">
+          <div className="flex flex-wrap gap-4 sm:gap-6 overflow-hidden">
             <PraatMetricTile
               title="HNR (Harmonics-to-Noise Ratio)"
               value={values.hnr}
@@ -67,7 +67,7 @@ const PraatMetricsSections: React.FC<PraatMetricsSectionsProps> = ({
             />
           </div>
           {/* 두 번째 줄: LH_ratio_mean_db, LH_ratio_sd_db, Intensity */}
-          <div className="flex flex-wrap gap-4 sm:gap-6">
+          <div className="flex flex-wrap gap-4 sm:gap-6 overflow-hidden">
             <PraatMetricTile
               title="LH_ratio_mean_db"
               value={values.lh_ratio_mean_db}
@@ -114,7 +114,7 @@ const PraatMetricsSections: React.FC<PraatMetricsSectionsProps> = ({
         titleIconClass="w-4 h-4 bg-rose-500"
         className="w-full"
       >
-        <div className="flex flex-wrap gap-4 sm:gap-6">
+        <div className="flex flex-wrap gap-4 sm:gap-6 overflow-hidden">
           <PraatMetricTile
             title="Jitter Local (%)"
             value={values.jitter_local}
@@ -140,7 +140,7 @@ const PraatMetricsSections: React.FC<PraatMetricsSectionsProps> = ({
         titleIconClass="w-4 h-4 bg-violet-500"
         className="w-full"
       >
-        <div className="flex flex-wrap gap-4 sm:gap-6">
+        <div className="flex flex-wrap gap-4 sm:gap-6 overflow-hidden">
           <PraatMetricTile
             title="F0 (기본주파수)"
             value={values.f0}
@@ -186,7 +186,7 @@ const PraatMetricsSections: React.FC<PraatMetricsSectionsProps> = ({
         titleIconClass="w-4 h-4 bg-indigo-500"
         className="w-full"
       >
-        <div className="flex flex-wrap gap-4 sm:gap-6">
+        <div className="flex flex-wrap gap-4 sm:gap-6 overflow-hidden">
           <PraatMetricTile
             title="F1 (첫번째 포먼트)"
             value={values.f1}

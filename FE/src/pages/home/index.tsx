@@ -1,28 +1,85 @@
-import React from 'react';
-import { BookOpen, ClipboardList, Languages, Smile } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { BookOpen, ClipboardList, Languages, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import 도드미안경 from '@/assets/도드미_안경.png';
 import { useTrainingSession } from '@/hooks/training-session';
+import { useAlertDialog } from '@/hooks/useAlertDialog';
 
-const HomePage: React.FC = () => {
+interface HomePageProps {
+  isLoggedIn: boolean;
+}
+
+const HomePage: React.FC<HomePageProps> = ({ isLoggedIn }) => {
   const navigate = useNavigate();
   const { createWordSession, createSentenceSession, createVocalSession: _createVocalSession, isLoading, apiError } = useTrainingSession();
+  const { showAlert, AlertDialog: LoginRequiredDialog } = useAlertDialog();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const timeoutRef = useRef<number | null>(null);
+
+  // 로그인이 필요한 경우 알림
+  const handleAuthRequired = () => {
+    showAlert({
+      title: '로그인이 필요합니다',
+      description: '로그인 페이지로 이동합니다.',
+      onConfirm: () => navigate('/login')
+    });
+  };
 
   const handleWordTraining = async () => {
+    // 이미 처리 중이면 무시
+    if (isProcessing || isLoading) return;
+    
+    // 로그인 확인
+    if (!isLoggedIn) {
+      handleAuthRequired();
+      return;
+    }
+    
+    setIsProcessing(true);
+    
+    // 로그인한 상태면 바로 시작
     try {
-      await createWordSession(2); // 2개 단어
+      await createWordSession(10); // 10개 단어
     } catch (error) {
       console.error('단어 훈련 세션 생성 실패:', error);
     }
+    
+    // 1초 후 재클릭 가능
+    if (timeoutRef.current) {
+      window.clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = window.setTimeout(() => {
+      setIsProcessing(false);
+    }, 1000);
   };
 
   const handleSentenceTraining = async () => {
+    // 이미 처리 중이면 무시
+    if (isProcessing || isLoading) return;
+    
+    // 로그인 확인
+    if (!isLoggedIn) {
+      handleAuthRequired();
+      return;
+    }
+    
+    setIsProcessing(true);
+    
+    // 로그인한 상태면 바로 시작
     try {
-      await createSentenceSession(2); // 2개 문장
+      await createSentenceSession(10); // 10개 문장
     } catch (error) {
       console.error('문장 훈련 세션 생성 실패:', error);
     }
+    
+    // 1초 후 재클릭 가능
+    if (timeoutRef.current) {
+      window.clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = window.setTimeout(() => {
+      setIsProcessing(false);
+    }, 1000);
   };
 
   const handleTrainingHistory = () => {
@@ -30,14 +87,37 @@ const HomePage: React.FC = () => {
   };
 
   const handleMaxVoiceTraining = () => {
+    // 이미 처리 중이면 무시
+    if (isProcessing || isLoading) return;
+    
+    // 로그인 확인
+    if (!isLoggedIn) {
+      handleAuthRequired();
+      return;
+    }
+    
+    setIsProcessing(true);
+    
     // 발성 훈련 페이지로 이동
     navigate('/voice-training');
+    
+    // 1초 후 재클릭 가능
+    if (timeoutRef.current) {
+      window.clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = window.setTimeout(() => {
+      setIsProcessing(false);
+    }, 1000);
   };
 
   return (
-    <div className="w-full h-full min-h-100vh p-[49px] flex justify-center items-center">
-      <div className="w-full max-w-7xl pt-0 sm:pt-12 pb-12 px-12 rounded-2xl flex flex-col lg:flex-row justify-center items-center sm:gap-7 gap-4 mx-1.5">
-        {/* 에러 메시지 표시 */}
+    <>
+      {/* 로그인 필요 다이얼로그 */}
+      <LoginRequiredDialog />
+      
+      <div className="w-full h-full min-h-100vh p-[49px] flex justify-center items-center">
+        <div className="w-full max-w-7xl pt-0 sm:pt-12 pb-12 px-12 rounded-2xl flex flex-col lg:flex-row justify-center items-center sm:gap-7 gap-4 mx-1.5">
+          {/* 에러 메시지 표시 */}
         {apiError && (
           <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50">
             {apiError}
@@ -75,10 +155,10 @@ const HomePage: React.FC = () => {
           <Button
             size="lg"
             onClick={handleMaxVoiceTraining}
-            disabled={isLoading}
-            className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-lime-300 rounded-xl flex justify-center items-center gap-3 hover:bg-lime-400 disabled:opacity-50"
+            disabled={isLoading || isProcessing}
+            className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex justify-center items-center gap-3 hover:from-emerald-600 hover:to-teal-600 disabled:opacity-50 shadow-md hover:shadow-lg transition-all duration-200"
           >
-            <Smile size={32} className="size-7 lg:size-9 text-white" strokeWidth={2.5} />
+            <Mic size={32} className="size-7 lg:size-9 text-white" strokeWidth={2.5} />
             <span className="text-center text-white text-2xl lg:text-3xl font-semibold leading-9">
               {isLoading ? "세션 생성 중..." : "발성 연습 시작"}
             </span>
@@ -88,11 +168,10 @@ const HomePage: React.FC = () => {
           <Button
             size="lg"
             onClick={handleWordTraining}
-            disabled={isLoading}
-            className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-green-500 rounded-xl flex justify-center items-center gap-3 hover:bg-green-600 disabled:opacity-50"
+            disabled={isLoading || isProcessing}
+            className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-green-500 rounded-xl flex justify-center items-center gap-3 hover:bg-green-600 disabled:opacity-50 shadow-md hover:shadow-lg transition-all duration-200"
           >
             <Languages size={32} className="size-7 lg:size-9 text-white" strokeWidth={2.5} />
-            {/* <Languages size={32} className="hidden sm:block text-white" strokeWidth={2.5} /> */}
             <span className="text-center text-white text-2xl lg:text-3xl font-semibold leading-9">
               {isLoading ? "세션 생성 중..." : "단어 연습 시작"}
             </span>
@@ -102,8 +181,8 @@ const HomePage: React.FC = () => {
           <Button
             size="lg"
             onClick={handleSentenceTraining}
-            disabled={isLoading}
-            className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-cyan-500 rounded-xl flex justify-center items-center gap-3 hover:bg-cyan-600 disabled:opacity-50"
+            disabled={isLoading || isProcessing}
+            className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-emerald-500 rounded-xl flex justify-center items-center gap-3 hover:bg-emerald-600 disabled:opacity-50 shadow-md hover:shadow-lg transition-all duration-200"
           >
             <BookOpen size={32} className="size-7 lg:size-9 text-white" strokeWidth={2.5} />
             <span className="text-center text-white text-2xl lg:text-3xl font-semibold leading-9">
@@ -113,19 +192,19 @@ const HomePage: React.FC = () => {
 
           {/* 훈련 기록 버튼 */}
           <Button
-            variant="outline"
             size="lg"
             onClick={handleTrainingHistory}
-            className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-white rounded-xl outline outline-2 outline-slate-200 flex justify-center items-center gap-3 hover:bg-gray-100"
+            className="w-[330px] sm:w-[400px] h-[68px] min-h-[40px] px-6 py-4 bg-teal-600 rounded-xl flex justify-center items-center gap-3 hover:bg-teal-700 disabled:opacity-50 shadow-md hover:shadow-lg transition-all duration-200"
           >
-            <ClipboardList size={32} className="size-7 lg:size-9 text-slate-800" strokeWidth={2.5} />
-            <span className="text-center text-slate-800 text-2xl lg:text-3xl font-semibold leading-9">
+            <ClipboardList size={32} className="size-7 lg:size-9 text-white" strokeWidth={2.5} />
+            <span className="text-center text-white text-2xl lg:text-3xl font-semibold leading-9">
               훈련 기록
             </span>
           </Button>
         </div>
       </div>
     </div>
+    </>
   );
 };
 

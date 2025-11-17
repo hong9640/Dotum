@@ -1,4 +1,6 @@
 import { apiClient } from "../axios";
+import type { AxiosErrorResponse } from "@/types/api";
+import { EnhancedError } from "@/types/api";
 
 // 훈련 세션 타입 정의
 export type TrainingType = 'word' | 'sentence' | 'vocal';
@@ -33,6 +35,26 @@ export interface TrainingItem {
   updated_at?: string;
 }
 
+// 세션 Praat 분석 결과 타입
+export interface SessionPraatResult {
+  avg_jitter_local?: number | null;
+  avg_shimmer_local?: number | null;
+  avg_hnr?: number | null;
+  avg_nhr?: number | null;
+  avg_lh_ratio_mean_db?: number | null;
+  avg_lh_ratio_sd_db?: number | null;
+  avg_max_f0?: number | null;
+  avg_min_f0?: number | null;
+  avg_intensity_mean?: number | null;
+  avg_f0?: number | null;
+  avg_f1?: number | null;
+  avg_f2?: number | null;
+  avg_cpp?: number | null;
+  avg_csid?: number | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 // 훈련 세션 생성 응답 타입
 export interface CreateTrainingSessionResponse {
   session_id: number;
@@ -47,6 +69,7 @@ export interface CreateTrainingSessionResponse {
   progress_percentage?: number;
   average_score?: number | null; // 전체 평균 점수
   overall_feedback?: string | null; // 전체 피드백
+  session_praat_result?: SessionPraatResult | null; // Praat 분석 결과
   session_metadata?: Record<string, unknown>;
   created_at?: string;
   updated_at?: string;
@@ -105,7 +128,6 @@ const ERROR_MAPPING: Record<string, string> = {
 export const createTrainingSession = async (
   data: CreateTrainingSessionRequest
 ): Promise<CreateTrainingSessionResponse> => {
-  console.log('📤 훈련 세션 생성 요청 데이터:', data);
   
   const response = await apiClient.post<CreateTrainingSessionResponse>(
     "/train/training-sessions",
@@ -128,7 +150,7 @@ export const createTrainingSession = async (
  * @returns 훈련 세션 생성 결과
  */
 export const createWordTrainingSession = async (
-  itemCount: number = 2,
+  itemCount: number = 10,
   sessionName?: string
 ): Promise<CreateTrainingSessionResponse> => {
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
@@ -201,7 +223,6 @@ export const createVocalTrainingSession = async (
 export const getTrainingSession = async (
   sessionId: number
 ): Promise<CreateTrainingSessionResponse> => {
-  console.log('📤 훈련 세션 조회 요청:', { sessionId });
   
   const response = await apiClient.get<CreateTrainingSessionResponse>(
     `/train/training-sessions/${sessionId}`,
@@ -212,7 +233,6 @@ export const getTrainingSession = async (
     }
   );
 
-  console.log('📥 훈련 세션 조회 응답:', response.data);
   return response.data;
 };
 
@@ -225,7 +245,6 @@ export const getTrainingSession = async (
 export const completeTrainingSession = async (
   sessionId: number
 ): Promise<CreateTrainingSessionResponse> => {
-  console.log('📤 훈련 세션 완료 요청:', { sessionId });
   
   try {
     const response = await apiClient.post<CreateTrainingSessionResponse>(
@@ -238,37 +257,33 @@ export const completeTrainingSession = async (
       }
     );
 
-    console.log('📥 훈련 세션 완료 응답:', response.data);
     return response.data;
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const axiosError = error as AxiosErrorResponse;
     console.error('❌ 훈련 세션 완료 API 에러:', {
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      data: error.response?.data,
+      status: axiosError.response?.status,
+      statusText: axiosError.response?.statusText,
+      data: axiosError.response?.data,
       sessionId
     });
 
     // 에러 메시지 추출
     let errorMessage = '훈련 세션 완료에 실패했습니다.';
     
-    if (error.response?.data?.detail) {
-      errorMessage = error.response.data.detail;
-    } else if (error.response?.status === 400) {
+    if (axiosError.response?.data?.detail) {
+      errorMessage = axiosError.response.data.detail as string;
+    } else if (axiosError.response?.status === 400) {
       errorMessage = '아직 모든 아이템이 완료되지 않았습니다.';
-    } else if (error.response?.status === 401) {
+    } else if (axiosError.response?.status === 401) {
       errorMessage = '인증이 필요합니다. 다시 로그인해주세요.';
-    } else if (error.response?.status === 404) {
+    } else if (axiosError.response?.status === 404) {
       errorMessage = '세션을 찾을 수 없습니다.';
-    } else if (error.response?.status === 422) {
+    } else if (axiosError.response?.status === 422) {
       errorMessage = '요청 데이터가 올바르지 않습니다.';
     }
 
     // 에러 객체에 사용자 친화적인 메시지 추가
-    const enhancedError = new Error(errorMessage);
-    (enhancedError as any).status = error.response?.status;
-    (enhancedError as any).originalError = error;
-    
-    throw enhancedError;
+    throw new EnhancedError(errorMessage, axiosError.response?.status, error);
   }
 };
 

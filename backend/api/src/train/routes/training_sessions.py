@@ -21,8 +21,9 @@ from ..schemas.praat import (
 from ..schemas.common import NotFoundErrorResponse, BadRequestErrorResponse, UnauthorizedErrorResponse, ProcessingErrorResponse
 from ..models.training_session import TrainingType, TrainingSessionStatus
 from ..services.training_sessions import TrainingSessionService
-from ..services.gcs_service import get_gcs_service, GCSService
+from ..services.gcs import get_gcs_service, GCSService
 from ..services.praat import get_praat_analysis_from_db
+from ..services.batch_feedback import BatchFeedbackService
 from ..services.response_converters import (
     convert_session_to_response,
     convert_media_to_response,
@@ -33,11 +34,14 @@ from api.core.database import get_session
 from api.src.auth.auth_router import get_current_user
 from api.src.user.user_model import User
 from api.core.config import settings
+from api.core.logging import get_logger
 
 router = APIRouter(
     prefix="/training-sessions",
     tags=["training-sessions"],
 )
+
+logger = get_logger(__name__)
 
 
 async def get_training_service(db: AsyncSession = Depends(get_session)) -> TrainingSessionService:
@@ -47,6 +51,39 @@ async def get_training_service(db: AsyncSession = Depends(get_session)) -> Train
 def provide_gcs_service() -> GCSService:
     """GCS 서비스 의존성"""
     return get_gcs_service(settings)
+
+
+async def get_feedback_service(db: AsyncSession = Depends(get_session)) -> BatchFeedbackService:
+    """배치 피드백 서비스 의존성"""
+    return BatchFeedbackService(db)
+
+
+async def _generate_feedback_in_background(session_id: int, user_name: str):
+    """
+    백그라운드 피드백 생성 (독립 DB 세션)
+    
+    BackgroundTasks는 응답 반환 후 실행되므로
+    독립적인 DB 세션을 생성하여 사용해야 함
+    """
+    from api.core.database import async_session
+    
+    async with async_session() as db:
+        try:
+            logger.info(f"[Background] Starting feedback generation for session {session_id}")
+            feedback_service = BatchFeedbackService(db)
+            
+            success = await feedback_service.generate_and_save_session_feedback(
+                session_id=session_id,
+                user_name=user_name
+            )
+            
+            if success:
+                logger.info(f"[Background] ✅ Feedback generation completed for session {session_id}")
+            else:
+                logger.warning(f"[Background] ⚠️ Feedback generation failed for session {session_id}")
+                
+        except Exception as e:
+            logger.error(f"[Background] ❌ Error in feedback generation: {e}", exc_info=True)
 
 
 @router.post(
@@ -166,18 +203,30 @@ async def get_training_session(
 )
 async def complete_training_session(
     session_id: int,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     service: TrainingSessionService = Depends(get_training_service),
     gcs_service: GCSService = Depends(provide_gcs_service)
 ):
-    """훈련 세션 완료"""
+    """훈련 세션 완료 (LLM 피드백은 백그라운드에서 생성)"""
     try:
+        # 1. 세션 완료 처리 (즉시)
         session = await service.complete_training_session(session_id, current_user.id)
         if not session:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="훈련 세션을 찾을 수 없습니다."
             )
+        
+        # 2. LLM 피드백 생성 (백그라운드 - 응답 후 처리)
+        background_tasks.add_task(
+            _generate_feedback_in_background,
+            session_id=session.id,
+            user_name=current_user.username
+        )
+        logger.info(f"[Complete] Session completed, feedback generation scheduled in background: session_id={session_id}")
+        
+        # 3. 즉시 응답 반환
         return await convert_session_to_response(session, service.db, gcs_service, current_user.username)
     except ValueError as e:
         raise HTTPException(
@@ -480,6 +529,8 @@ async def submit_current_item(
     media_file = result["media_file"]
     praat_feature = result["praat_feature"]
     
+    # 개별 아이템 피드백은 세션 완료시 배치로 생성 (즉시 피드백 불필요)
+    
     next_item_response: Optional[CurrentItemResponse] = None
     if next_item:
         word = next_item.word.word if next_item.word else None
@@ -642,11 +693,16 @@ async def submit_vocal_item(
             composited_media=composited_media
         )
     
+    # STT 결과 변환 (있는 경우에만)
+    from ..services.response_converters import convert_stt_to_response
+    stt_response = await convert_stt_to_response(result.get("stt_result")) if result.get("stt_result") else None
+    
     return ItemSubmissionResponse(
         session=await convert_session_to_response(session, service.db, gcs_service, current_user.username),
         next_item=next_item_response,
         media=convert_media_to_response(media_file),
         praat=await convert_praat_to_response(praat_feature),
+        stt=stt_response,
         video_url=video_url,
         image_url=image_url,
         video_image_url=video_image_url

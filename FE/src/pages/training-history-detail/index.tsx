@@ -6,6 +6,7 @@ import { convertSessionsToTrainingSets } from './utils';
 import { useTrainingDayDetail } from '@/hooks/useTrainingDayDetail';
 import { getDailyRecordSearch } from '@/api/training-history/dailyRecordSearch';
 import { completeTrainingSession } from '@/api/training-session';
+import { toast } from 'sonner';
 
 export interface TrainingDayDetailProps {
   date: string; // "YYYY-MM-DD" 형식
@@ -25,6 +26,7 @@ export default function TrainingDayDetail({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [totalSessions, setTotalSessions] = useState<number>(0);
+  const [isCompleting, setIsCompleting] = useState(false);
 
   const { statistics } = useTrainingDayDetail({ trainingSets: actualTrainingSets });
 
@@ -52,9 +54,10 @@ export default function TrainingDayDetail({
         const convertedSets = convertSessionsToTrainingSets(response);
         setActualTrainingSets(convertedSets);
         setTotalSessions(response.total_sessions);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('일별 훈련 기록 조회 실패 :', err);
-        setError(err.response?.data?.detail || '훈련 기록을 불러오는데 실패했습니다.');
+        const axiosError = err as { response?: { data?: { detail?: string } } };
+        setError(axiosError.response?.data?.detail || '훈련 기록을 불러오는데 실패했습니다.');
         // 에러 발생 시 빈 배열 또는 더미 데이터 사용
         setActualTrainingSets([]);
         setTotalSessions(0);
@@ -76,11 +79,16 @@ export default function TrainingDayDetail({
   };
 
   const handleTrainingSetClick = async (trainingSet: TrainingSet) => {
+    // 이미 세션 완료 처리 중이면 중복 실행 방지
+    if (isCompleting) return;
+    
     // 세션이 완료되지 않은 경우
     if (trainingSet.status !== 'completed') {
       // 총 아이템 수와 완료된 아이템 수가 같은 경우 (실제로는 완료되었지만 status가 in_progress인 경우)
       if (trainingSet.completedItems !== undefined && trainingSet.totalItems === trainingSet.completedItems) {
         try {
+          setIsCompleting(true);
+          
           // 세션 종료 API 호출
           await completeTrainingSession(trainingSet.sessionId);
 
@@ -92,9 +100,11 @@ export default function TrainingDayDetail({
           if (onTrainingSetClick) {
             onTrainingSetClick(trainingSet);
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error('세션 종료 실패:', error);
-          alert(error.message || '세션을 종료하는데 실패했습니다.');
+          const errorWithMessage = error as { message?: string };
+          toast.error(errorWithMessage.message || '세션을 종료하는데 실패했습니다.');
+          setIsCompleting(false);
         }
         return;
       }
@@ -104,8 +114,44 @@ export default function TrainingDayDetail({
       const shouldNavigate = window.confirm(message); // 확인 버튼 클릭 시 true, 취소 버튼 클릭 시 false
 
       if (shouldNavigate) {
-        // practice 페이지로 이동 (current_item_index 사용)
-        navigate(`/practice?sessionId=${trainingSet.sessionId}&type=${trainingSet.type}&itemIndex=${trainingSet.currentItemIndex}`);
+        // vocal 타입인 경우 특별한 경로 처리
+        if (trainingSet.type === 'vocal' && trainingSet.currentItemIndex !== undefined && trainingSet.totalItems) {
+          const n = Math.floor(trainingSet.totalItems / 5); // 반복 횟수
+          const currentIndex = trainingSet.currentItemIndex;
+          let path = '';
+          let attempt = 1;
+
+          if (currentIndex >= 0 && currentIndex < n) {
+            // 0 ~ n-1: /voice-training/mpt
+            path = '/voice-training/mpt';
+            attempt = currentIndex + 1;
+          } else if (currentIndex >= n && currentIndex < 2 * n) {
+            // n ~ 2n-1: /voice-training/crescendo
+            path = '/voice-training/crescendo';
+            attempt = currentIndex - n + 1;
+          } else if (currentIndex >= 2 * n && currentIndex < 3 * n) {
+            // 2n ~ 3n-1: /voice-training/decrescendo
+            path = '/voice-training/decrescendo';
+            attempt = currentIndex - 2 * n + 1;
+          } else if (currentIndex >= 3 * n && currentIndex < 4 * n) {
+            // 3n ~ 4n-1: /voice-training/loud-soft
+            path = '/voice-training/loud-soft';
+            attempt = currentIndex - 3 * n + 1;
+          } else if (currentIndex >= 4 * n && currentIndex < 5 * n) {
+            // 4n ~ 5n-1: /voice-training/soft-loud
+            path = '/voice-training/soft-loud';
+            attempt = currentIndex - 4 * n + 1;
+          } else {
+            // 범위를 벗어난 경우 기본 practice 페이지로 이동
+            navigate(`/practice?sessionId=${trainingSet.sessionId}&type=${trainingSet.type}&itemIndex=${trainingSet.currentItemIndex}`);
+            return;
+          }
+
+          navigate(`${path}?attempt=${attempt}&sessionId=${trainingSet.sessionId}`);
+        } else {
+          // vocal이 아니거나 필요한 정보가 없는 경우 기존 로직 사용
+          navigate(`/practice?sessionId=${trainingSet.sessionId}&type=${trainingSet.type}&itemIndex=${trainingSet.currentItemIndex}`);
+        }
       }
       return;
     }
@@ -120,7 +166,6 @@ export default function TrainingDayDetail({
     }
   };
 
-  // totalSets는 API 응답의 total_sessions를 우선 사용
   // totalSets는 API 응답의 total_sessions를 우선 사용
   const displayTotalSets = totalSessions > 0 ? totalSessions : statistics.totalSets;
 
@@ -150,7 +195,7 @@ export default function TrainingDayDetail({
         />
       </div>
 
-      <main className="container mx-auto px-6 xl:px-8 py-8">
+      <main className="container mx-auto px-6 xl:px-8 py-2.5 sm:py-8">
         <div className="max-w-4xl mx-auto space-y-6">
           <div className="space-y-4">
             <TrainingSetGrid

@@ -30,14 +30,11 @@ export function usePraat(
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const deadline = useMemo(
     () => Date.now() + maxPollMs,
-    [maxPollMs, sessionId, itemId]
+    [maxPollMs]
   );
 
   useEffect(() => {
-    console.log("🔍 usePraat 체크:", { enabled, sessionId, itemId });
-    
     if (!enabled || !sessionId || !itemId) {
-      console.log("⏸️ usePraat 비활성화:", { enabled, sessionId, itemId });
       setLoading(false);
       setProcessing(false);
       setData(null);
@@ -53,9 +50,6 @@ export function usePraat(
       return;
     }
 
-    console.log("✅ usePraat 시작 - Praat API 호출:", { sessionId, itemId });
-
-    // 기존 요청 및 타이머 정리
     abortRef.current?.abort();
     if (timerRef.current) {
       clearTimeout(timerRef.current);
@@ -70,25 +64,19 @@ export function usePraat(
 
     const tick = async () => {
       try {
-        console.log("📤 Praat API 호출:", { sessionId, itemId });
         const res = await fetchPraat(sessionId, itemId, {
           signal: abortRef.current?.signal,
           token,
           withCredentials,
         });
 
-        console.log("📥 Praat API 응답:", res);
-
         if (res.status === "done") {
-          console.log("✅ Praat 분석 완료:", res.data);
           setData(res.data);
           setProcessing(false);
           setLoading(false);
-          return; // stop polling
+          return;
         }
 
-        // processing
-        console.log("⏳ Praat 분석 처리 중...");
         setProcessing(true);
         setLoading(false);
 
@@ -98,19 +86,17 @@ export function usePraat(
           );
         }
 
-        console.log(`⏰ ${pollIntervalMs}ms 후 재시도 예약`);
         timerRef.current = setTimeout(tick, pollIntervalMs);
-      } catch (e: any) {
-        // 취소된 요청이면 무시
-        if (e?.name === "CanceledError" || e?.message?.includes("cancel")) {
-          console.log("🚫 Praat API 요청 취소됨");
+      } catch (e: unknown) {
+        const error = e as { name?: string; message?: string };
+        if (error?.name === "CanceledError" || error?.message?.includes("cancel")) {
           return;
         }
 
-        console.error("❌ Praat API 에러:", e);
+        console.error("Praat API 오류:", e);
         setLoading(false);
         setProcessing(false);
-        setError(e);
+        setError(e instanceof Error ? e : new Error(String(e)));
       }
     };
 

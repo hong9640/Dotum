@@ -7,12 +7,12 @@ from typing import List
 
 from api.core.database import get_session
 from api.core.config import settings
-from api.src.train.services.gcs_service import get_gcs_service
+from api.src.train.services.gcs import get_gcs_service
 from api.src.auth.auth_router import get_current_user
 from api.src.user.user_model import User
 from ..services.media import MediaService
 from ..schemas.media import MediaListResponse
-from api.src.train.services.gcs_service import get_gcs_service, GCSService
+from api.src.train.services.gcs import get_gcs_service, GCSService
 
 router = APIRouter(
     prefix="/media",

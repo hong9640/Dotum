@@ -10,8 +10,9 @@ from ..schemas.training_sessions import TrainingSessionResponse
 from ..schemas.training_items import CurrentItemResponse, TrainingItemResponse
 from ..schemas.media import MediaResponse
 from ..schemas.praat import PraatFeaturesResponse, SessionPraatResultResponse
+from ..schemas.stt import SttResultResponse
 from ..services.training_sessions import TrainingSessionService
-from ..services.gcs_service import GCSService
+from ..services.gcs import GCSService
 from ..services.media import MediaService
 
 # Sentinel value: "조회하지 않음"을 나타내기 위한 특별한 객체
@@ -367,4 +368,24 @@ async def convert_praat_to_response(
         f2=praat.f2,
         intensity_mean=praat.intensity_mean,
         image_url=item.image_url if item else None
+    )
+
+
+async def convert_stt_to_response(
+    stt_result
+) -> Optional[SttResultResponse]:
+    """TrainingItemSttResults 모델을 SttResultResponse로 변환
+    
+    Args:
+        stt_result: TrainingItemSttResults 모델 객체
+    """
+    if stt_result is None:
+        return None
+    
+    return SttResultResponse(
+        id=stt_result.id,
+        training_item_id=stt_result.training_item_id,
+        ai_model_id=stt_result.ai_model_id,
+        stt_result=stt_result.stt_result,
+        created_at=stt_result.created_at
     )

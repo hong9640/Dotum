@@ -2,14 +2,14 @@ import { apiClient } from "../axios";
 import type { SessionItemResponse } from "../training-session/sessionItemSearch";
 import type { CreateTrainingSessionResponse } from "../training-session";
 import type { MediaResponse } from "./index";
-import type { PraatResult } from "../training-session/sessionItemSearch";
+import type { PraatMetrics } from "../training-session/praat";
 
 // 재업로드 성공 응답 타입
 export interface VideoReuploadResponse {
   session: CreateTrainingSessionResponse;
   next_item?: SessionItemResponse | null;
   media: MediaResponse;
-  praat?: PraatResult | null;
+  praat?: PraatMetrics | null;
   video_url?: string;
   message: string;
 }

@@ -52,7 +52,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
       )}
 
       {recordingState === "idle" && blobUrl && (
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center justify-center gap-3">
           <Button size="lg" variant="secondary" className="px-8 py-6 text-xl flex items-center gap-3" onClick={onRetake}>
             <RotateCcw className="size-6 text-slate-700" />
             다시 녹화

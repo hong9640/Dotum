@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useSearchParams } from 'react-router-dom';
 import NavigationBar from '@/components/NavigationBar';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+// import ScrollToTop from '@/components/ScrollToTop';
 import HomePage from '@/pages/home';
 import PracticePage from '@/pages/practice';
 import LoginPage from '@/pages/login';
@@ -19,7 +20,27 @@ import SoftLoudPage from '@/pages/voice-training/soft-loud';
 import { clearAuthCookies } from '@/lib/cookies';
 import { checkAuthStatus } from '@/api/user';
 import { Logout } from '@/api/logout/Logout';
-import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Toaster } from '@/components/ui/sonner';
+
+// PracticePage를 sessionId와 type으로 완전히 새로 생성하는 Wrapper
+const PracticePageWrapper: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const sessionId = searchParams.get('sessionId');
+  const type = searchParams.get('type');
+  
+  // sessionId와 type이 바뀔 때마다 PracticePage를 완전히 새로 생성
+  return <PracticePage key={`${sessionId}-${type}`} />;
+};
 
 const AppContent: React.FC<{
   isLoggedIn: boolean;
@@ -28,40 +49,67 @@ const AppContent: React.FC<{
   handleSignup: () => void;
 }> = ({ isLoggedIn, handleLogin, handleLogout, handleSignup }) => {
   const navigate = useNavigate();
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
-  const onLogoutClick = async () => {
+  // 로그아웃 버튼 클릭 시 다이얼로그 표시
+  const onLogoutClick = () => {
+    setShowLogoutDialog(true);
+  };
+
+  // 실제 로그아웃 처리
+  const handleConfirmLogout = async () => {
+    setShowLogoutDialog(false);
+    
+    // 먼저 홈페이지로 리다이렉트
+    navigate('/');
+    
+    // 그 다음 로그아웃 처리
     try {
-      const result = await Logout();
-      
-      if (result.status === "SUCCESS") {
-        toast.success("로그아웃되었습니다.");
-        handleLogout();
-        navigate('/');
-      } else {
-        toast.error(result.error?.message || "로그아웃에 실패했습니다.");
-      }
-    } catch (error) {
+      await Logout();
+      handleLogout();
+    } catch {
       // API 실패해도 클라이언트 로그아웃 처리
       clearAuthCookies();
       handleLogout();
-      navigate('/');
     }
   };
 
   return (
     <div className="flex flex-col min-h-screen bg-white">
       <NavigationBar isLoggedIn={isLoggedIn} onLogout={onLogoutClick} />
+      
+      {/* 로그아웃 확인 다이얼로그 */}
+      <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-2xl">로그아웃 하시겠습니까?</AlertDialogTitle>
+            <AlertDialogDescription className="text-lg">
+              로그아웃하면 홈페이지로 이동합니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="text-lg px-6 py-4">취소</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmLogout}
+              className="text-lg px-6 py-4"
+            >
+              확인
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
       <main className="flex-1">
         <Routes>
           {/* 공개 페이지 */}
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<HomePage isLoggedIn={isLoggedIn} />} />
           
           {/* 로그인 필요 페이지 */}
           <Route 
             path="/practice" 
             element={
               <ProtectedRoute isLoggedIn={isLoggedIn} requireAuth={true}>
-                <PracticePage />
+                <PracticePageWrapper />
               </ProtectedRoute>
             } 
           />
@@ -185,7 +233,8 @@ const App: React.FC = () => {
   };
 
   const handleSignup = () => {
-    setIsLoggedIn(true);
+    // 회원가입 후 자동 로그인하지 않음
+    // 사용자가 로그인 페이지에서 직접 로그인해야 함
   };
 
   // 초기 로드 시 인증 상태 확인 (리다이렉트 없이)
@@ -215,12 +264,14 @@ const App: React.FC = () => {
 
   return (
     <Router>
+      {/* <ScrollToTop /> */}
       <AppContent 
         isLoggedIn={isLoggedIn}
         handleLogin={handleLogin}
         handleLogout={handleLogout}
         handleSignup={handleSignup}
       />
+      <Toaster position="top-center" richColors closeButton duration={1000} />
     </Router>
   );
 };

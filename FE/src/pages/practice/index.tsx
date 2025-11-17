@@ -11,6 +11,7 @@ import { getTrainingSession, completeTrainingSession, type CreateTrainingSession
 import { submitCurrentItem, type SubmitCurrentItemResponse } from "@/api/practice";
 import { reuploadVideo, type VideoReuploadResponse } from "@/api/practice/videoReupload";
 import { useCompositedVideoPolling } from "@/hooks/useCompositedVideoPolling";
+import { toast } from "sonner";
 
 const PracticePage: React.FC = () => {
   const navigate = useNavigate();
@@ -55,8 +56,6 @@ const PracticePage: React.FC = () => {
       }
 
       try {
-        console.log('세션 데이터 로드 중...', { sessionId: sessionIdParam, type: sessionTypeParam });
-        
         const sessionId = Number(sessionIdParam);
         if (isNaN(sessionId)) {
           setError('세션 ID가 유효하지 않습니다.');
@@ -72,19 +71,13 @@ const PracticePage: React.FC = () => {
           return;
         }
         
-        // 현재 아이템이 이미 해당 인덱스와 일치하면 스킵 (중복 로드 방지)
-        if (currentItem && currentItem.item_index === currentItemIndex && !isLoading) {
-          console.log('현재 아이템이 이미 로드되어 있으므로 스킵');
-          return;
-        }
-        
         // 세션 정보와 현재 아이템을 병렬로 조회
-        const [sessionData, currentItemData] = await Promise.all([
+        const [fetchedSessionData, currentItemData] = await Promise.all([
           getTrainingSession(sessionId),
           getSessionItemByIndex(sessionId, currentItemIndex)
         ]);
         
-        setSessionDataState(sessionData);
+        setSessionDataState(fetchedSessionData);
         setCurrentItem(currentItemData);
         
         // userVideoUrl 설정 (video_url이 있으면 설정)
@@ -107,10 +100,6 @@ const PracticePage: React.FC = () => {
           
           // is_completed가 true이고 composited_video_url이 없으면 폴링 시작
           if (currentItemData.is_completed && !currentItemData.composited_video_url) {
-            console.log('🚀 직접 폴링 시작 (loadSessionData 내부):', {
-              item_id: currentItemData.item_id,
-              sessionId,
-            });
             // 폴링을 즉시 시작하도록 상태 설정
             setIsLoadingCompositedVideo(true);
             // 폴링은 useEffect 내에서 처리 (showResult 설정 후 실행될 것)
@@ -126,7 +115,7 @@ const PracticePage: React.FC = () => {
         const targetText = currentItemData.word || currentItemData.sentence || '';
         
         // 세션 데이터 설정 (실제 API 데이터 반영)
-        setSessionData(sessionIdParam, sessionTypeParam, [targetText], sessionData?.total_items || 10, currentItemData.item_index);
+        setSessionData(sessionIdParam, sessionTypeParam, [targetText], fetchedSessionData?.total_items || 10, currentItemData.item_index);
         
         // 아이템이 완료된 경우 결과 페이지 표시
         if (currentItemData.is_completed) {
@@ -134,13 +123,6 @@ const PracticePage: React.FC = () => {
         } else {
           setShowResult(false);
         }
-        
-        console.log('📋 합성 영상 데이터 설정 완료:', {
-          is_completed: currentItemData.is_completed,
-          item_id: currentItemData.item_id,
-          composited_video_url: currentItemData.composited_video_url,
-          showResultWillBe: currentItemData.is_completed,
-        });
         
         setIsLoading(false);
       } catch (err) {
@@ -203,7 +185,6 @@ const PracticePage: React.FC = () => {
   }, [polledError]);
 
   const handleSave = (file: File, blobUrl: string) => {
-    console.log("Saved:", file);
     // 녹화된 비디오를 상태에 추가
     addRecordedVideo(blobUrl);
     // 녹화된 파일을 상태에 저장 (업로드용)
@@ -224,18 +205,11 @@ const PracticePage: React.FC = () => {
 
   const handleViewResults = () => {
     // 녹화 완료 후 결과 페이지 표시 (진행률과 단어는 그대로 유지)
-    console.log('🎬 녹화 완료 - 결과 페이지 표시:', {
-      currentItemIndex: currentItem?.item_index,
-      currentWord: currentItem?.word || currentItem?.sentence,
-      progressDisplay: `${(currentItem?.item_index || 0) + 1}/${sessionData?.total_items}`
-    });
-    
     setShowResult(false);
   };
 
   const handleRetake = () => {
     // 다시 녹화 버튼 클릭 시 녹화 화면으로 돌아가기
-    console.log('🔄 다시 녹화 버튼 클릭');
     
     // 결과 페이지 숨기기
     setShowResult(false);
@@ -251,6 +225,9 @@ const PracticePage: React.FC = () => {
   };
 
   const handleUpload = async () => {
+    // 이미 업로드 중이면 중복 실행 방지
+    if (isUploading) return;
+    
     if (!recordedFile || !sessionIdParam || !currentItem) {
       setUploadError('업로드할 파일이나 세션 정보가 없습니다.');
       return;
@@ -266,24 +243,15 @@ const PracticePage: React.FC = () => {
       setIsUploading(true);
       setUploadError(null);
       
-      console.log('📤 영상 업로드 시작:', { 
-        sessionId, 
-        itemId: currentItem.item_id,
-        isCompleted: currentItem.is_completed,
-        fileName: recordedFile.name 
-      });
-      
       let response: SubmitCurrentItemResponse | VideoReuploadResponse;
       
       // is_completed가 true이면 재업로드 API 호출, 아니면 일반 업로드 API 호출
       if (currentItem.is_completed) {
         // 재업로드 API (PUT)
         response = await reuploadVideo(sessionId, currentItem.item_id, recordedFile);
-        console.log('📥 영상 재업로드 성공:', response);
       } else {
         // 일반 업로드 API (POST)
         response = await submitCurrentItem(sessionId, recordedFile);
-        console.log('📥 영상 업로드 성공:', response);
       }
       
       // 업로드된 사용자 비디오 URL 저장 (있을 경우)
@@ -323,14 +291,6 @@ const PracticePage: React.FC = () => {
             setCompositedVideoError(null);
           }
           
-          console.log('📥 업로드 후 아이템 정보 갱신:', {
-            is_completed: updatedItem.is_completed,
-            video_url: updatedItem.video_url,
-            composited_video_url: updatedItem.composited_video_url,
-            media_file_id: updatedItem.media_file_id,
-            has_next: hasNext,
-          });
-          
           // 업로드 성공 시 결과 페이지 표시하지 않음
           setShowResult(false);
           
@@ -346,8 +306,6 @@ const PracticePage: React.FC = () => {
             try {
               // 다음 아이템 조회
               const nextItemData = await getSessionItemByIndex(sessionId, nextItemIndex);
-              
-              console.log('다음 아이템 조회 결과:', nextItemData);
               
               // 다음 아이템의 단어/문장으로 업데이트
               const targetText = nextItemData.word || nextItemData.sentence || '';
@@ -380,12 +338,6 @@ const PracticePage: React.FC = () => {
               setTimeout(() => {
                 updateUrl(nextItemData.item_index);
               }, 50);
-              
-              console.log('업로드 후 다음 아이템으로 이동 완료:', {
-                itemIndex: nextItemData.item_index,
-                targetText,
-                hasNext: nextItemData.has_next,
-              });
             } catch (err) {
               console.error('다음 아이템 로드 실패:', err);
               const errorMessage = getSessionItemErrorMessage(err);
@@ -393,7 +345,6 @@ const PracticePage: React.FC = () => {
             }
           } else {
             // 마지막 아이템이면 세션 완료 확인 후 결과 목록 페이지로 이동
-            console.log('마지막 아이템 완료 - 세션 완료 처리 시작');
             
             if (!sessionIdParam || !sessionTypeParam) {
               console.error('세션 정보가 없어 결과 목록 페이지로 이동할 수 없습니다.');
@@ -404,62 +355,51 @@ const PracticePage: React.FC = () => {
             try {
               // 먼저 세션 상태를 확인하여 모든 아이템이 완료되었는지 검증
               const sessionData = await getTrainingSession(sessionId);
-              console.log('세션 상태 확인:', {
-                totalItems: sessionData.total_items,
-                completedItems: sessionData.completed_items,
-                status: sessionData.status,
-                type: sessionData.type
-              });
               
               // total_items와 completed_items의 값이 같은지 확인
               if (sessionData.total_items !== sessionData.completed_items) {
-                console.warn('아직 모든 아이템이 완료되지 않음:', {
-                  completed: sessionData.completed_items,
-                  total: sessionData.total_items
-                });
                 
                 // 같지 않으면 alert 표시 후 함수 종료
                 const trainingType = sessionData.type === 'word' ? '단어' : sessionData.type === 'sentence' ? '문장' : '발성';
-                alert(`아직 제출하지 않은 ${trainingType} 훈련이 있습니다.`);
+                toast.error(`아직 제출하지 않은 ${trainingType} 훈련이 있습니다.`);
                 return;
               }
               
               // 두 값이 같으면 세션 종료 API 호출
               await completeTrainingSession(sessionId);
-              console.log('훈련 세션 종료 성공');
               
               // 세션 종료 성공 후 result-list 페이지로 이동 (sessionId와 type을 URL 파라미터로 전달)
               const resultListUrl = `/result-list?sessionId=${sessionIdParam}&type=${sessionTypeParam}`;
-              console.log('전체 결과 페이지로 이동:', resultListUrl);
               
               navigate(resultListUrl);
-            } catch (error: any) {
-              console.error('세션 완료 처리 실패:', error);
+          } catch (error: unknown) {
+            console.error('세션 완료 처리 실패:', error);
               
               // 에러 상태에 따른 처리
-              if (error.status === 400) {
+              const enhancedError = error as { status?: number };
+              if (enhancedError.status === 400) {
                 // 400: 아직 모든 아이템이 완료되지 않음
                 const trainingType = sessionTypeParam === 'word' ? '단어' : sessionTypeParam === 'sentence' ? '문장' : '발성';
-                alert(`아직 제출하지 않은 ${trainingType} 훈련이 있습니다.`);
-              } else if (error.status === 401) {
+                toast.error(`아직 제출하지 않은 ${trainingType} 훈련이 있습니다.`);
+              } else if (enhancedError.status === 401) {
                 // 401: 인증 필요
-                alert('인증이 필요합니다. 다시 로그인해주세요.');
+                toast.error('인증이 필요합니다. 다시 로그인해주세요.');
                 navigate('/login');
-              } else if (error.status === 404) {
+              } else if (enhancedError.status === 404) {
                 // 404: 세션을 찾을 수 없음
-                alert('세션을 찾을 수 없습니다. 홈페이지에서 다시 시작해주세요.');
+                toast.error('세션을 찾을 수 없습니다. 홈페이지에서 다시 시작해주세요.');
                 navigate('/');
               } else {
                 // 기타 에러
-                const errorMessage = error.message || '세션 종료 중 오류가 발생했습니다.';
+                const errorWithMessage = error as { message?: string };
+                const errorMessage = errorWithMessage.message || '세션 종료 중 오류가 발생했습니다.';
                 console.error('세션 완료 처리 실패:', errorMessage);
-                alert(errorMessage);
+                toast.error(errorMessage);
               }
             }
           }
         } else {
           // training_items에서 찾지 못한 경우 (없어야 하지만 방어적 코드)
-          console.warn('응답의 training_items에서 현재 아이템을 찾지 못했습니다.');
           // 최소한 is_completed는 업데이트
           setCurrentItem({
             ...currentItem,
@@ -472,7 +412,6 @@ const PracticePage: React.FC = () => {
         }
       } else {
         // response.session이 없는 경우 (없어야 하지만 방어적 코드)
-        console.warn('응답에 session 정보가 없습니다.');
         // 최소한 is_completed는 업데이트
         setCurrentItem({
           ...currentItem,
@@ -486,19 +425,46 @@ const PracticePage: React.FC = () => {
       
       // 업로드 완료 후 파일 상태 초기화는 위에서 이미 처리됨 (아이템 이동 전에 초기화)
       
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('📥 영상 업로드 실패:', err);
       
+      const axiosError = err as { response?: { status?: number } };
+      const status = axiosError.response?.status;
+      
+      // 401: 인증 오류 - 강제 로그인 페이지 이동
+      if (status === 401) {
+        toast.error('세션이 만료되었습니다. 다시 로그인해주세요.');
+        setIsUploading(false);
+        setTimeout(() => {
+          navigate('/login');
+        }, 1500);
+        return;
+      }
+      
+      // 404: 세션 없음 - 강제 홈으로 이동
+      if (status === 404) {
+        toast.error('세션을 찾을 수 없습니다. 홈에서 다시 시작해주세요.');
+        setIsUploading(false);
+        setTimeout(() => {
+          navigate('/');
+        }, 1500);
+        return;
+      }
+      
+      // 422: 파일 오류 - 강제 다시 녹화
+      if (status === 422) {
+        toast.error('파일이 올바르지 않습니다. 다시 녹화해주세요.');
+        setIsUploading(false);
+        handleRetake(); // 자동으로 초기화
+        return;
+      }
+      
+      // 그 외 에러 (네트워크, 서버 오류) - 재시도 가능
       let errorMessage = '영상 업로드에 실패했습니다.';
       
-      if (err.response?.status === 401) {
-        errorMessage = '인증이 필요합니다. 다시 로그인해주세요.';
-      } else if (err.response?.status === 404) {
-        errorMessage = '세션을 찾을 수 없습니다.';
-      } else if (err.response?.status === 422) {
-        errorMessage = '업로드할 파일이 올바르지 않습니다.';
-      } else if (err.response?.data?.detail) {
-        errorMessage = err.response.data.detail;
+      const axiosErrorWithDetail = err as { response?: { data?: { detail?: string } } };
+      if (axiosErrorWithDetail.response?.data?.detail) {
+        errorMessage = axiosErrorWithDetail.response.data.detail;
       }
       
       setUploadError(errorMessage);
@@ -512,7 +478,6 @@ const PracticePage: React.FC = () => {
     
     // 단어연습 또는 문장연습인 경우, 업로드가 완료되지 않았으면 다음 단어로 이동하지 않음
     if ((sessionTypeParam === 'word' || sessionTypeParam === 'sentence') && !currentItem.is_completed) {
-      console.log('업로드가 완료되지 않아 다음 단어로 이동할 수 없습니다.');
       return;
     }
     
@@ -528,8 +493,6 @@ const PracticePage: React.FC = () => {
       
       // 다음 아이템 조회
       const nextItemData = await getSessionItemByIndex(sessionId, nextItemIndex);
-      
-      console.log('다음 아이템 조회 결과:', nextItemData);
       
       // 다음 아이템의 단어/문장으로 업데이트
       const targetText = nextItemData.word || nextItemData.sentence || '';
@@ -567,13 +530,6 @@ const PracticePage: React.FC = () => {
       setTimeout(() => {
         updateUrl(nextItemData.item_index);
       }, 50);
-      
-      console.log('다음 아이템으로 이동 완료:', {
-        itemIndex: nextItemData.item_index,
-        targetText,
-        hasNext: nextItemData.has_next,
-        showResult
-      });
     } catch (err) {
       console.error('다음 아이템 로드 실패:', err);
       const errorMessage = getSessionItemErrorMessage(err);
@@ -596,8 +552,6 @@ const PracticePage: React.FC = () => {
       
       // 이전 아이템 조회
       const prevItemData = await getSessionItemByIndex(sessionId, prevItemIndex);
-      
-      console.log('이전 아이템 조회 결과:', prevItemData);
       
       // 이전 아이템의 단어/문장으로 업데이트
       const targetText = prevItemData.word || prevItemData.sentence || '';
@@ -635,13 +589,6 @@ const PracticePage: React.FC = () => {
       setTimeout(() => {
         updateUrl(prevItemData.item_index);
       }, 50);
-      
-      console.log('이전 아이템으로 이동 완료:', {
-        itemIndex: prevItemData.item_index,
-        targetText,
-        hasNext: prevItemData.has_next,
-        showResult
-      });
     } catch (err) {
       console.error('이전 아이템 로드 실패:', err);
       const errorMessage = getSessionItemErrorMessage(err);
@@ -708,10 +655,12 @@ const PracticePage: React.FC = () => {
   return (
     <>
       <TrainingLayout
+        key={`${sessionIdParam}-${sessionTypeParam}`}
         currentItem={currentItem}
         sessionData={sessionData}
         onNext={handleNextWord}
         onPrevious={handlePreviousWord}
+        recordingState={recordingState}
       >
         {showResult ? (
           <ResultComponent 
@@ -722,6 +671,7 @@ const PracticePage: React.FC = () => {
             onNext={handleNextWord}
             hasNext={currentItem?.has_next ?? false}
             onRetake={handleRetake}
+            isUploading={isUploading}
           />
         ) : (
           <PracticeComponent

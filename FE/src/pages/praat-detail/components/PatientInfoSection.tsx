@@ -17,22 +17,22 @@ export type PatientInfoSectionProps = {
 const PatientInfoSection: React.FC<PatientInfoSectionProps> = ({ info }) => {
   return (
     <PraatSectionCard
-      title="환자 정보"
+      title="녹음 파일 정보"
       titleIconClass="w-4 h-4 bg-blue-600"
       className="w-full"
     >
-      <div className="flex flex-wrap gap-4">
-        <div className="w-96">
-          <div className="text-gray-500 text-sm">분석 일시</div>
-          <div className="text-gray-900 text-base font-medium">
+      <div className="flex flex-wrap gap-4 flex-col sm:flex-row">
+        <div className="w-full flex-1">
+          <div className="text-gray-500 text-sm sm:text-lg">분석 일시</div>
+          <div className="text-gray-900 text-base sm:text-lg font-medium">
             {info.analyzedAt ?? "-"}
           </div>
         </div>
-        <div className="w-96">
-          <div className="text-gray-500 text-sm">
+        <div className="w-full flex-1">
+          <div className="text-gray-500 text-sm sm:text-lg">
             {info.isVocalExercise ? "훈련 명칭" : "훈련 단어"}
           </div>
-          <div className="text-gray-900 text-base font-medium">
+          <div className="text-gray-900 text-base sm:text-lg font-medium">
             {info.word ?? "-"}
           </div>
         </div>

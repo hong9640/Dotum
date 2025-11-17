@@ -11,6 +11,7 @@ export interface TrainingSet {
   totalItems: number;
   completedItems?: number; // 완료된 아이템 수
   currentItemIndex?: number; // 현재 진행 중인 아이템 인덱스
+  created_at?: string; // 생성 날짜
 }
 
 // 점수별 색상 규칙을 위한 타입

@@ -4,7 +4,6 @@ import ResultHeader from '@/pages/result-list/components/ResultHeader';
 import ResultComponent from '@/pages/practice/components/result/ResultComponent';
 import { getSessionItemByIndex, getSessionItemErrorMessage, type SessionItemResponse } from '@/api/training-session/sessionItemSearch';
 import { useCompositedVideoPolling } from '@/hooks/useCompositedVideoPolling';
-import { usePraat } from '@/hooks/usePraat';
 import type { PraatMetrics } from '@/api/training-session/praat';
 
 const ResultDetailPage: React.FC = () => {
@@ -47,12 +46,8 @@ const ResultDetailPage: React.FC = () => {
           return;
         }
         
-        console.log('세션 아이템 상세 조회 시작:', { sessionId, itemIndex, type: typeParam });
-        
         // 세션 아이템 상세 조회 API 호출
         const itemDetailData = await getSessionItemByIndex(sessionId, itemIndex);
-        
-        console.log('세션 아이템 상세 조회 성공:', itemDetailData);
         
         setItemData(itemDetailData);
         
@@ -68,16 +63,20 @@ const ResultDetailPage: React.FC = () => {
           setCompositedVideoError(null);
           // is_completed가 true이고 composited_video_url이 없으면 폴링 시작
           if (itemDetailData.is_completed && !itemDetailData.composited_video_url) {
-            console.log('🚀 직접 폴링 시작 (result-detail):', {
-              item_id: itemDetailData.item_id,
-              sessionId,
-            });
             setIsLoadingCompositedVideo(true);
           }
         }
         
+        // Praat 데이터 설정 (아이템 상세 조회 API 응답에 포함된 praat 데이터 사용)
+        if (itemDetailData.praat) {
+          // praat_id를 id로 매핑하여 PraatMetrics 타입에 맞춤
+          setPraatData({ ...itemDetailData.praat, id: itemDetailData.praat.id ?? itemDetailData.praat.praat_id ?? 0 } as PraatMetrics);
+        } else {
+          setPraatData(null);
+        }
+        
         setIsLoading(false);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('세션 아이템 상세 조회 실패:', err);
         
         const errorMessage = getSessionItemErrorMessage(err);
@@ -134,25 +133,6 @@ const ResultDetailPage: React.FC = () => {
       setCompositedVideoError(polledError);
     }
   }, [polledError]);
-
-  // Praat 분석 결과 조회 (폴링 포함)
-  // result-detail 페이지에서도 세부 평가 항목 점수를 표시하기 위해 필요
-  const { data: praatDataFromHook, loading: praatLoading, processing: praatProcessing } = usePraat(
-    sessionIdNum,
-    itemData?.item_id,
-    {
-      pollIntervalMs: 2500,
-      maxPollMs: 60000,
-      enabled: !!sessionIdNum && !!itemData?.item_id && !isLoading,
-    }
-  );
-
-  // Praat 데이터 상태 업데이트
-  useEffect(() => {
-    if (praatDataFromHook) {
-      setPraatData(praatDataFromHook);
-    }
-  }, [praatDataFromHook]);
 
   // 이전 페이지(result-list)로 돌아가기
   const handleBack = () => {
@@ -243,7 +223,7 @@ const ResultDetailPage: React.FC = () => {
           compositedVideoError={compositedVideoError}
           onBack={handleBack}
           praatData={praatData}
-          praatLoading={praatLoading || praatProcessing}
+          praatLoading={false}
         />
       </div>
     </div>

@@ -2,6 +2,7 @@ import { apiClient } from "../axios";
 
 // Praat 분석 결과 타입 (나중에 확장될 수 있음)
 export interface PraatResult {
+  id?: number;
   praat_id?: number;
   media_id?: number;
   jitter_local?: number;
@@ -13,7 +14,13 @@ export interface PraatResult {
   min_f0?: number;
   cpp?: number;
   csid?: number;
+  lh_ratio_mean_db?: number;
+  lh_ratio_sd_db?: number;
+  f1?: number;
+  f2?: number;
+  intensity_mean?: number;
 }
+
 
 // 단일 아이템 상세 조회 응답 타입
 export interface SessionItemResponse {
@@ -50,7 +57,6 @@ export const getSessionItemByIndex = async (
   sessionId: number,
   itemIndex: number
 ): Promise<SessionItemResponse> => {
-  console.log('📤 단일 아이템 상세 조회 요청:', { sessionId, itemIndex });
   
   const response = await apiClient.get<SessionItemResponse>(
     `/train/training-sessions/${sessionId}/items/index/${itemIndex}`,
@@ -61,7 +67,6 @@ export const getSessionItemByIndex = async (
     }
   );
 
-  console.log('📥 단일 아이템 상세 조회 응답:', response.data);
   return response.data;
 };
 
@@ -70,21 +75,23 @@ export const getSessionItemByIndex = async (
  * @param error API 에러 객체
  * @returns 사용자 친화적인 에러 메시지
  */
-export const getSessionItemErrorMessage = (error: any): string => {
-  if (error.response?.status === 401) {
+export const getSessionItemErrorMessage = (error: unknown): string => {
+  const axiosError = error as { response?: { status?: number } };
+  if (axiosError.response?.status === 401) {
     return "인증이 필요합니다. 다시 로그인해주세요.";
   }
   
-  if (error.response?.status === 404) {
+  if (axiosError.response?.status === 404) {
     return "세션이나 아이템을 찾을 수 없습니다.";
   }
   
-  if (error.response?.status === 422) {
+  if (axiosError.response?.status === 422) {
     return "요청 데이터가 올바르지 않습니다.";
   }
   
-  if (error.response?.data?.detail) {
-    return error.response.data.detail;
+  const axiosErrorWithDetail = error as { response?: { data?: { detail?: string } } };
+  if (axiosErrorWithDetail.response?.data?.detail) {
+    return axiosErrorWithDetail.response.data.detail;
   }
   
   return "아이템 정보를 불러오는데 실패했습니다.";

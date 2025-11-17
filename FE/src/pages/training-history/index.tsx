@@ -63,8 +63,7 @@ export default function TrainingHistoryPage() {
         date={formattedDate}
         trainingSets={undefined} // API에서 받아올 데이터
         onBack={handleBack}
-        onTrainingSetClick={(trainingSet: any) => {
-          console.log('Training set clicked:', trainingSet);
+        onTrainingSetClick={() => {
           // 여기서 상세 모달이나 다른 페이지로 이동할 수 있습니다
         }}
       />

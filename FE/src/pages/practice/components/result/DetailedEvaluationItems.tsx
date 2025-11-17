@@ -4,6 +4,7 @@ import { AudioWaveform, Activity, Radio, Heart, ListChecks, ArrowRight } from "l
 import DetailedEvaluationItemCard, { type DetailedEvaluationItem, type EvaluationStatus } from "./DetailedEvaluationItemCard";
 import { Button } from "@/components/ui/button";
 import type { PraatMetrics } from "@/api/training-session/praat";
+import { useAlertDialog } from "@/hooks/useAlertDialog";
 
 interface DetailedEvaluationItemsProps {
   praatData?: PraatMetrics | null;
@@ -82,6 +83,7 @@ const DetailedEvaluationItems: React.FC<DetailedEvaluationItemsProps> = ({
 }) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { showAlert, AlertDialog: AlertDialogComponent } = useAlertDialog();
 
   // URL 파라미터에서 세션 정보 가져오기
   const sessionIdParam = searchParams.get("sessionId");
@@ -157,12 +159,14 @@ const DetailedEvaluationItems: React.FC<DetailedEvaluationItemsProps> = ({
       navigate(praatDetailUrl);
     } else {
       console.error("세션 정보가 없습니다.");
-      alert("세션 정보를 찾을 수 없습니다.");
+      showAlert({ description: "세션 정보를 찾을 수 없습니다." });
     }
   };
 
   return (
     <div className="self-stretch px-6 py-7 rounded-2xl shadow-[0px_1px_2px_-1px_rgba(0,0,0,0.10)] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.10)] border-t border-slate-200 flex flex-col gap-6">
+      {/* AlertDialog */}
+      <AlertDialogComponent />
       {/* 제목 섹션 */}
       <div className="self-stretch flex justify-start items-start">
         <div className="flex-1 h-6 flex justify-start items-center">
@@ -180,13 +184,15 @@ const DetailedEvaluationItems: React.FC<DetailedEvaluationItemsProps> = ({
         </div>
       </div>
 
-      {/* 카드 그리드 및 버튼 */}
+      {/* 카드 그리드 */}
       <div className="self-stretch flex justify-center items-start gap-6 flex-wrap">
         {evaluationData.map((item) => (
           <DetailedEvaluationItemCard key={item.id} item={item} />
         ))}
-        
-        {/* 자세히 보기 버튼 */}
+      </div>
+      
+      {/* 자세히 보기 버튼 */}
+      <div className="self-stretch flex justify-center items-center mt-6">
         <Button
           className="h-auto min-h-10 px-6 py-4 bg-green-500 hover:bg-green-600 rounded-xl inline-flex justify-center items-center gap-3 text-white text-3xl font-semibold leading-9"
           onClick={handleDetailClick}

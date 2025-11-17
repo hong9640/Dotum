@@ -8,9 +8,10 @@ import RecordingTabs from "./components/RecordingTabs";
 import PraatSectionCard from "./components/PraatSectionCard";
 import { getSessionItemByIndex, getSessionItemErrorMessage } from "@/api/training-session/sessionItemSearch";
 import { getTrainingSession } from "@/api/training-session";
+import type { PraatValues } from "./types";
 import { usePraat } from "@/hooks/usePraat";
 import { getPraatErrorMessage } from "@/api/training-session/praat";
-import type { PraatValues } from "./types";
+// import type { PraatMetrics } from "@/api/training-session/praat";
 
 /**
  * Praat 상세 페이지
@@ -24,16 +25,23 @@ const PraatDetailPage: React.FC = () => {
   const [itemId, setItemId] = useState<number | undefined>(undefined);
   const [praatValues, setPraatValues] = useState<PraatValues>({});
   const [isVocalExercise, setIsVocalExercise] = useState(false);
+  const [sessionType, setSessionType] = useState<string | null>(null);
   const [recordingCount, setRecordingCount] = useState(0);
   const [currentRecordingIndex, setCurrentRecordingIndex] = useState(0);
   const [compositedVideoUrl, setCompositedVideoUrl] = useState<string | null>(null);
+  const [praatImageUrl, setPraatImageUrl] = useState<string | null>(null);
   const [baseItemIndex, setBaseItemIndex] = useState<number>(0); // 현재 훈련의 첫 번째 itemIndex
 
   // URL 파라미터에서 세션 정보 가져오기
   const sessionIdParam = searchParams.get("sessionId");
   const typeParam = searchParams.get("type");
   const itemIndexParam = searchParams.get("itemIndex");
-  const dateParam = searchParams.get("date"); // result-detail에서 온 경우 날짜 파라미터
+  const dateParam = searchParams.get("date"); // result-list에서 온 경우 날짜 파라미터
+
+  // 페이지 진입 시 상단으로 스크롤
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [sessionIdParam, itemIndexParam]);
 
   // 세션 아이템 데이터 로드
   useEffect(() => {
@@ -57,21 +65,18 @@ const PraatDetailPage: React.FC = () => {
           return;
         }
 
-        console.log("Praat 상세 데이터 로드 시작:", { sessionId, itemIndex });
-
         // 세션 상세 정보와 아이템 상세 정보를 병렬로 조회
         const [sessionData, itemDetailData] = await Promise.all([
           getTrainingSession(sessionId),
           getSessionItemByIndex(sessionId, itemIndex),
         ]);
 
-        console.log("Praat 상세 데이터 로드 성공:", { sessionData, itemDetailData });
-        console.log("item_id:", itemDetailData.item_id);
-
         // 발성연습 여부 확인 (type이 'vocal'인 경우)
         const sessionTypeLower = (sessionData.type || '').toLowerCase();
         const isVocal = sessionTypeLower === 'vocal';
         setIsVocalExercise(isVocal);
+        // 세션 타입 저장 (handleBack에서 사용)
+        setSessionType(sessionTypeLower);
 
         // 발성연습일 때 녹음 횟수 계산 (total_items / 5)
         if (isVocal && sessionData.total_items) {
@@ -85,18 +90,15 @@ const PraatDetailPage: React.FC = () => {
           // 현재 itemIndex에 해당하는 녹음 탭 인덱스 설정 (0부터 시작)
           const currentTabIndex = itemIndex - baseIndex;
           setCurrentRecordingIndex(currentTabIndex);
-          console.log("발성연습 녹음 횟수:", count, "(total_items:", sessionData.total_items, ")");
-          console.log("현재 itemIndex:", itemIndex, "→ 훈련 인덱스:", trainingIndex, "→ baseItemIndex:", baseIndex, "→ 탭 인덱스:", currentTabIndex);
         } else {
           setBaseItemIndex(itemIndex);
         }
 
-        // item_id 저장 (Praat API 호출에 필요)
+        // item_id 저장
         if (itemDetailData.item_id) {
           setItemId(itemDetailData.item_id);
-          console.log("✅ item_id 설정 완료:", itemDetailData.item_id);
         } else {
-          console.error("❌ item_id가 없습니다!");
+          console.error("item_id가 없습니다");
         }
 
         // composited_video_url 설정 (발성연습일 때 사용)
@@ -104,9 +106,17 @@ const PraatDetailPage: React.FC = () => {
           setCompositedVideoUrl(itemDetailData.composited_video_url);
         }
 
+        // Praat 데이터 설정 (아이템 상세 조회 API 응답에 포함된 praat 데이터 사용)
+        // if (itemDetailData.praat) {
+        //   updatePraatValues(itemDetailData.praat);
+        // } else {
+        //   setPraatValues({});
+        //   setPraatImageUrl(null);
+        // }
+
         // 환자 정보 설정
         let word = itemDetailData.word || itemDetailData.sentence || "";
-        
+
         // 발성 연습일 때는 훈련 명칭으로 표시
         if (isVocal && sessionData.total_items) {
           const vocalTrainingNames = [
@@ -122,7 +132,7 @@ const PraatDetailPage: React.FC = () => {
             word = vocalTrainingNames[trainingIndex];
           }
         }
-        
+
         const analyzedAt = new Date().toLocaleString("ko-KR", {
           year: "numeric",
           month: "long",
@@ -136,7 +146,7 @@ const PraatDetailPage: React.FC = () => {
         });
 
         setIsLoading(false);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Praat 상세 데이터 로드 실패:", err);
         const errorMessage = getSessionItemErrorMessage(err);
         setError(errorMessage);
@@ -149,7 +159,7 @@ const PraatDetailPage: React.FC = () => {
 
   // Praat 분석 결과 조회 (폴링 포함)
   const sessionId = sessionIdParam ? Number(sessionIdParam) : undefined;
-  const { data: praatData, loading: praatLoading, processing: praatProcessing, error: praatError } = usePraat(
+  const { data: praatData, error: praatError } = usePraat(
     sessionId,
     itemId,
     {
@@ -161,9 +171,7 @@ const PraatDetailPage: React.FC = () => {
 
   // Praat 데이터를 PraatValues로 변환
   useEffect(() => {
-    console.log("🔄 Praat 데이터 변환 체크:", { praatData, praatError });
     if (praatData) {
-      console.log("✅ Praat 데이터 변환 시작:", praatData);
       setPraatValues({
         cpp: praatData.cpp,
         csid: praatData.csid,
@@ -180,9 +188,46 @@ const PraatDetailPage: React.FC = () => {
         f1: praatData.f1,
         f2: praatData.f2,
       });
+
+      // image_url 추출 (API 응답에 포함될 수 있음)
+      const dataWithImageUrl = praatData as { image_url?: string };
+      const imageUrl = dataWithImageUrl.image_url;
+      if (imageUrl) {
+        setPraatImageUrl(imageUrl);
+      } else {
+        setPraatImageUrl(null);
+      }
     } else if (praatError) {
       // 에러 발생 시 빈 객체로 설정
       setPraatValues({});
+
+
+      // Praat 데이터를 PraatValues로 변환하는 함수
+      // const updatePraatValues = (praatData: PraatMetrics) => {
+      //   setPraatValues({
+      //     cpp: praatData.cpp,
+      //     csid: praatData.csid,
+      //     hnr: praatData.hnr,
+      //     nhr: praatData.nhr,
+      //     jitter_local: praatData.jitter_local,
+      //     shimmer_local: praatData.shimmer_local,
+      //     f0: praatData.f0,
+      //     max_f0: praatData.max_f0,
+      //     min_f0: praatData.min_f0,
+      //     lh_ratio_mean_db: praatData.lh_ratio_mean_db,
+      //     lh_ratio_sd_db: praatData.lh_ratio_sd_db,
+      //     intensity: praatData.intensity_mean,
+      //     f1: praatData.f1,
+      //     f2: praatData.f2,
+      //   });
+
+      //   // image_url 추출 (API 응답에 포함될 수 있음)
+      //   const dataWithImageUrl = praatData as { image_url?: string };
+      //   const imageUrl = dataWithImageUrl.image_url;
+      //   if (imageUrl) {
+      //     setPraatImageUrl(imageUrl);
+      //   } else {
+      setPraatImageUrl(null);
     }
   }, [praatData, praatError]);
 
@@ -198,35 +243,42 @@ const PraatDetailPage: React.FC = () => {
     }
   }, [praatError, error]);
 
+  // };
+
   // 녹음 탭 선택 핸들러
   const handleRecordingSelect = async (index: number) => {
     setCurrentRecordingIndex(index);
-    
+
     // 발성 연습일 때만 해당 녹음의 데이터를 다시 로드
     if (isVocalExercise && sessionIdParam) {
       try {
         const sessionId = Number(sessionIdParam);
         // 선택한 녹음의 itemIndex 계산 (baseItemIndex + index)
         const selectedItemIndex = baseItemIndex + index;
-        
-        console.log("녹음 선택:", index, "→ itemIndex:", selectedItemIndex);
-        
+
         // 해당 itemIndex의 아이템 데이터 조회
         const itemDetailData = await getSessionItemByIndex(sessionId, selectedItemIndex);
-        
+
         // item_id 업데이트 (Praat API 호출에 필요)
         if (itemDetailData.item_id) {
           setItemId(itemDetailData.item_id);
-          console.log("✅ 선택한 녹음의 item_id 설정:", itemDetailData.item_id);
         }
-        
+
         // composited_video_url 업데이트
         if (itemDetailData.composited_video_url) {
           setCompositedVideoUrl(itemDetailData.composited_video_url);
         } else {
           setCompositedVideoUrl(null);
         }
-      } catch (err: any) {
+
+        // Praat 데이터 업데이트 (아이템 상세 조회 API 응답에 포함된 praat 데이터 사용)
+        // if (itemDetailData.praat) {
+        //   updatePraatValues(itemDetailData.praat);
+        // } else {
+        //   setPraatValues({});
+        //   setPraatImageUrl(null);
+        // }
+      } catch (err: unknown) {
         console.error("선택한 녹음 데이터 로드 실패:", err);
       }
     }
@@ -234,27 +286,33 @@ const PraatDetailPage: React.FC = () => {
 
   // 이전 페이지로 돌아가기
   const handleBack = () => {
-    if (sessionIdParam && typeParam) {
-      // result-detail 페이지로 돌아가기
-      let detailUrl = `/result-detail?sessionId=${sessionIdParam}&type=${typeParam}&itemIndex=${itemIndexParam}`;
-      if (dateParam) {
-        detailUrl += `&date=${dateParam}`;
+    if (sessionIdParam) {
+      // typeParam이 있으면 사용, 없으면 sessionType 사용
+      const type = typeParam || sessionType;
+      if (type) {
+        // result-list 페이지로 이동
+        let listUrl = `/result-list?sessionId=${sessionIdParam}&type=${type}`;
+        if (dateParam) {
+          listUrl += `&date=${dateParam}`;
+        }
+        navigate(listUrl);
+      } else {
+        // 타입 정보가 없으면 홈으로 이동
+        navigate("/");
       }
-      navigate(detailUrl);
     } else {
-      navigate("/result-list");
+      // 세션 정보가 없으면 홈으로 이동
+      navigate("/");
     }
   };
 
   // 로딩 상태
-  if (isLoading || praatLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-lg text-gray-600">
-            {isLoading ? "세션 정보를 불러오는 중..." : praatProcessing ? "Praat 분석 중..." : "Praat 데이터를 불러오는 중..."}
-          </p>
+          <p className="text-lg text-gray-600">세션 정보를 불러오는 중...</p>
         </div>
       </div>
     );
@@ -282,7 +340,7 @@ const PraatDetailPage: React.FC = () => {
   return (
     <div className="self-stretch pt-7 pb-10 flex flex-col justify-start items-center bg-white min-h-screen">
       {/* 메인 콘텐츠 영역 */}
-      <div className="p-4 md:p-8 flex flex-col justify-start items-center gap-8 w-full max-w-[1152px] mx-auto">
+      <div className="p-4 md:p-8 flex flex-col justify-start items-center gap-8 w-full min-w-[320px] max-w-[1152px] mx-auto">
         {/* 환자 정보 */}
         {patientInfo && <PatientInfoSection info={patientInfo} />}
 
@@ -295,7 +353,7 @@ const PraatDetailPage: React.FC = () => {
           />
         )}
 
-        {/* 발성연습일 때 음형 파장 비디오 표시 */}
+        {/* 발성연습일 때 음형 파장 비디오/이미지 표시 */}
         {isVocalExercise && (
           <PraatSectionCard
             title="음형 파장"
@@ -303,7 +361,14 @@ const PraatDetailPage: React.FC = () => {
             className="w-full"
           >
             <div className="w-full">
-              {compositedVideoUrl ? (
+              {praatImageUrl ? (
+                <img
+                  src={praatImageUrl}
+                  alt="음형 파장 그래프"
+                  className="w-full rounded-lg"
+                  style={{ maxHeight: "600px", objectFit: "contain" }}
+                />
+              ) : compositedVideoUrl ? (
                 <video
                   src={compositedVideoUrl}
                   controls

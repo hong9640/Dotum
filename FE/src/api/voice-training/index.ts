@@ -1,4 +1,6 @@
 import { apiClient } from '@/api/axios';
+import type { CreateTrainingSessionResponse } from '@/api/training-session';
+import type { AxiosProgressEvent } from 'axios';
 
 // ============================================
 // Vocal 전용 아이템 제출 API
@@ -11,11 +13,11 @@ export interface SubmitVocalItemRequest {
   audioFile: File;
   graphImage: File;
   graphVideo?: File;
-  onUploadProgress?: (progressEvent: any) => void;
+  onUploadProgress?: (progressEvent: AxiosProgressEvent) => void;
 }
 
 export interface VocalItemSubmissionResponse {
-  session: any;
+  session: CreateTrainingSessionResponse;
   next_item: {
     item_id: number;
     item_index: number;
@@ -33,7 +35,7 @@ export interface VocalItemSubmissionResponse {
     intensity_mean?: number;
     jitter?: number;
     shimmer?: number;
-    [key: string]: any;
+    [key: string]: unknown;
   } | null;
   video_url?: string;
   image_url?: string;
@@ -58,8 +60,6 @@ export const submitVocalItem = async ({
   graphVideo,
   onUploadProgress,
 }: SubmitVocalItemRequest): Promise<VocalItemSubmissionResponse> => {
-  console.log('📤 발성 훈련 아이템 제출:', { sessionId, itemIndex });
-
   const formData = new FormData();
   formData.append('audio_file', audioFile);
   formData.append('graph_image', graphImage);
@@ -79,6 +79,5 @@ export const submitVocalItem = async ({
     }
   );
   
-  console.log('📥 발성 훈련 아이템 제출 응답:', response.data);
   return response.data;
 };
