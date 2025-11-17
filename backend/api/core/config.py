@@ -33,8 +33,8 @@ class Settings(BaseSettings):
     GCS_CREDENTIALS_PATH: str = ""  # 서비스 계정 키 파일 경로 (선택사항)
 
     #ML sever URL
-
     ML_SERVER_URL: str
+    STT_SERVER_URL: str
 
     # ElevenLabs API Key
     ELEVENLABS_API_KEY: str = ""

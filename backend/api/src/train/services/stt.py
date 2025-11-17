@@ -17,7 +17,7 @@ class SttService:
     @staticmethod
     async def transcribe_audio(
         audio_gs_path: str,
-        timeout: float = 120.0
+        timeout: float = 60.0
     ) -> Optional[Dict[str, Any]]:
         """
         ML 서버에 STT 요청을 보내고 결과를 반환
@@ -36,7 +36,7 @@ class SttService:
             }
             실패 시 None 반환
         """
-        STT_API_URL = f"{settings.ML_SERVER_URL}/api/v1/stt/transcribe"
+        STT_API_URL = f"{settings.STT_SERVER_URL}/api/v1/stt/transcribe"
         
         payload = {
             "audio_gs": audio_gs_path
@@ -73,7 +73,7 @@ class SttService:
 
 async def request_stt_transcription(
     audio_gs_path: str,
-    timeout: float = 120.0
+    timeout: float = 60.0
 ) -> Optional[Dict[str, Any]]:
     """
     STT 요청을 보내는 헬퍼 함수

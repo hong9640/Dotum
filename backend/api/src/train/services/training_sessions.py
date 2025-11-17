@@ -333,8 +333,21 @@ class TrainingSessionService:
                 stt_repo = SttResultsRepository(db)
                 ai_model_repo = AIModelRepository(db)
                 
-                # STT 요청
-                stt_response = await request_stt_transcription(audio_gs_path, timeout=120.0)
+                # STT 요청 (재시도 로직 포함 - 모델 초기화 시간 고려)
+                stt_response = None
+                max_retries = 3
+                retry_delays = [5.0, 30.0, 60.0]  # 첫 번째: 5초, 두 번째: 30초, 세 번째: 60초
+                
+                for attempt in range(max_retries):
+                    stt_response = await request_stt_transcription(audio_gs_path, timeout=60.0)
+                    
+                    if stt_response and stt_response.get("success"):
+                        break
+                    
+                    if attempt < max_retries - 1:
+                        delay = retry_delays[attempt]
+                        logger.warning(f"[Background STT] 재시도 {attempt + 1}/{max_retries} ({delay}초 후) - item_id: {item_id}")
+                        await asyncio.sleep(delay)
                 
                 if stt_response and stt_response.get("success"):
                     transcription = stt_response.get("transcription", "")
@@ -650,9 +663,19 @@ class TrainingSessionService:
             else:
                 logger.warning(f"[_submit_item_with_video] 경고: 음성 파일이 생성되지 않았습니다.")
 
-            # 6. 가이드 음성 생성 백그라운드 작업 추가
+            # 6. STT 백그라운드 처리 추가 (WORD/SENTENCE 타입) - 병렬 처리!
+            if audio_media_file and session.type in (TrainingType.WORD, TrainingType.SENTENCE):
+                audio_gs_path = f"gs://{settings.GCS_BUCKET_NAME}/{audio_media_file.object_key}"
+                logger.info(f"[_submit_item_with_video] STT 백그라운드 처리 예약 (병렬) - item_id: {item.id}, audio_gs_path: {audio_gs_path}")
+                
+                # asyncio.create_task로 병렬 처리 (BackgroundTasks 순차 실행 문제 회피)
+                asyncio.create_task(
+                    self._process_stt_with_independent_session(audio_gs_path, item.id)
+                )
+
+            # 6-1. 가이드 음성 생성 백그라운드 작업 추가 (STT 이후 처리)
             if (item.word or item.sentence) and audio_media_file:
-                logger.info(f"[_submit_item_with_video] 가이드 음성 생성 백그라운드 작업 추가 - item_id: {item.id}")
+                logger.info(f"[_submit_item_with_video] 가이드 음성 생성 백그라운드 작업 추가 (우선순위 2) - item_id: {item.id}")
                 text_for_guide = item.word.word if item.word else item.sentence.sentence
                 background_tasks.add_task(
                     self.trigger_guide_audio_generation,
@@ -663,17 +686,6 @@ class TrainingSessionService:
                     original_audio_object_key=audio_media_file.object_key,
                     gcs_service=gcs_service,
                     original_video_object_key=object_key
-                )
-
-            # 6-1. STT 백그라운드 처리 추가 (WORD/SENTENCE 타입)
-            if audio_media_file and session.type in (TrainingType.WORD, TrainingType.SENTENCE):
-                audio_gs_path = f"gs://{settings.GCS_BUCKET_NAME}/{audio_media_file.object_key}"
-                logger.info(f"[_submit_item_with_video] STT 백그라운드 처리 예약 - item_id: {item.id}, audio_gs_path: {audio_gs_path}")
-                
-                background_tasks.add_task(
-                    self._process_stt_with_independent_session,
-                    audio_gs_path,
-                    item.id
                 )
 
             # 7. 아이템 완료 처리

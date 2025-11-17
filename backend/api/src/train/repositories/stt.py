@@ -67,7 +67,7 @@ class SttResultsRepository(BaseRepository[TrainingItemSttResults]):
             TrainingItem,
             TrainingItem.id == TrainingItemSttResults.training_item_id
         ).where(
-            TrainingItem.session_id == session_id
+            TrainingItem.training_session_id == session_id
         ).order_by(TrainingItem.item_index)
         
         result = await self.db.execute(stmt)
