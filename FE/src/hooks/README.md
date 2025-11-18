@@ -6,120 +6,63 @@
 
 ```
 hooks/
-├── shared/                    # 공통 hooks (여러 페이지에서 사용)
-│   ├── index.ts
-│   ├── useAlertDialog.tsx
-│   ├── useAsyncData.ts
-│   ├── useMediaQuery.ts
-│   └── useTTS.ts
-├── login/                     # 로그인 페이지 hooks
-│   └── index.ts
-├── signup/                    # 회원가입 페이지 hooks
-│   └── index.ts
-├── training-session/          # 연습 세션 hooks
-│   └── index.ts
-├── practice/                  # 발음 연습 페이지 hooks
-│   ├── index.ts
-│   ├── useCompositedVideoPolling.ts
-│   ├── useMediaRecorder.ts
-│   ├── usePracticeNavigation.ts
-│   ├── usePracticeSession.ts
-│   └── useVideoUpload.ts
-├── voice-training/            # 발성 연습 페이지 hooks
-│   ├── index.ts
-│   └── useAudioRecorder.ts
-├── training-history/          # 연습 기록 페이지 hooks
-│   ├── index.ts
-│   └── useCalendar.ts
-├── training-history-detail/   # 연습 기록 상세 페이지 hooks
-│   ├── index.ts
-│   └── useTrainingDayDetail.ts
-└── result-detail/             # 결과 상세 페이지 hooks
-    ├── index.ts
-    └── usePraat.ts
+└── README.md                  # 현재 파일 (문서 전용)
 ```
+
+> 대부분의 실제 hook 구현체는 이제 `src/features/{domain}/hooks/` 또는  
+> `src/shared/hooks/`(공용) 아래에 위치합니다.
 
 ## 🎯 폴더별 설명
 
-### `hooks/shared/` - 공통 Hooks
-여러 페이지에서 공통으로 사용되는 범용 hooks입니다.
+### `shared/hooks/` - 공통 Hooks
+여러 페이지에서 공통으로 사용되는 범용 hooks입니다. (실제 위치: `src/shared/hooks/`)
 
 - **useAlertDialog**: 알림 다이얼로그 표시 및 제어
 - **useAsyncData**: 비동기 데이터 페칭 및 상태 관리
 - **useMediaQuery**: 반응형 디자인을 위한 미디어 쿼리 감지
 - **useTTS**: Text-to-Speech 기능
 
-### `hooks/login/` - 로그인 Hooks
-로그인 페이지에서 사용되는 hooks입니다.
+### Auth Hooks (`src/features/auth/hooks/`)
+로그인, 회원가입 등 인증 도메인 훅입니다.
 
-### `hooks/signup/` - 회원가입 Hooks
-회원가입 페이지에서 사용되는 hooks입니다.
+### Voice Training Hooks (`src/features/voice-training/hooks/`)
+발성 연습 페이지에서 사용되는 훅입니다. 예) **useAudioRecorder**.
 
-### `hooks/training-session/` - 연습 세션 Hooks
-전역 연습 세션 상태 관리 hooks입니다.
-
-### `hooks/practice/` - 발음 연습 Hooks
-단어/문장 발음 연습 페이지에서 사용되는 hooks입니다.
-
-- **useMediaRecorder**: 비디오/오디오 녹화 제어
-- **useCompositedVideoPolling**: Wav2Lip 합성 비디오 폴링
-- **useVideoUpload**: 녹화 비디오 업로드 처리
-- **usePracticeNavigation**: 연습 아이템 간 네비게이션
-- **usePracticeSession**: 발음 연습 세션 상태 관리
-
-### `hooks/voice-training/` - 발성 연습 Hooks
-발성 연습 페이지에서 사용되는 hooks입니다.
-
-- **useAudioRecorder**: 오디오 녹음 제어
-
-### `hooks/training-history/` - 연습 기록 Hooks
-연습 기록 캘린더 페이지에서 사용되는 hooks입니다.
-
-- **useCalendar**: 캘린더 상태 및 네비게이션
-
-### `hooks/training-history-detail/` - 연습 기록 상세 Hooks
-특정 날짜의 연습 기록 상세 페이지에서 사용되는 hooks입니다.
-
-- **useTrainingDayDetail**: 일별 연습 기록 상세 정보 관리
-
-### `hooks/result-detail/` - 결과 상세 Hooks
-연습 결과 상세 페이지에서 사용되는 hooks입니다.
-
-- **usePraat**: Praat 음성 분석 결과 폴링 및 표시
+### Result Detail Hooks (`src/features/praat-detail/hooks/`)
+Praat 분석/결과 상세에 필요한 훅입니다. 예) **usePraat**.
 
 ## 📝 사용 방법
 
 ### 공통 Hooks 사용
 ```typescript
-// 공통 hooks는 @/hooks/shared 경로로 import
-import { useAlertDialog, useTTS, useMediaQuery, useAsyncData } from '@/hooks/shared';
+// 공통 hooks는 @/shared/hooks 경로로 import
+import { useAlertDialog, useTTS, useMediaQuery, useAsyncData } from '@/shared/hooks';
 
 // 또는 개별 import
-import { useAlertDialog } from '@/hooks/shared/useAlertDialog';
+import { useAlertDialog } from '@/shared/hooks/useAlertDialog';
 ```
 
 ### 페이지별 Hooks 사용
 ```typescript
-// 모든 페이지별 hooks는 @/hooks/[page-name] 경로로 import
-import { useMediaRecorder, useVideoUpload } from '@/hooks/practice';
-import { useAudioRecorder } from '@/hooks/voice-training';
-import { useCalendar } from '@/hooks/training-history';
-import { useTrainingDayDetail } from '@/hooks/training-history-detail';
-import { usePraat } from '@/hooks/result-detail';
+// 모든 페이지별 hooks는 @/features/[feature-name]/hooks 경로로 import
+import { useMediaRecorder, useVideoUpload } from '@/features/practice/hooks';
+import { useAudioRecorder } from '@features/voice-training/hooks';
+import { useCalendar, useTrainingDayDetail } from '@/features/training-history/hooks';
+import { usePraat } from '@/features/praat-detail/hooks';
 ```
 
 ### 기능별 Hooks 사용
 ```typescript
 // 로그인, 회원가입, 연습 세션 등
-import { useLogin } from '@/hooks/login';
-import { useSignup } from '@/hooks/signup';
-import { useTrainingSession } from '@/hooks/training-session';
+import { useLogin } from '@features/auth/hooks/useLogin';
+import { useSignup } from '@features/auth/hooks/useSignup';
+import { useTrainingSession } from '@/features/training-session/hooks';
 ```
 
 ## 🎨 디자인 원칙
 
-1. **중앙 집중식 관리**: 모든 hooks는 `hooks/` 폴더 내에서 페이지별로 관리
-2. **공통 hooks 분리**: 여러 페이지에서 사용되는 hooks는 `hooks/shared/` 폴더에 위치
+1. **도메인별 관리**: 기능별 훅은 `src/features/{domain}/hooks/`에 위치
+2. **공통 훅 분리**: 여러 도메인에서 재사용되는 훅은 `src/shared/hooks/`에 위치
 3. **명확한 명명**: hook 이름은 기능을 명확히 표현 (`use` prefix 사용)
 4. **index 파일**: 각 hooks 폴더에는 `index.ts` 파일로 export를 관리하여 import 경로 단순화
 
@@ -129,15 +72,15 @@ import { useTrainingSession } from '@/hooks/training-session';
 
 ### Before (기존)
 ```typescript
-import { useMediaRecorder } from './hooks/useMediaRecorder';
-import { useCompositedVideoPolling } from '@/pages/practice/hooks/useCompositedVideoPolling';
-import { useCalendar } from '../hooks/useCalendar';
+import { useMediaRecorder } from '@/hooks/practice';
+import { useCompositedVideoPolling } from '@/hooks/practice';
+import { useCalendar } from '@/hooks/training-history';
 ```
 
 ### After (현재)
 ```typescript
-import { useMediaRecorder, useCompositedVideoPolling } from '@/hooks/practice';
-import { useCalendar } from '@/hooks/training-history';
+import { useMediaRecorder, useCompositedVideoPolling } from '@/features/practice/hooks';
+import { useCalendar } from '@/features/training-history/hooks';
 ```
 
 ## 📚 참고사항

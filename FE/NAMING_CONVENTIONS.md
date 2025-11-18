@@ -135,3 +135,7 @@ kebab-case.ts
 - 타입명은 PascalCase
 - 변수명은 camelCase
 
+## 🔗 관련 문서
+
+- [Utils vs Hooks 역할 기준](./UTILS_VS_HOOKS.md) - utils와 hooks의 역할 구분 기준
+

@@ -1,3 +1,0 @@
-export { useTrainingDayDetail } from './useTrainingDayDetail';
-
-
