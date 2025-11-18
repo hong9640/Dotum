@@ -29,5 +29,6 @@ class TrainingItemSttResults(SQLModel, table=True):
         sa_relationship_kwargs={
             "primaryjoin": "TrainingItemSttResults.ai_model_id==foreign(AIModel.id)",
             "foreign_keys": "[TrainingItemSttResults.ai_model_id]",
+            "overlaps": "ai_model,ai_model",
         }
     )
