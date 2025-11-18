@@ -28,9 +28,6 @@ async def get_composited_media_info(
 ) -> tuple[Optional[str], Optional[int]]:
     """Composited media 정보 조회 (wav2lip 결과)
     
-    wav2lip이 완료되면 즉시 URL을 반환합니다.
-    DB에 MediaFile이 없어도 GCS에 파일이 있으면 URL을 생성합니다.
-    
     Returns:
         tuple: (composited_video_url, composited_media_file_id)
     """
@@ -38,25 +35,12 @@ async def get_composited_media_info(
     composited_media_file_id = None
     composited_object_key = f"results/{username}/{session_id}/result_item_{item_id}.mp4"
     
-    # 1. 먼저 DB에서 조회
     media_service = MediaService(db)
     composited_media = await media_service.get_media_file_by_object_key(composited_object_key)
     
     if composited_media:
-        # DB에 있으면 바로 사용
         composited_media_file_id = composited_media.id
         composited_video_url = await gcs_service.get_signed_url(composited_media.object_key, expiration_hours=24)
-    else:
-        # 2. DB에 없어도 GCS에 파일이 있는지 확인 (wav2lip 완료되었지만 DB 저장 전일 수 있음)
-        try:
-            blob = gcs_service.bucket.get_blob(composited_object_key)
-            if blob and blob.exists():
-                # GCS에 파일이 있으면 URL 생성 (DB에 없어도 반환)
-                composited_video_url = await gcs_service.get_signed_url(composited_object_key, expiration_hours=24)
-                # composited_media_file_id는 None (아직 DB에 저장되지 않음)
-        except Exception as e:
-            import logging
-            logging.debug(f"[get_composited_media_info] GCS 파일 확인 실패 (정상일 수 있음): {e}")
     
     return composited_video_url, composited_media_file_id
 
@@ -328,7 +312,7 @@ async def convert_session_to_response(
         for item in session.training_items
     ]
     
-    # Composited media 일괄 조회 (DB에서)
+    # Composited media 일괄 조회
     media_service = MediaService(db)
     composited_media_map = {}
     if composited_object_keys:
@@ -351,22 +335,12 @@ async def convert_session_to_response(
         
         # Composited media가 있으면 URL 생성 태스크 추가
         if composited_media:
-            # DB에 있으면 바로 사용
             url_generation_tasks.append(
                 gcs_service.get_signed_url(composited_media.object_key, expiration_hours=24)
             )
         else:
-            # DB에 없어도 GCS에 파일이 있는지 확인 (wav2lip 완료되었지만 DB 저장 전일 수 있음)
-            async def check_and_get_url(object_key: str):
-                try:
-                    blob = gcs_service.bucket.get_blob(object_key)
-                    if blob and blob.exists():
-                        return await gcs_service.get_signed_url(object_key, expiration_hours=24)
-                except Exception:
-                    pass
-                return None
-            
-            url_generation_tasks.append(check_and_get_url(composited_object_key))
+            # 없으면 None을 반환하는 더미 태스크 (순서 유지를 위해)
+            url_generation_tasks.append(asyncio.sleep(0, result=None))
     
     # 2단계: 모든 URL을 병렬로 생성 (핵심 최적화!)
     # 예: 10개 아이템 → 순차: ~2초, 병렬: ~0.2초
