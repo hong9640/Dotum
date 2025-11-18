@@ -45,16 +45,18 @@ class BatchFeedbackService:
             bool: 성공 여부
         """
         try:
-            logger.info(f"[Batch] Starting feedback generation for session {session_id}")
+            logger.info(f"[Batch] Starting feedback generation for session {session_id} (wav2lip 완료 여부와 무관)")
             
             # 0. AIModel 먼저 생성/조회
             ai_model = await self.repository.get_or_create_ai_model(self.MODEL_VERSION)
             logger.info(f"[Batch] Using AIModel: id={ai_model.id}, version={ai_model.version}")
             
             # 1. SessionPraatResult 조회
+            # SessionPraatResult는 세션 완료 시 생성되므로 wav2lip 완료 여부와 무관
             praat_result = await self.repository.get_session_praat_result_by_session_id(session_id)
             if not praat_result:
-                logger.warning(f"[Batch] No SessionPraatResult for session {session_id}")
+                logger.warning(f"[Batch] No SessionPraatResult for session {session_id} - 피드백 생성 불가")
+                logger.warning(f"[Batch] SessionPraatResult는 세션 완료 시 생성되어야 합니다")
                 return False
             
             # 2. 중복 체크
