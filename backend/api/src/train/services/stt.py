@@ -17,7 +17,7 @@ class SttService:
     @staticmethod
     async def transcribe_audio(
         audio_gs_path: str,
-        timeout: float = 60.0
+        timeout: float = 300.0  # 5분으로 증가 (요청이 밀릴 때를 대비)
     ) -> Optional[Dict[str, Any]]:
         """
         ML 서버에 STT 요청을 보내고 결과를 반환
@@ -73,7 +73,7 @@ class SttService:
 
 async def request_stt_transcription(
     audio_gs_path: str,
-    timeout: float = 60.0
+    timeout: float = 300.0  # 5분으로 증가 (요청이 밀릴 때를 대비)
 ) -> Optional[Dict[str, Any]]:
     """
     STT 요청을 보내는 헬퍼 함수
