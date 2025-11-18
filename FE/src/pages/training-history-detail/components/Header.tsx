@@ -27,7 +27,7 @@ export function Header({ date, totalSets, onBack }: HeaderProps) {
         {/* 제목 */}
         <div className="self-stretch px-4 inline-flex justify-center items-center gap-2.5">
           <h1 className="text-center justify-start text-slate-700 text-2xl md:text-4xl font-bold leading-tight md:leading-[48px]">
-            {formatDateKorean(date)}의 훈련 기록
+            {formatDateKorean(date)}의 연습 기록
           </h1>
         </div>
         {/* 날짜 */}

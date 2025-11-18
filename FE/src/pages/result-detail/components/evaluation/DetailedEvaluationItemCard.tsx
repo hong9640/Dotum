@@ -66,3 +66,5 @@ const DetailedEvaluationItemCard: React.FC<Props> = ({ item }) => {
 export default DetailedEvaluationItemCard;
 
 
+
+

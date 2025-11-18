@@ -11,40 +11,40 @@ const VoiceTrainingIntro: React.FC = () => {
     {
       id: 1,
       icon: Volume2,
-      title: '최대 발성 지속 시간 훈련 (MPT)',
-      description: '편안하게 최대한 길게 발성하는 훈련',
+      title: '최대 발성 지속 시간 연습 (MPT)',
+      description: '편안하게 최대한 길게 발성하는 연습',
       color: 'bg-blue-100 border-blue-300 text-blue-800',
       iconColor: 'text-blue-700'
     },
     {
       id: 2,
       icon: TrendingUp,
-      title: '크레셴도 훈련 (점강)',
-      description: '점점 크게 소리를 내는 훈련',
+      title: '크레셴도 연습 (점강)',
+      description: '점점 크게 소리를 내는 연습',
       color: 'bg-teal-100 border-teal-300 text-teal-800',
       iconColor: 'text-teal-700'
     },
     {
       id: 3,
       icon: TrendingDown,
-      title: '데크레셴도 훈련 (점약)',
-      description: '점점 작게 소리를 내는 훈련',
+      title: '데크레셴도 연습 (점약)',
+      description: '점점 작게 소리를 내는 연습',
       color: 'bg-yellow-100 border-yellow-300 text-yellow-800',
       iconColor: 'text-yellow-700'
     },
     {
       id: 4,
       icon: Zap,
-      title: '순간 강약 전환 훈련',
-      description: '크게 시작해서 작게 끝나는 훈련',
+      title: '순간 강약 전환 연습',
+      description: '크게 시작해서 작게 끝나는 연습',
       color: 'bg-orange-100 border-orange-300 text-orange-800',
       iconColor: 'text-orange-700'
     },
     {
       id: 5,
       icon: Activity,
-      title: '연속 강약 조절 훈련',
-      description: '작게 시작해서 크게 끝나는 훈련',
+      title: '연속 강약 조절 연습',
+      description: '작게 시작해서 크게 끝나는 연습',
       color: 'bg-pink-100 border-pink-300 text-pink-800',
       iconColor: 'text-pink-700'
     }
@@ -63,12 +63,12 @@ const VoiceTrainingIntro: React.FC = () => {
               🎤 발성 연습 안내
             </CardTitle>
             <p className="text-center text-slate-600 text-lg sm:text-xl font-semibold">
-              5가지 훈련을 각각 3번씩 진행합니다
+              5가지 연습을 각각 3번씩 진행합니다
             </p>
           </CardHeader>
           
           <CardContent className="space-y-4">
-            {/* 훈련 순서 카드들 */}
+            {/* 연습 순서 카드들 */}
             <div className="space-y-3">
               {trainings.map((training) => {
                 const Icon = training.icon;
@@ -104,9 +104,9 @@ const VoiceTrainingIntro: React.FC = () => {
             <Card className="bg-slate-50 border-slate-200">
               <CardContent className="p-4 sm:p-6">
                 <div className="space-y-2 text-slate-700">
-                  <p className="text-lg sm:text-xl font-semibold">📌 훈련 방법</p>
+                  <p className="text-lg sm:text-xl font-semibold">📌 연습 방법</p>
                   <ul className="space-y-1 text-sm sm:text-lg ml-4">
-                    <li>• 각 훈련마다 3회씩 녹음할 수 있습니다</li>
+                    <li>• 각 연습마다 3회씩 녹음할 수 있습니다</li>
                     <li>• 녹음 버튼을 눌러 발성을 녹음해보세요</li>
                     <li>• 재녹음을 원하시면 다시 녹음할 수 있습니다</li>
                   </ul>
@@ -135,6 +135,8 @@ const VoiceTrainingIntro: React.FC = () => {
 };
 
 export default VoiceTrainingIntro;
+
+
 
 
 

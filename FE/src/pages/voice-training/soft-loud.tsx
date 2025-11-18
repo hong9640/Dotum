@@ -89,7 +89,7 @@ const SoftLoudPage: React.FC = () => {
         if (currentItem?.is_completed) {
           // 제출 성공 후 자동으로 다음으로 이동
           if (attempt < 3) {
-            // 같은 훈련 다음 시도
+            // 같은 연습 다음 시도
             setResetTrigger(prev => prev + 1);
             setTimeout(() => {
               navigate(`/voice-training/soft-loud?attempt=${attempt + 1}&sessionId=${sessionId}`);
@@ -100,7 +100,7 @@ const SoftLoudPage: React.FC = () => {
             // ⚠️ setIsSubmitting(false)를 호출하지 않음 → 로딩 화면 유지
             try {
               await completeTrainingSession(sessionId);
-              toast.success('모든 발성 훈련을 완료했습니다! 🎉');
+              toast.success('모든 발성 연습을 완료했습니다! 🎉');
               setResetTrigger(prev => prev + 1);
               // ✅ setTimeout 제거 - 바로 이동
               navigate(`/result-list?sessionId=${sessionId}&type=vocal`);
@@ -114,7 +114,7 @@ const SoftLoudPage: React.FC = () => {
             }
           }
         } else {
-          toast.error('훈련이 완료되지 않았습니다. 다시 시도해주세요.');
+          toast.error('연습이 완료되지 않았습니다. 다시 시도해주세요.');
           setIsSubmitting(false);  // ✅ 에러 시에만 해제
         }
       }
@@ -162,7 +162,7 @@ const SoftLoudPage: React.FC = () => {
           <CardContent className="p-6 sm:p-8">
             <PromptCardSoftLoud
               main="아아아아아"
-              subtitle="연속 강약 조절 훈련"
+              subtitle="연속 강약 조절 연습"
               attempt={attempt}
               totalAttempts={3}
               isRecording={isRecording}

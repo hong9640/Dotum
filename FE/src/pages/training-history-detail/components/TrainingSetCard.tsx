@@ -54,7 +54,7 @@ export function TrainingSetCard({ trainingSet, onClick }: TrainingSetCardProps) 
               ) : (
                 <span className="text-sm sm:text-base text-gray-500">
                 {trainingSet.type === 'vocal' && trainingSet.created_at 
-                  ? `훈련일: ${formatDateTime(trainingSet.created_at)}`
+                  ? `연습일: ${formatDateTime(trainingSet.created_at)}`
                   : '표시할 항목이 없습니다.'}
                 </span>
               )}

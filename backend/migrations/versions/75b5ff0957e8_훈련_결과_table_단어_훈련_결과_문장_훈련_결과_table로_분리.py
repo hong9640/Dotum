@@ -1,4 +1,4 @@
-"""훈련 결과 table 단어 훈련 결과, 문장 훈련 결과 table로 분리
+"""연습 결과 table 단어 연습 결과, 문장 연습 결과 table로 분리
 
 Revision ID: 75b5ff0957e8
 Revises: 3d5ed6e2b25d

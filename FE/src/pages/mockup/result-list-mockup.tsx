@@ -65,7 +65,7 @@ const ResultListMockup: React.FC = () => {
   };
 
   const handleRetry = () => {
-    alert('재훈련 기능 (목업)');
+    alert('재연습 기능 (목업)');
   };
 
   const handleNewTraining = () => {

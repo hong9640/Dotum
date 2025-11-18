@@ -4,7 +4,7 @@ import type { AxiosErrorResponse } from "@/types/api";
 import { EnhancedError } from "@/types/api";
 
 /**
- * 훈련 세션 상세 조회 API 응답 타입
+ * 연습 세션 상세 조회 API 응답 타입
  */
 export interface SessionDetailResponse {
   session_id: number;
@@ -33,9 +33,9 @@ export interface SessionDetailResponse {
 }
 
 /**
- * 훈련 세션 상세 조회 API 호출
+ * 연습 세션 상세 조회 API 호출
  * @param sessionId 세션 ID
- * @returns 훈련 세션 상세 정보 (training_items 포함)
+ * @returns 연습 세션 상세 정보 (training_items 포함)
  * @throws {Error} API 호출 실패 시 에러 발생
  */
 export const getSessionDetail = async (
@@ -55,7 +55,7 @@ export const getSessionDetail = async (
     return response.data;
   } catch (error: unknown) {
     const axiosError = error as AxiosErrorResponse;
-    console.error('❌ 훈련 세션 상세 조회 API 에러:', {
+    console.error('❌ 연습 세션 상세 조회 API 에러:', {
       status: axiosError.response?.status,
       statusText: axiosError.response?.statusText,
       data: axiosError.response?.data,
@@ -63,7 +63,7 @@ export const getSessionDetail = async (
     });
 
     // 에러 메시지 추출
-    let errorMessage = '훈련 세션 상세 조회에 실패했습니다.';
+    let errorMessage = '연습 세션 상세 조회에 실패했습니다.';
     
     const detail = axiosError.response?.data?.detail;
     if (detail) {

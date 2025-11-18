@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { getTrainingSession, type CreateTrainingSessionResponse } from '@/api/trainingSession';
-import { getSessionItemByIndex, type SessionItemResponse } from '@/api/trainingSession/sessionItemSearch';
+import { getSessionItemByIndex, type SessionItemResponse } from '@/api/trainingSession/session-item-search';
 import { createInitialVideoState, type VideoState } from '@/types/practice';
 
 interface UsePracticeSessionReturn {
@@ -18,7 +18,7 @@ interface UsePracticeSessionReturn {
 }
 
 /**
- * 훈련 세션 데이터 관리 Hook
+ * 연습 세션 데이터 관리 Hook
  * URL 파라미터에서 세션 정보를 읽어와 초기 데이터 로드
  */
 export const usePracticeSession = (

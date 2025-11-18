@@ -6,7 +6,7 @@ import PatientInfoSection, { type PatientInfo } from "./components/PatientInfoSe
 import PraatMetricsSections from "./components/PraatMetricsSections";
 import RecordingTabs from "./components/RecordingTabs";
 import PraatSectionCard from "./components/PraatSectionCard";
-import { getSessionItemByIndex, getSessionItemErrorMessage } from "@/api/trainingSession/sessionItemSearch";
+import { getSessionItemByIndex, getSessionItemErrorMessage } from "@/api/trainingSession/session-item-search";
 import { getTrainingSession } from "@/api/trainingSession";
 import type { PraatValues } from "@/types/praat-detail";
 import { usePraat } from "@/hooks/result-detail";
@@ -30,7 +30,7 @@ const PraatDetailPage: React.FC = () => {
   const [currentRecordingIndex, setCurrentRecordingIndex] = useState(0);
   const [compositedVideoUrl, setCompositedVideoUrl] = useState<string | null>(null);
   const [praatImageUrl, setPraatImageUrl] = useState<string | null>(null);
-  const [baseItemIndex, setBaseItemIndex] = useState<number>(0); // 현재 훈련의 첫 번째 itemIndex
+  const [baseItemIndex, setBaseItemIndex] = useState<number>(0); // 현재 연습의 첫 번째 itemIndex
 
   // URL 파라미터에서 세션 정보 가져오기
   const sessionIdParam = searchParams.get("sessionId");
@@ -82,7 +82,7 @@ const PraatDetailPage: React.FC = () => {
         if (isVocal && sessionData.total_items) {
           const count = Math.floor(sessionData.total_items / 5);
           setRecordingCount(count);
-          // 현재 itemIndex가 속한 훈련의 첫 번째 itemIndex 계산
+          // 현재 itemIndex가 속한 연습의 첫 번째 itemIndex 계산
           const n = count;
           const trainingIndex = Math.floor(itemIndex / n);
           const baseIndex = trainingIndex * n;
@@ -117,14 +117,14 @@ const PraatDetailPage: React.FC = () => {
         // 환자 정보 설정
         let word = itemDetailData.word || itemDetailData.sentence || "";
 
-        // 발성 연습일 때는 훈련 명칭으로 표시
+        // 발성 연습일 때는 연습 명칭으로 표시
         if (isVocal && sessionData.total_items) {
           const vocalTrainingNames = [
-            '최대 발성 지속 시간 훈련 (MPT)',
-            '크레셴도 훈련 (점강)',
-            '데크레셴도 훈련 (점약)',
-            '순간 강약 전환 훈련',
-            '연속 강약 조절 훈련'
+            '최대 발성 지속 시간 연습 (MPT)',
+            '크레셴도 연습 (점강)',
+            '데크레셴도 연습 (점약)',
+            '순간 강약 전환 연습',
+            '연속 강약 조절 연습'
           ];
           const n = Math.floor(sessionData.total_items / 5);
           const trainingIndex = Math.floor(itemIndex / n);

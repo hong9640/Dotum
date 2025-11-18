@@ -1,4 +1,4 @@
-# 🎤 발성 훈련 제출 형식
+# 🎤 발성 연습 제출 형식
 
 ## 📦 백엔드 API 요구사항
 
@@ -133,7 +133,7 @@ export const submitVocalItem = async ({
     - session (업데이트된 세션 정보)
     - is_completed 확인
     ↓
-[7] is_completed === true → 다음 시도/훈련 활성화
+[7] is_completed === true → 다음 시도/연습 활성화
 ```
 
 ---
@@ -208,7 +208,7 @@ const handleSubmit = async (audioBlob: Blob, graphImageBlob: Blob) => {
 
 ## 📝 파일명 규칙
 
-| 훈련 타입 | 오디오 파일 | 그래프 이미지 |
+| 연습 타입 | 오디오 파일 | 그래프 이미지 |
 |-----------|-------------|---------------|
 | MPT | `mpt_1.wav` | `mpt_1_graph.png` |
 | Crescendo | `crescendo_1.wav` | `crescendo_1_graph.png` |

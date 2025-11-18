@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import ProgressHeader from "@/components/layout/ProgressHeader";
 import WordDisplay from "@/components/display/WordDisplay";
-import { type SessionItemResponse } from "@/api/trainingSession/sessionItemSearch";
+import { type SessionItemResponse } from "@/api/trainingSession/session-item-search";
 import { type CreateTrainingSessionResponse } from "@/api/trainingSession";
 
 interface TrainingLayoutProps {

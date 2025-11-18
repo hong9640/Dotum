@@ -1,7 +1,7 @@
 import { apiClient } from "../axios";
 
 /**
- * 훈련 아이템 응답 타입
+ * 연습 아이템 응답 타입
  */
 export interface TrainingItemResponse {
   item_id: number;
@@ -27,7 +27,7 @@ export interface SessionMetadata {
 }
 
 /**
- * 훈련 세션 응답 타입
+ * 연습 세션 응답 타입
  */
 export interface TrainingSessionResponse {
   session_id: number;
@@ -50,7 +50,7 @@ export interface TrainingSessionResponse {
 }
 
 /**
- * 일별 훈련 기록 조회 응답 타입
+ * 일별 연습 기록 조회 응답 타입
  */
 export interface DailyRecordSearchResponse {
   date: string;
@@ -61,12 +61,12 @@ export interface DailyRecordSearchResponse {
 }
 
 /**
- * 일별 훈련 기록 조회
+ * 일별 연습 기록 조회
  * GET /train/training-sessions/daily/{date_str}
  *
  * @param dateStr - 날짜 문자열 (YYYY-MM-DD 형식)
  * @param type - 선택적 필터 타입 (word 또는 sentence)
- * @returns 일별 훈련 기록 응답
+ * @returns 일별 연습 기록 응답
  */
 export async function getDailyRecordSearch(
   dateStr: string,

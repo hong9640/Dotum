@@ -16,7 +16,7 @@ hooks/
 │   └── index.ts
 ├── signup/                    # 회원가입 페이지 hooks
 │   └── index.ts
-├── training-session/          # 훈련 세션 hooks
+├── training-session/          # 연습 세션 hooks
 │   └── index.ts
 ├── practice/                  # 발음 연습 페이지 hooks
 │   ├── index.ts
@@ -25,13 +25,13 @@ hooks/
 │   ├── usePracticeNavigation.ts
 │   ├── usePracticeSession.ts
 │   └── useVideoUpload.ts
-├── voice-training/            # 발성 훈련 페이지 hooks
+├── voice-training/            # 발성 연습 페이지 hooks
 │   ├── index.ts
 │   └── useAudioRecorder.ts
-├── training-history/          # 훈련 기록 페이지 hooks
+├── training-history/          # 연습 기록 페이지 hooks
 │   ├── index.ts
 │   └── useCalendar.ts
-├── training-history-detail/   # 훈련 기록 상세 페이지 hooks
+├── training-history-detail/   # 연습 기록 상세 페이지 hooks
 │   ├── index.ts
 │   └── useTrainingDayDetail.ts
 └── result-detail/             # 결과 상세 페이지 hooks
@@ -55,8 +55,8 @@ hooks/
 ### `hooks/signup/` - 회원가입 Hooks
 회원가입 페이지에서 사용되는 hooks입니다.
 
-### `hooks/training-session/` - 훈련 세션 Hooks
-전역 훈련 세션 상태 관리 hooks입니다.
+### `hooks/training-session/` - 연습 세션 Hooks
+전역 연습 세션 상태 관리 hooks입니다.
 
 ### `hooks/practice/` - 발음 연습 Hooks
 단어/문장 발음 연습 페이지에서 사용되는 hooks입니다.
@@ -64,26 +64,26 @@ hooks/
 - **useMediaRecorder**: 비디오/오디오 녹화 제어
 - **useCompositedVideoPolling**: Wav2Lip 합성 비디오 폴링
 - **useVideoUpload**: 녹화 비디오 업로드 처리
-- **usePracticeNavigation**: 훈련 아이템 간 네비게이션
+- **usePracticeNavigation**: 연습 아이템 간 네비게이션
 - **usePracticeSession**: 발음 연습 세션 상태 관리
 
-### `hooks/voice-training/` - 발성 훈련 Hooks
-발성 훈련 페이지에서 사용되는 hooks입니다.
+### `hooks/voice-training/` - 발성 연습 Hooks
+발성 연습 페이지에서 사용되는 hooks입니다.
 
 - **useAudioRecorder**: 오디오 녹음 제어
 
-### `hooks/training-history/` - 훈련 기록 Hooks
-훈련 기록 캘린더 페이지에서 사용되는 hooks입니다.
+### `hooks/training-history/` - 연습 기록 Hooks
+연습 기록 캘린더 페이지에서 사용되는 hooks입니다.
 
 - **useCalendar**: 캘린더 상태 및 네비게이션
 
-### `hooks/training-history-detail/` - 훈련 기록 상세 Hooks
-특정 날짜의 훈련 기록 상세 페이지에서 사용되는 hooks입니다.
+### `hooks/training-history-detail/` - 연습 기록 상세 Hooks
+특정 날짜의 연습 기록 상세 페이지에서 사용되는 hooks입니다.
 
-- **useTrainingDayDetail**: 일별 훈련 기록 상세 정보 관리
+- **useTrainingDayDetail**: 일별 연습 기록 상세 정보 관리
 
 ### `hooks/result-detail/` - 결과 상세 Hooks
-훈련 결과 상세 페이지에서 사용되는 hooks입니다.
+연습 결과 상세 페이지에서 사용되는 hooks입니다.
 
 - **usePraat**: Praat 음성 분석 결과 폴링 및 표시
 
@@ -110,7 +110,7 @@ import { usePraat } from '@/hooks/result-detail';
 
 ### 기능별 Hooks 사용
 ```typescript
-// 로그인, 회원가입, 훈련 세션 등
+// 로그인, 회원가입, 연습 세션 등
 import { useLogin } from '@/hooks/login';
 import { useSignup } from '@/hooks/signup';
 import { useTrainingSession } from '@/hooks/training-session';

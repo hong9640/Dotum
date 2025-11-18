@@ -5,10 +5,10 @@ import { useMediaRecorder, useCompositedVideoPolling } from "@/hooks/practice";
 import TrainingLayout from "@/pages/practice/components/TrainingLayout";
 import PracticeComponent from "@/pages/practice/components/practice/PracticeComponent";
 import ResultComponent from "@/pages/practice/components/result/ResultComponent";
-import { getSessionItemByIndex, getSessionItemErrorMessage, type SessionItemResponse } from "@/api/trainingSession/sessionItemSearch";
+import { getSessionItemByIndex, getSessionItemErrorMessage, type SessionItemResponse } from "@/api/trainingSession/session-item-search";
 import { getTrainingSession, completeTrainingSession, type CreateTrainingSessionResponse } from "@/api/trainingSession";
 import { submitCurrentItem, type SubmitCurrentItemResponse } from "@/api/practice";
-import { reuploadVideo, type VideoReuploadResponse } from "@/api/practice/videoReupload";
+import { reuploadVideo, type VideoReuploadResponse } from "@/api/practice/video-reupload";
 import { toast } from "sonner";
 import { createInitialUploadState, type UploadState, createInitialVideoState, type VideoState } from "@/types/practice";
 
@@ -350,7 +350,7 @@ const PracticePage: React.FC = () => {
                 
                 // 같지 않으면 alert 표시 후 함수 종료
                 const trainingType = sessionData.type === 'word' ? '단어' : sessionData.type === 'sentence' ? '문장' : '발성';
-                toast.error(`아직 제출하지 않은 ${trainingType} 훈련이 있습니다.`);
+                toast.error(`아직 제출하지 않은 ${trainingType} 연습이 있습니다.`);
                 return;
               }
               
@@ -369,7 +369,7 @@ const PracticePage: React.FC = () => {
               if (enhancedError.status === 400) {
                 // 400: 아직 모든 아이템이 완료되지 않음
                 const trainingType = sessionTypeParam === 'word' ? '단어' : sessionTypeParam === 'sentence' ? '문장' : '발성';
-                toast.error(`아직 제출하지 않은 ${trainingType} 훈련이 있습니다.`);
+                toast.error(`아직 제출하지 않은 ${trainingType} 연습이 있습니다.`);
               } else if (enhancedError.status === 401) {
                 // 401: 인증 필요
                 toast.error('인증이 필요합니다. 다시 로그인해주세요.');
@@ -625,7 +625,7 @@ const PracticePage: React.FC = () => {
           <Alert>
             <AlertTitle>데이터 없음</AlertTitle>
             <AlertDescription className="mt-2">
-              훈련할 데이터가 없습니다.
+              연습할 데이터가 없습니다.
             </AlertDescription>
           </Alert>
           <button 

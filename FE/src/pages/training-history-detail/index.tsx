@@ -4,7 +4,7 @@ import type { TrainingSet } from '@/types/training-history-detail';
 import { Header, TrainingSetGrid } from './components';
 import { convertSessionsToTrainingSets } from '@/utils/training-history-detail';
 import { useTrainingDayDetail } from '@/hooks/training-history-detail';
-import { getDailyRecordSearch } from '@/api/trainingHistory/dailyRecordSearch';
+import { getDailyRecordSearch } from '@/api/trainingHistory/daily-record-search';
 import { completeTrainingSession } from '@/api/trainingSession';
 import { toast } from 'sonner';
 
@@ -55,9 +55,9 @@ export default function TrainingDayDetail({
         setActualTrainingSets(convertedSets);
         setTotalSessions(response.total_sessions);
       } catch (err: unknown) {
-        console.error('일별 훈련 기록 조회 실패 :', err);
+        console.error('일별 연습 기록 조회 실패 :', err);
         const axiosError = err as { response?: { data?: { detail?: string } } };
-        setError(axiosError.response?.data?.detail || '훈련 기록을 불러오는데 실패했습니다.');
+        setError(axiosError.response?.data?.detail || '연습 기록을 불러오는데 실패했습니다.');
         // 에러 발생 시 빈 배열 또는 더미 데이터 사용
         setActualTrainingSets([]);
         setTotalSessions(0);
@@ -110,7 +110,7 @@ export default function TrainingDayDetail({
       }
 
       // 총 아이템 수와 완료된 아이템 수가 다른 경우 (실제로 진행 중인 경우)
-      const message = '아직 훈련이 완료되지 않았습니다.\n훈련을 이어서 진행할까요? 😊';
+      const message = '아직 연습이 완료되지 않았습니다.\n연습을 이어서 진행할까요? 😊';
       const shouldNavigate = window.confirm(message); // 확인 버튼 클릭 시 true, 취소 버튼 클릭 시 false
 
       if (shouldNavigate) {

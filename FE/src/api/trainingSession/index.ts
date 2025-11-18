@@ -2,10 +2,10 @@ import { apiClient } from "../axios";
 import type { AxiosErrorResponse } from "@/types/api";
 import { EnhancedError } from "@/types/api";
 
-// 훈련 세션 타입 정의
+// 연습 세션 타입 정의
 export type TrainingType = 'word' | 'sentence' | 'vocal';
 
-// 훈련 세션 생성 요청 타입
+// 연습 세션 생성 요청 타입
 export interface CreateTrainingSessionRequest {
   session_name: string;
   type: TrainingType;
@@ -14,7 +14,7 @@ export interface CreateTrainingSessionRequest {
   session_metadata?: Record<string, unknown>;
 }
 
-// 훈련 아이템 타입
+// 연습 아이템 타입
 export interface TrainingItem {
   item_id: number;
   training_session_id: number;
@@ -55,7 +55,7 @@ export interface SessionPraatResult {
   updated_at?: string;
 }
 
-// 훈련 세션 생성 응답 타입
+// 연습 세션 생성 응답 타입
 export interface CreateTrainingSessionResponse {
   session_id: number;
   user_id: number;
@@ -87,7 +87,7 @@ export interface TrainingSessionErrorResponse {
   };
 }
 
-// 훈련 세션 완료 에러 응답 타입 (스웨거 스펙 기반)
+// 연습 세션 완료 에러 응답 타입 (스웨거 스펙 기반)
 export interface CompleteSessionErrorResponse {
   detail: string;
 }
@@ -121,9 +121,9 @@ const ERROR_MAPPING: Record<string, string> = {
 };
 
 /**
- * 훈련 세션 생성 API 호출
- * @param data 훈련 세션 생성 요청 데이터
- * @returns 훈련 세션 생성 결과
+ * 연습 세션 생성 API 호출
+ * @param data 연습 세션 생성 요청 데이터
+ * @returns 연습 세션 생성 결과
  */
 export const createTrainingSession = async (
   data: CreateTrainingSessionRequest
@@ -144,19 +144,19 @@ export const createTrainingSession = async (
 };
 
 /**
- * 단어 훈련 세션 생성 (편의 함수)
- * @param itemCount 아이템 개수
+ * 단어 연습 세션 생성 (편의 함수)
+ * @param itemCount 아이템 개수 (필수)
  * @param sessionName 세션 이름 (선택사항)
- * @returns 훈련 세션 생성 결과
+ * @returns 연습 세션 생성 결과
  */
 export const createWordTrainingSession = async (
-  itemCount: number = 10,
+  itemCount: number,
   sessionName?: string
 ): Promise<CreateTrainingSessionResponse> => {
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
   
   return createTrainingSession({
-    session_name: sessionName || `${today} 단어훈련`,
+    session_name: sessionName || `${today} 단어연습`,
     type: 'word',
     item_count: itemCount,
     training_date: today,
@@ -168,19 +168,19 @@ export const createWordTrainingSession = async (
 };
 
 /**
- * 문장 훈련 세션 생성 (편의 함수)
- * @param itemCount 아이템 개수
+ * 문장 연습 세션 생성 (편의 함수)
+ * @param itemCount 아이템 개수 (필수)
  * @param sessionName 세션 이름 (선택사항)
- * @returns 훈련 세션 생성 결과
+ * @returns 연습 세션 생성 결과
  */
 export const createSentenceTrainingSession = async (
-  itemCount: number = 10,
+  itemCount: number,
   sessionName?: string
 ): Promise<CreateTrainingSessionResponse> => {
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
   
   return createTrainingSession({
-    session_name: sessionName || `${today} 문장훈련`,
+    session_name: sessionName || `${today} 문장연습`,
     type: 'sentence',
     item_count: itemCount,
     training_date: today,
@@ -192,19 +192,19 @@ export const createSentenceTrainingSession = async (
 };
 
 /**
- * 발성 훈련 세션 생성 (편의 함수)
- * @param itemCount 아이템 개수
+ * 발성 연습 세션 생성 (편의 함수)
+ * @param itemCount 아이템 개수 (필수)
  * @param sessionName 세션 이름 (선택사항)
- * @returns 훈련 세션 생성 결과
+ * @returns 연습 세션 생성 결과
  */
 export const createVocalTrainingSession = async (
-  itemCount: number = 15,
+  itemCount: number,
   sessionName?: string
 ): Promise<CreateTrainingSessionResponse> => {
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
   
   return createTrainingSession({
-    session_name: sessionName || `${today} 발성훈련`,
+    session_name: sessionName || `${today} 발성연습`,
     type: 'vocal',
     item_count: itemCount,
     training_date: today,
@@ -216,9 +216,9 @@ export const createVocalTrainingSession = async (
 };
 
 /**
- * 훈련 세션 조회 API 호출
+ * 연습 세션 조회 API 호출
  * @param sessionId 세션 ID
- * @returns 훈련 세션 정보
+ * @returns 연습 세션 정보
  */
 export const getTrainingSession = async (
   sessionId: number
@@ -237,9 +237,9 @@ export const getTrainingSession = async (
 };
 
 /**
- * 훈련 세션 완료 API 호출
+ * 연습 세션 완료 API 호출
  * @param sessionId 세션 ID
- * @returns 완료된 훈련 세션 정보
+ * @returns 완료된 연습 세션 정보
  * @throws {Error} API 호출 실패 시 에러 발생
  */
 export const completeTrainingSession = async (
@@ -260,7 +260,7 @@ export const completeTrainingSession = async (
     return response.data;
   } catch (error: unknown) {
     const axiosError = error as AxiosErrorResponse;
-    console.error('❌ 훈련 세션 완료 API 에러:', {
+    console.error('❌ 연습 세션 완료 API 에러:', {
       status: axiosError.response?.status,
       statusText: axiosError.response?.statusText,
       data: axiosError.response?.data,
@@ -268,7 +268,7 @@ export const completeTrainingSession = async (
     });
 
     // 에러 메시지 추출
-    let errorMessage = '훈련 세션 완료에 실패했습니다.';
+    let errorMessage = '연습 세션 완료에 실패했습니다.';
     
     if (axiosError.response?.data?.detail) {
       errorMessage = axiosError.response.data.detail as string;
@@ -295,7 +295,7 @@ export const completeTrainingSession = async (
  */
 export const getTrainingSessionErrorMessage = (
   errorCode?: string,
-  defaultMessage: string = "훈련 세션 생성에 실패했습니다."
+  defaultMessage: string = "연습 세션 생성에 실패했습니다."
 ): string => {
   if (!errorCode) return defaultMessage;
   

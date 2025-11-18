@@ -5,9 +5,9 @@ import WordResultsList from './components/WordResultsList';
 import ActionButtons from './components/ActionButtons';
 import MetricCard from './components/MetricCard';
 import type { WordResult } from '@/types/result-list';
-import { getSessionDetail } from '@/api/resultList/sessionDetailSearch';
+import { getSessionDetail } from '@/api/resultList/session-detail-search';
 import { useTrainingSession } from '@/hooks/training-session';
-import { retryTrainingSession } from '@/api/trainingSession/sessionRetry';
+import { retryTrainingSession } from '@/api/trainingSession/session-retry';
 import 도드미치료사 from "@/assets/도드미_치료사.png";
 import { useAlertDialog } from '@/hooks/shared/useAlertDialog';
 import { formatDate } from '@/utils/dateFormatter';
@@ -27,7 +27,7 @@ const WordSetResults: React.FC = () => {
   const [_overallFeedback, setOverallFeedback] = useState<string>('피드백 정보가 없습니다.');
   const [isRetrying, setIsRetrying] = useState(false);
   
-  // 훈련 세션 훅 사용 (새로운 훈련 시작 시 사용)
+  // 연습 세션 훅 사용 (새로운 연습 시작 시 사용)
   const { createWordSession, createSentenceSession, isLoading: isCreatingSession } = useTrainingSession();
   
   // AlertDialog 훅 사용
@@ -63,7 +63,7 @@ const WordSetResults: React.FC = () => {
           return;
         }
         
-        // 훈련 세션 상세 조회 API 호출
+        // 연습 세션 상세 조회 API 호출
         const sessionDetailData = await getSessionDetail(sessionId);
         
         // 세션 타입 설정 (대문자로 올 수 있으므로 소문자로 변환)
@@ -85,13 +85,13 @@ const WordSetResults: React.FC = () => {
         let wordResults: WordResult[];
         
         if (isVoice) {
-          // 발성 연습일 때: 5개의 훈련명을 고정으로 표시
+          // 발성 연습일 때: 5개의 연습명을 고정으로 표시
           const vocalTrainingNames = [
-            '최대 발성 지속 시간 훈련 (MPT)',
-            '크레셴도 훈련 (점강)',
-            '데크레셴도 훈련 (점약)',
-            '순간 강약 전환 훈련',
-            '연속 강약 조절 훈련'
+            '최대 발성 지속 시간 연습 (MPT)',
+            '크레셴도 연습 (점강)',
+            '데크레셴도 연습 (점약)',
+            '순간 강약 전환 연습',
+            '연속 강약 조절 연습'
           ];
           
           wordResults = vocalTrainingNames.map((trainingName, index) => ({
@@ -229,8 +229,8 @@ const WordSetResults: React.FC = () => {
           <div className="text-6xl mb-4">📊</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">결과 데이터가 없습니다</h2>
           <p className="text-gray-600 mb-6">
-            아직 완료된 훈련 결과가 없습니다.<br />
-            훈련을 완료한 후 다시 확인해주세요.
+            아직 완료된 연습 결과가 없습니다.<br />
+            연습을 완료한 후 다시 확인해주세요.
           </p>
           <button 
             onClick={() => navigate('/')}
@@ -261,10 +261,10 @@ const WordSetResults: React.FC = () => {
 
     // 발성 연습일 때는 praat-detail로 이동
     if (sessionType === 'vocal' || (typeParam && typeParam.toLowerCase() === 'vocal')) {
-      // 발성 연습: 각 훈련의 첫 번째 시도로 이동
-      // n = total_items / 5 (각 훈련 반복 횟수)
-      // 훈련 인덱스 = result.id - 1 (0, 1, 2, 3, 4)
-      // 첫 번째 시도의 itemIndex = 훈련 인덱스 * n
+      // 발성 연습: 각 연습의 첫 번째 시도로 이동
+      // n = total_items / 5 (각 연습 반복 횟수)
+      // 연습 인덱스 = result.id - 1 (0, 1, 2, 3, 4)
+      // 첫 번째 시도의 itemIndex = 연습 인덱스 * n
       const n = totalItems > 0 ? Math.floor(totalItems / 5) : 0;
       const trainingIndex = result.id - 1; // 0, 1, 2, 3, 4
       const itemIndex = trainingIndex * n;
@@ -288,7 +288,7 @@ const WordSetResults: React.FC = () => {
   };
 
   const handleRetry = async () => {
-    // 이미 재훈련 중이면 중복 실행 방지
+    // 이미 재연습 중이면 중복 실행 방지
     if (isRetrying) return;
     
     if (!sessionIdParam) {
@@ -307,37 +307,37 @@ const WordSetResults: React.FC = () => {
         return;
       }
 
-      // 재훈련 API 호출
+      // 재연습 API 호출
       const retrySession = await retryTrainingSession(sessionId);
       
       // 성공 시 practice 페이지로 이동 (sessionId, type, itemIndex=0)
       if (retrySession.session_id && retrySession.type) {
         navigate(`/practice?sessionId=${retrySession.session_id}&type=${retrySession.type}&itemIndex=0`);
       } else {
-        showAlert({ description: '재훈련 세션 정보가 올바르지 않습니다.' });
+        showAlert({ description: '재연습 세션 정보가 올바르지 않습니다.' });
         setIsRetrying(false);
       }
     } catch (error: unknown) {
-      console.error('재훈련 세션 생성 실패:', error);
+      console.error('재연습 세션 생성 실패:', error);
       const errorWithMessage = error as { message?: string };
-      showAlert({ description: errorWithMessage.message || '재훈련 세션 생성에 실패했습니다.' });
+      showAlert({ description: errorWithMessage.message || '재연습 세션 생성에 실패했습니다.' });
       setIsRetrying(false);
     }
   };
 
   const handleNewTraining = async () => {
-    // 현재 세션의 훈련 타입에 따라 단어 또는 문장 세션 생성
+    // 현재 세션의 연습 타입에 따라 단어 또는 문장 세션 생성
     try {
       if (sessionType === 'word') {
         // 단어 연습 시작과 동일하게 동작
-        await createWordSession(10);
+        await createWordSession(3);
       } else {
         // 문장 연습 시작과 동일하게 동작
-        await createSentenceSession(10);
+        await createSentenceSession(3);
       }
     } catch (error) {
       // 에러는 훅에서 처리됨 (toast 메시지 표시)
-      console.error('새로운 훈련 세션 생성 실패:', error);
+      console.error('새로운 연습 세션 생성 실패:', error);
     }
   };
 

@@ -10,11 +10,11 @@ from api.src.train.schemas.praat import PraatFeaturesResponse
 
 
 class TrainingSessionCreate(BaseModel):
-    """훈련 세션 생성 요청"""
+    """연습 세션 생성 요청"""
     session_name: str = Field(..., description="세션 이름", min_length=1, max_length=100)
-    type: TrainingType = Field(..., description="훈련 타입")
-    item_count: int = Field(..., description="훈련할 아이템 개수", ge=1, le=50)
-    training_date: Optional[date] = Field(None, description="훈련 날짜")
+    type: TrainingType = Field(..., description="연습 타입")
+    item_count: int = Field(..., description="연습할 아이템 개수", ge=1, le=50)
+    training_date: Optional[date] = Field(None, description="연습 날짜")
     session_metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="추가 메타데이터")
     
     @field_validator('item_count')
@@ -26,19 +26,19 @@ class TrainingSessionCreate(BaseModel):
 
 
 class TrainingSessionUpdate(BaseModel):
-    """훈련 세션 수정 요청"""
+    """연습 세션 수정 요청"""
     session_name: Optional[str] = Field(None, description="세션 이름", min_length=1, max_length=100)
     session_metadata: Optional[Dict[str, Any]] = Field(None, description="추가 메타데이터")
 
 
 class TrainingSessionStatusUpdate(BaseModel):
-    """훈련 세션 상태 업데이트 요청"""
+    """연습 세션 상태 업데이트 요청"""
     status: TrainingSessionStatus = Field(..., description="새로운 상태")
     reason: Optional[str] = Field(None, description="상태 변경 사유", max_length=200)
 
 
 class TrainingSessionResponse(BaseModel):
-    """훈련 세션 응답"""
+    """연습 세션 응답"""
     session_id: int = Field(description="세션 ID", serialization_alias=None)
     user_id: int
     session_name: str
@@ -67,8 +67,8 @@ class TrainingSessionResponse(BaseModel):
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     
-    # 훈련 아이템들
-    training_items: List[TrainingItemResponse] = Field(default_factory=list, description="훈련 아이템 목록")
+    # 연습 아이템들
+    training_items: List[TrainingItemResponse] = Field(default_factory=list, description="연습 아이템 목록")
     
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, by_alias=False)
 
@@ -80,13 +80,13 @@ class ItemSubmissionResponse(BaseModel):
     media: MediaResponse
     praat: Optional[PraatFeaturesResponse] = None
     video_url: str
-    message: str = "훈련 아이템이 완료되었습니다."
+    message: str = "연습 아이템이 완료되었습니다."
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class TrainingSessionListResponse(BaseModel):
-    """훈련 세션 목록 응답"""
+    """연습 세션 목록 응답"""
     sessions: List[TrainingSessionResponse]
     total: int
     page: int
@@ -102,7 +102,7 @@ class CalendarResponse(BaseModel):
 
 
 class DailyTrainingResponse(BaseModel):
-    """일별 훈련 기록 응답"""
+    """일별 연습 기록 응답"""
     date: str
     sessions: List[TrainingSessionResponse]
     total_sessions: int
@@ -113,11 +113,11 @@ class DailyTrainingResponse(BaseModel):
 class CreateSuccessResponse(BaseModel):
     """생성 성공 응답"""
     session_id: int
-    message: str = "훈련 세션이 성공적으로 생성되었습니다."
+    message: str = "연습 세션이 성공적으로 생성되었습니다."
 
 
 class TrainingSessionStats(BaseModel):
-    """훈련 세션 통계"""
+    """연습 세션 통계"""
     total_sessions: int
     completed_sessions: int
     in_progress_sessions: int
@@ -135,7 +135,7 @@ class TrainingSessionStats(BaseModel):
 
 
 class TrainingSessionFilter(BaseModel):
-    """훈련 세션 필터"""
+    """연습 세션 필터"""
     type: Optional[TrainingType] = None
     status: Optional[TrainingSessionStatus] = None
     start_date: Optional[date] = None
@@ -159,7 +159,7 @@ class TrainingSessionFilter(BaseModel):
 
 
 class TrainingSessionSearch(BaseModel):
-    """훈련 세션 검색"""
+    """연습 세션 검색"""
     query: Optional[str] = Field(None, description="검색어", max_length=100)
     filters: Optional[TrainingSessionFilter] = None
     sort_by: str = Field("created_at", description="정렬 기준")

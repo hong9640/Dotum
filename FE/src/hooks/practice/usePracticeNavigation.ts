@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getSessionItemByIndex, getSessionItemErrorMessage, type SessionItemResponse } from '@/api/trainingSession/sessionItemSearch';
+import { getSessionItemByIndex, getSessionItemErrorMessage, type SessionItemResponse } from '@/api/trainingSession/session-item-search';
 import { createInitialVideoState, type VideoState } from '@/types/practice';
 import type { CreateTrainingSessionResponse } from '@/api/trainingSession';
 

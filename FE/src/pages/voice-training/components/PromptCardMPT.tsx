@@ -13,7 +13,7 @@ interface PromptCardMPTProps {
 
 const PromptCardMPT: React.FC<PromptCardMPTProps> = ({ main, subtitle, attempt, totalAttempts, isRecording = false }) => {
   const instructionText = "편안하게 최대한 길게 발성해주세요";
-  const fullText = "음성훈련을 시작하겠습니다. 아 라고 길게 발음해주세요";
+  const fullText = "음성연습을 시작하겠습니다. 아 라고 길게 발음해주세요";
   
   const { speak, stop, isSpeaking, isSupported } = useTTS({
     lang: 'ko-KR',

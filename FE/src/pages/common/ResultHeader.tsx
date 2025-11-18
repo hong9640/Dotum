@@ -28,7 +28,7 @@ const ResultHeader: React.FC<ResultHeaderProps> = ({ type, date, onBack, title }
   } else if (typeLower === 'vocal') {
     headerTitle = '발성 연습 결과';
   } else {
-    headerTitle = '훈련 결과';
+    headerTitle = '연습 결과';
   }
   
   // 버튼 텍스트 결정: URL에 date 파라미터가 있거나 result-detail 페이지이면 "돌아가기", 아니면 "홈으로"
@@ -67,4 +67,6 @@ const ResultHeader: React.FC<ResultHeaderProps> = ({ type, date, onBack, title }
 };
 
 export default ResultHeader;
+
+
 

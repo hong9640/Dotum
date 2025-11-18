@@ -208,3 +208,5 @@ const DetailedEvaluationItems: React.FC<DetailedEvaluationItemsProps> = ({
 export default DetailedEvaluationItems;
 
 
+
+

@@ -1,5 +1,5 @@
 import { apiClient } from "../axios";
-import type { SessionItemResponse } from "../trainingSession/sessionItemSearch";
+import type { SessionItemResponse } from "../trainingSession/session-item-search";
 import type { CreateTrainingSessionResponse } from "../trainingSession";
 import type { MediaResponse } from "./index";
 import type { PraatMetrics } from "../trainingSession/praat";
@@ -15,7 +15,7 @@ export interface VideoReuploadResponse {
 }
 
 /**
- * 훈련 아이템 동영상을 재업로드합니다.
+ * 연습 아이템 동영상을 재업로드합니다.
  * PUT /api/v1/train/training-sessions/{session_id}/items/{item_id}/video
  * Content-Type: multipart/form-data (file)
  */

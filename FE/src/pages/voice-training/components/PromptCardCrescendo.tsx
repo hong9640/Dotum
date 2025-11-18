@@ -13,7 +13,7 @@ interface PromptCardCrescendoProps {
 
 const PromptCardCrescendo: React.FC<PromptCardCrescendoProps> = ({ main, subtitle, attempt, totalAttempts, isRecording = false }) => {
   const instructionText = "작은 소리에서 시작해서 점점 크게 발성해주세요";
-  const fullText = "음성훈련을 진행하겠습니다. 점점 크게 말해주세요";
+  const fullText = "음성연습을 진행하겠습니다. 점점 크게 말해주세요";
   
   const { speak, stop, isSpeaking, isSupported } = useTTS({
     lang: 'ko-KR',

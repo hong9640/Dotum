@@ -34,10 +34,10 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ isLoggedIn, onLogout }) =
     
     // 로그인한 상태면 바로 시작
     try {
-      await createWordSession(10); // 10개 단어
+      await createWordSession(3); // 3개 단어
     } catch (error) {
       // 에러는 훅에서 처리됨
-      console.error('단어 훈련 세션 생성 실패:', error);
+      console.error('단어 연습 세션 생성 실패:', error);
     }
   };
 
@@ -52,10 +52,10 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ isLoggedIn, onLogout }) =
     
     // 로그인한 상태면 바로 시작
     try {
-      await createSentenceSession(10); // 10개 문장
+      await createSentenceSession(3); // 3개 문장
     } catch (error) {
       // 에러는 훅에서 처리됨
-      console.error('문장 훈련 세션 생성 실패:', error);
+      console.error('문장 연습 세션 생성 실패:', error);
     }
   };
 
@@ -68,7 +68,7 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ isLoggedIn, onLogout }) =
       return;
     }
     
-    // 발성 훈련 페이지로 이동
+    // 발성 연습 페이지로 이동
     navigate('/voice-training');
   };
 
@@ -122,7 +122,7 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ isLoggedIn, onLogout }) =
               to="/training-history"
               className="hidden sm:block px-3 py-2 text-2xl font-semibold text-slate-700 rounded-md hover:bg-gray-100 transition-colors duration-200 lg:text-3xl"
             >
-              훈련 기록
+              연습 기록
             </Link>
             {/* 로그인 상태에 따른 버튼 렌더링 */}
             {isLoggedIn ? (

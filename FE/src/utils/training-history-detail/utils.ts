@@ -1,5 +1,5 @@
 import type { TrainingSet } from '@/types/training-history-detail';
-import type { DailyRecordSearchResponse } from '@/api/trainingHistory/dailyRecordSearch';
+import type { DailyRecordSearchResponse } from '@/api/trainingHistory/daily-record-search';
 
 // 동적으로 샘플 데이터 생성하는 함수
 export const generateSampleData = (count: number, date: string): TrainingSet[] => {

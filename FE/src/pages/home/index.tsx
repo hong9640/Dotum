@@ -40,9 +40,9 @@ const HomePage: React.FC<HomePageProps> = ({ isLoggedIn }) => {
     
     // 로그인한 상태면 바로 시작
     try {
-      await createWordSession(10); // 10개 단어
+      await createWordSession(3); // 3개 단어
     } catch (error) {
-      console.error('단어 훈련 세션 생성 실패:', error);
+      console.error('단어 연습 세션 생성 실패:', error);
     }
     
     // 1초 후 재클릭 가능
@@ -68,9 +68,9 @@ const HomePage: React.FC<HomePageProps> = ({ isLoggedIn }) => {
     
     // 로그인한 상태면 바로 시작
     try {
-      await createSentenceSession(10); // 10개 문장
+      await createSentenceSession(3); // 3개 문장
     } catch (error) {
-      console.error('문장 훈련 세션 생성 실패:', error);
+      console.error('문장 연습 세션 생성 실패:', error);
     }
     
     // 1초 후 재클릭 가능
@@ -98,7 +98,7 @@ const HomePage: React.FC<HomePageProps> = ({ isLoggedIn }) => {
     
     setIsProcessing(true);
     
-    // 발성 훈련 페이지로 이동
+    // 발성 연습 페이지로 이동
     navigate('/voice-training');
     
     // 1초 후 재클릭 가능
@@ -131,19 +131,19 @@ const HomePage: React.FC<HomePageProps> = ({ isLoggedIn }) => {
               <img
                 className="w-[204px] h-[198px]"
                 src={도드미안경}
-                alt="발음 교정 서비스"
+                alt="발음 개선 서비스"
               />
             </div>
             {/* 메인 헤딩 */}
             <div className="pb-2 flex justify-center items-start">
               <h1 className="text-center text-slate-800 text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-tight">
-                발음 교정 서비스
+                발음 개선 서비스
               </h1>
             </div>
             {/* 서브 헤딩 */}
             <div className="flex justify-center items-start">
               <p className="text-center text-slate-600 text-lg sm:text-xl lg:text-2xl font-semibold leading-8 whitespace-nowrap">
-                정상 발화 영상과 비교하며 발음을 교정해보세요.
+                정상 발화 영상과 비교하며 발음을 개선해보세요.
               </p>
             </div>
           </div>
@@ -190,7 +190,7 @@ const HomePage: React.FC<HomePageProps> = ({ isLoggedIn }) => {
             </span>
           </Button>
 
-          {/* 훈련 기록 버튼 */}
+          {/* 연습 기록 버튼 */}
           <Button
             size="lg"
             onClick={handleTrainingHistory}
@@ -198,7 +198,7 @@ const HomePage: React.FC<HomePageProps> = ({ isLoggedIn }) => {
           >
             <ClipboardList size={32} className="size-7 lg:size-9 text-white" strokeWidth={2.5} />
             <span className="text-center text-white text-2xl lg:text-3xl font-semibold leading-9">
-              훈련 기록
+              연습 기록
             </span>
           </Button>
         </div>

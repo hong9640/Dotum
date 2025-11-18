@@ -48,7 +48,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         >
           <Sparkles className="w-6 h-6 md:w-8 md:h-8" strokeWidth={2.5} />
           <span className="text-center justify-center text-xl md:text-3xl font-semibold leading-snug md:leading-9">
-            {isLoading ? "세션 생성 중..." : "새로운 훈련 시작"}
+            {isLoading ? "세션 생성 중..." : "새로운 연습 시작"}
           </span>
         </Button>
       </div>

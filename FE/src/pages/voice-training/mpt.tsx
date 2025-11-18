@@ -39,7 +39,7 @@ const MPTPage: React.FC = () => {
           const newSession = await createTrainingSession({
             session_name: '발성 연습',
             type: 'vocal',
-            item_count: 15, // 5가지 훈련 × 3회
+            item_count: 15, // 5가지 연습 × 3회
             training_date: today,
             session_metadata: {
               training_types: ['MPT', 'crescendo', 'decrescendo', 'loud_soft', 'soft_loud']
@@ -121,14 +121,14 @@ const MPTPage: React.FC = () => {
         if (currentItem?.is_completed) {
           // 제출 성공 후 자동으로 다음으로 이동
           if (attempt < 3) {
-            // 같은 훈련 다음 시도
+            // 같은 연습 다음 시도
             setResetTrigger(prev => prev + 1);
             setTimeout(() => {
               navigate(`/voice-training/mpt?attempt=${attempt + 1}&sessionId=${sessionId}`);
               setIsSubmitting(false);  // ✅ navigate 후 로딩 해제
             }, 100);
           } else {
-            // 다음 훈련으로
+            // 다음 연습으로
             setResetTrigger(prev => prev + 1);
             setTimeout(() => {
               navigate(`/voice-training/crescendo?attempt=1&sessionId=${sessionId}`);
@@ -136,7 +136,7 @@ const MPTPage: React.FC = () => {
             }, 100);
           }
         } else {
-          toast.error('훈련이 완료되지 않았습니다. 다시 시도해주세요.');
+          toast.error('연습이 완료되지 않았습니다. 다시 시도해주세요.');
           setIsSubmitting(false);  // ✅ 에러 시에만 해제
         }
       }
@@ -186,7 +186,7 @@ const MPTPage: React.FC = () => {
             {/* 프롬프트 카드 */}
               <PromptCardMPT
                 main="아"
-                subtitle="최대 발성 지속 시간 훈련"
+                subtitle="최대 발성 지속 시간 연습"
                 attempt={attempt}
                 totalAttempts={3}
                 isRecording={isRecording}

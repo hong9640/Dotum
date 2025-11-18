@@ -7,7 +7,7 @@ import LargeVideoPlayer from "./LargeVideoPlayer";
 
 // --- ResultVideoDisplay 컴포넌트 ---
 /**
- * 훈련 결과 비디오 표시 컴포넌트
+ * 연습 결과 비디오 표시 컴포넌트
  * 두 개의 비디오 플레이어 카드를 나란히 배치합니다.
  */
 interface ResultVideoDisplayProps {

@@ -14,7 +14,7 @@ interface PromptCardLoudSoftProps {
 const PromptCardLoudSoft: React.FC<PromptCardLoudSoftProps> = ({ main, subtitle, attempt, totalAttempts, isRecording = false }) => {
   // 크게 → 약간 작게 → 작게 → 약간 작게 → 크게 (가운데 대칭: 80 → 56 → 32 → 56 → 80)
   const sizes = [80, 56, 32, 56, 80];
-  const fullText = "음성훈련을 진행하겠습니다. 그림에 따라 점점 크게 말하다 작게 말해주세요";
+  const fullText = "음성연습을 진행하겠습니다. 그림에 따라 점점 크게 말하다 작게 말해주세요";
   
   const { speak, stop, isSpeaking, isSupported } = useTTS({
     lang: 'ko-KR',

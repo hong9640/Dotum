@@ -100,14 +100,14 @@ const DecrescendoPage: React.FC = () => {
         if (currentItem?.is_completed) {
           // 제출 성공 후 자동으로 다음으로 이동
           if (attempt < 3) {
-            // 같은 훈련 다음 시도
+            // 같은 연습 다음 시도
             setResetTrigger(prev => prev + 1);
             setTimeout(() => {
               navigate(`/voice-training/decrescendo?attempt=${attempt + 1}&sessionId=${sessionId}`);
               setIsSubmitting(false);  // ✅ navigate 후 로딩 해제
             }, 100);
           } else {
-            // 다음 훈련으로
+            // 다음 연습으로
             setResetTrigger(prev => prev + 1);
             setTimeout(() => {
               navigate(`/voice-training/loud-soft?attempt=1&sessionId=${sessionId}`);
@@ -115,7 +115,7 @@ const DecrescendoPage: React.FC = () => {
             }, 100);
           }
         } else {
-          toast.error('훈련이 완료되지 않았습니다. 다시 시도해주세요.');
+          toast.error('연습이 완료되지 않았습니다. 다시 시도해주세요.');
           setIsSubmitting(false);  // ✅ 에러 시에만 해제
         }
       }
@@ -164,7 +164,7 @@ const DecrescendoPage: React.FC = () => {
             <CardContent className="p-6 sm:p-8">
               <PromptCardDecrescendo
                 main="아아아아"
-                subtitle="데크레셴도 훈련"
+                subtitle="데크레셴도 연습"
                 attempt={attempt}
                 totalAttempts={3}
                 isRecording={isRecording}

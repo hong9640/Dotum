@@ -4,7 +4,7 @@ import { Calendar } from "./components/Calendar";
 import TrainingDayDetail from "../training-history-detail";
 import { getTrainingCalendar } from "@/api/trainingHistory";
 
-// 훈련 세트 수 데이터 타입
+// 연습 세트 수 데이터 타입
 interface TrainingCountMap {
   [isoDate: string]: number; // "YYYY-MM-DD" -> 세트 수
 }
@@ -78,13 +78,13 @@ export default function TrainingHistoryPage() {
             {/* 제목 */}
             <div className="self-stretch px-4 inline-flex justify-center items-center gap-2.5">
               <h1 className="text-center justify-start text-slate-800 text-2xl md:text-4xl font-bold leading-tight md:leading-[48px]">
-                훈련 기록
+                연습 기록
               </h1>
             </div>
             {/* 날짜 */}
             <div className="self-stretch px-4 inline-flex justify-center items-center gap-2.5">
               <p className="text-center justify-start text-slate-500 text-base md:text-xl font-semibold leading-snug md:leading-7">
-                날짜별 발음 훈련 기록을 확인하세요.
+                날짜별 발음 연습 기록을 확인하세요.
               </p>
             </div>
           </div>

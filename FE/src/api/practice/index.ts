@@ -1,5 +1,5 @@
 import { apiClient } from "../axios";
-import type { SessionItemResponse } from "../trainingSession/sessionItemSearch";
+import type { SessionItemResponse } from "../trainingSession/session-item-search";
 import type { CreateTrainingSessionResponse } from "../trainingSession";
 
 // 제출 실패 응답 타입 (FastAPI 기본 ValidationError 형태 대응)

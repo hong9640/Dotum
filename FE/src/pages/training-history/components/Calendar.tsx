@@ -5,7 +5,7 @@ import CalendarLegend from "./CalendarLegend";
 import { useCalendar } from "@/hooks/training-history";
 import { useEffect } from "react";
 
-// 훈련 세트 수 데이터 타입
+// 연습 세트 수 데이터 타입
 export interface TrainingCountMap {
   [isoDate: string]: number; // "YYYY-MM-DD" -> 세트 수
 }

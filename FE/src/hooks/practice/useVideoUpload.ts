@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { submitCurrentItem, type SubmitCurrentItemResponse } from '@/api/practice';
-import { reuploadVideo, type VideoReuploadResponse } from '@/api/practice/videoReupload';
-import { getSessionItemByIndex, getSessionItemErrorMessage, type SessionItemResponse } from '@/api/trainingSession/sessionItemSearch';
+import { reuploadVideo, type VideoReuploadResponse } from '@/api/practice/video-reupload';
+import { getSessionItemByIndex, getSessionItemErrorMessage, type SessionItemResponse } from '@/api/trainingSession/session-item-search';
 import { getTrainingSession, completeTrainingSession, type CreateTrainingSessionResponse } from '@/api/trainingSession';
 import { createInitialVideoState, type VideoState } from '@/types/practice';
 
@@ -152,7 +152,7 @@ export const useVideoUpload = (options: UseVideoUploadOptions) => {
 
               if (sessionData.total_items !== sessionData.completed_items) {
                 const trainingType = sessionData.type === 'word' ? '단어' : sessionData.type === 'sentence' ? '문장' : '발성';
-                toast.error(`아직 제출하지 않은 ${trainingType} 훈련이 있습니다.`);
+                toast.error(`아직 제출하지 않은 ${trainingType} 연습이 있습니다.`);
                 return;
               }
 

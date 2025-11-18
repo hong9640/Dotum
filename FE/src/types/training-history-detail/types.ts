@@ -1,4 +1,4 @@
-// 훈련 세트 데이터 타입
+// 연습 세트 데이터 타입
 export interface TrainingSet {
   id: string;
   title: string;

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ResultHeader } from '@/pages/common';
 import { ResultVideoDisplay, FeedbackCard } from './components';
-import { getSessionItemByIndex, getSessionItemErrorMessage, type SessionItemResponse } from '@/api/trainingSession/sessionItemSearch';
+import { getSessionItemByIndex, getSessionItemErrorMessage, type SessionItemResponse } from '@/api/trainingSession/session-item-search';
 import { useCompositedVideoPolling } from '@/hooks/practice';
 import type { PraatMetrics } from '@/api/trainingSession/praat';
 

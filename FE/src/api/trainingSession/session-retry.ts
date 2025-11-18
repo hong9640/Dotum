@@ -4,9 +4,9 @@ import { EnhancedError } from "@/types/api";
 import type { CreateTrainingSessionResponse } from "./index";
 
 /**
- * 완료된 훈련 세션 재훈련 API 호출
+ * 완료된 연습 세션 재연습 API 호출
  * @param sessionId 세션 ID
- * @returns 재훈련 세션 생성 결과
+ * @returns 재연습 세션 생성 결과
  * @throws {Error} API 호출 실패 시 에러 발생
  */
 export const retryTrainingSession = async (
@@ -27,7 +27,7 @@ export const retryTrainingSession = async (
     return response.data;
   } catch (error: unknown) {
     const axiosError = error as AxiosErrorResponse;
-    console.error('❌ 훈련 세션 재훈련 API 에러:', {
+    console.error('❌ 연습 세션 재연습 API 에러:', {
       status: axiosError.response?.status,
       statusText: axiosError.response?.statusText,
       data: axiosError.response?.data,
@@ -35,7 +35,7 @@ export const retryTrainingSession = async (
     });
 
     // 에러 메시지 추출
-    let errorMessage = '훈련 세션 재훈련에 실패했습니다.';
+    let errorMessage = '연습 세션 재연습에 실패했습니다.';
     
     const detail = axiosError.response?.data?.detail;
     if (detail) {

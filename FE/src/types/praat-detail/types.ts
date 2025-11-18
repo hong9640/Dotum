@@ -31,6 +31,6 @@ export type PraatValues = {
 
 export type PatientInfo = {
   analyzedAt?: string; // "2024년 1월 15일 14:30"
-  word?: string; // 훈련 단어
+  word?: string; // 연습 단어
 };
 

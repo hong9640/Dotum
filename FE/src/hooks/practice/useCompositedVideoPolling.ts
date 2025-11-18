@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getCompositedVideoUrl, getCompositedVideoErrorMessage } from "@/api/trainingSession/compositedVideoSearch";
+import { getCompositedVideoUrl, getCompositedVideoErrorMessage } from "@/api/trainingSession/composited-video-search";
 import axios from "axios";
 
 interface UseCompositedVideoPollingOptions {

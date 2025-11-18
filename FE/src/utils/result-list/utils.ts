@@ -48,7 +48,7 @@ export const generateDummyWordResults = (count: number): WordResult[] => {
  * @param sessionDetail 세션 상세 조회 API 응답 데이터
  * @returns WordResult 배열
  */
-// import type { SessionDetailResponse } from '@/api/result-list/sessionDetailSearch';
+// import type { SessionDetailResponse } from '@/api/result-list/session-detail-search';
 // export const convertSessionDetailToWordResults = (
 //   sessionDetail: SessionDetailResponse
 // ): WordResult[] => {

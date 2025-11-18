@@ -19,11 +19,11 @@ export const useTrainingSession = ({ onSessionCreated }: UseTrainingSessionProps
   const [apiError, setApiError] = useState<string | null>(null);
 
   /**
-   * 단어 훈련 세션 생성
-   * @param itemCount 아이템 개수 (기본값: 10)
+   * 단어 연습 세션 생성
+   * @param itemCount 아이템 개수 (기본값: 3)
    * @param sessionName 세션 이름 (선택사항)
    */
-  const createWordSession = async (itemCount: number = 10, sessionName?: string) => {
+  const createWordSession = async (itemCount: number = 3, sessionName?: string) => {
     // 이미 로딩 중이면 중복 실행 방지
     if (isLoading) return;
     
@@ -35,7 +35,7 @@ export const useTrainingSession = ({ onSessionCreated }: UseTrainingSessionProps
       
       onSessionCreated?.(session);
       
-      // 훈련 페이지로 이동 (세션 ID와 itemIndex를 쿼리 파라미터로 전달)
+      // 연습 페이지로 이동 (세션 ID와 itemIndex를 쿼리 파라미터로 전달)
       navigate(`/practice?sessionId=${session.session_id}&type=word&itemIndex=0`);
       
       return session;
@@ -62,11 +62,11 @@ export const useTrainingSession = ({ onSessionCreated }: UseTrainingSessionProps
   };
 
   /**
-   * 문장 훈련 세션 생성
-   * @param itemCount 아이템 개수 (기본값: 10)
+   * 문장 연습 세션 생성
+   * @param itemCount 아이템 개수 (기본값: 3)
    * @param sessionName 세션 이름 (선택사항)
    */
-  const createSentenceSession = async (itemCount: number = 10, sessionName?: string) => {
+  const createSentenceSession = async (itemCount: number = 3, sessionName?: string) => {
     // 이미 로딩 중이면 중복 실행 방지
     if (isLoading) return;
     
@@ -78,7 +78,7 @@ export const useTrainingSession = ({ onSessionCreated }: UseTrainingSessionProps
       
       onSessionCreated?.(session);
       
-      // 훈련 페이지로 이동 (세션 ID와 itemIndex를 쿼리 파라미터로 전달)
+      // 연습 페이지로 이동 (세션 ID와 itemIndex를 쿼리 파라미터로 전달)
       navigate(`/practice?sessionId=${session.session_id}&type=sentence&itemIndex=0`);
       
       return session;
@@ -105,7 +105,7 @@ export const useTrainingSession = ({ onSessionCreated }: UseTrainingSessionProps
   };
 
   /**
-   * 발성 훈련 세션 생성
+   * 발성 연습 세션 생성
    * @param itemCount 아이템 개수 (기본값: 15)
    * @param sessionName 세션 이름 (선택사항)
    */

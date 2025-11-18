@@ -43,7 +43,7 @@ export interface VocalItemSubmissionResponse {
 }
 
 /**
- * 발성 훈련 아이템 제출 (오디오 + 그래프 이미지 업로드)
+ * 발성 연습 아이템 제출 (오디오 + 그래프 이미지 업로드)
  * @param sessionId 세션 ID
  * @param itemIndex 아이템 인덱스
  * @param audioFile 오디오 파일 (WAV)
