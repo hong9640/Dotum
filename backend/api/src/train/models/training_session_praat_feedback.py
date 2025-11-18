@@ -31,6 +31,7 @@ class TrainSessionPraatFeedback(SQLModel, table=True):
         sa_relationship_kwargs={
             "primaryjoin": "TrainSessionPraatFeedback.ai_model_id==foreign(AIModel.id)",
             "foreign_keys": "[TrainSessionPraatFeedback.ai_model_id]",
+            "overlaps": "ai_model",
         }
     )
 
