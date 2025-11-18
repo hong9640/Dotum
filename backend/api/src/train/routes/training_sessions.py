@@ -208,9 +208,10 @@ async def complete_training_session(
     service: TrainingSessionService = Depends(get_training_service),
     gcs_service: GCSService = Depends(provide_gcs_service)
 ):
-    """훈련 세션 완료 (LLM 피드백은 백그라운드에서 생성)"""
+    """훈련 세션 완료 (LLM 피드백은 백그라운드에서 생성, wav2lip 완료와 무관)"""
     try:
         # 1. 세션 완료 처리 (즉시)
+        # 이 과정에서 SessionPraatResult가 생성됨 (wav2lip 완료 여부와 무관)
         session = await service.complete_training_session(session_id, current_user.id)
         if not session:
             raise HTTPException(
@@ -219,12 +220,13 @@ async def complete_training_session(
             )
         
         # 2. LLM 피드백 생성 (백그라운드 - 응답 후 처리)
+        # wav2lip 완료 여부와 무관하게 SessionPraatResult가 있으면 피드백 생성
         background_tasks.add_task(
             _generate_feedback_in_background,
             session_id=session.id,
             user_name=current_user.username
         )
-        logger.info(f"[Complete] Session completed, feedback generation scheduled in background: session_id={session_id}")
+        logger.info(f"[Complete] Session completed, feedback generation scheduled in background (independent of wav2lip): session_id={session_id}")
         
         # 3. 즉시 응답 반환
         return await convert_session_to_response(session, service.db, gcs_service, current_user.username)
