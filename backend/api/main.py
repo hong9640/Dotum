@@ -6,10 +6,10 @@ from api.core.config import settings
 from api.core.logging import get_logger, setup_logging
 from api.core.middleware import LoggingMiddleware
 from api.core.exception import validation_exception_handler
-from api.utils.migrations import run_migrations
-from api.src.train.routes import router as train_router
-from api.src.auth import auth_router
-from api.src.user import user_router
+from api.shared.utils.migrations import run_migrations
+from api.modules.training.routes import router as train_router
+from api.modules.auth import router as auth_router
+from api.modules.user import router as user_router
 
 setup_logging()
 
@@ -40,8 +40,8 @@ if settings.DEBUG:
 
 # Include routers
 app.include_router(train_router, prefix="/api/v1/train", tags=["train"])
-app.include_router(auth_router.router, prefix="/api/v1/auth", tags=["auth"])
-app.include_router(user_router.router, prefix="/api/v1/user", tags=["user"])
+app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(user_router, prefix="/api/v1/user", tags=["user"])
 
 @app.get("/")
 async def health_check():
