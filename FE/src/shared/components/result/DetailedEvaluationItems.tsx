@@ -170,7 +170,7 @@ const DetailedEvaluationItems: React.FC<DetailedEvaluationItemsComponentProps> =
       </div>
 
       {/* 카드 그리드 - md 미만: 세로 1개, md 이상: 가로 2개 */}
-      <div className="self-stretch grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="self-stretch grid grid-cols-1 gap-4">
         {evaluationData.map((item) => (
           <DetailedEvaluationItemCard key={item.id} item={item} />
         ))}
