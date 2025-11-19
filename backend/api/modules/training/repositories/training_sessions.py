@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, update, func, and_
 from sqlalchemy.orm import selectinload
 from typing import List, Optional, Dict, Any
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 from ..models.training_session import TrainingSession, TrainingType, TrainingSessionStatus
 from ..models.training_item import TrainingItem
@@ -124,9 +124,13 @@ class TrainingSessionRepository(BaseRepository[TrainingSession]):
     ) -> List[TrainingSession]:
         """특정 날짜의 훈련 세션 조회"""
         stmt = self._get_base_session_query(True)
+        start_of_day = datetime.combine(training_date, datetime.min.time())
+        end_of_day = start_of_day + timedelta(days=1)
+        
         stmt = stmt.where(
             TrainingSession.user_id == user_id,
-            func.date(TrainingSession.training_date) == training_date
+            TrainingSession.training_date >= start_of_day,
+            TrainingSession.training_date < end_of_day
         )
         
         if type:
@@ -145,6 +149,12 @@ class TrainingSessionRepository(BaseRepository[TrainingSession]):
         type: Optional[TrainingType] = None
     ) -> Dict[str, int]:
         """월별 훈련 달력 데이터 조회"""
+        month_start = datetime(year, month, 1)
+        if month == 12:
+            month_end = datetime(year + 1, 1, 1)
+        else:
+            month_end = datetime(year, month + 1, 1)
+        
         stmt = (
             select(
                 func.date(TrainingSession.training_date).label('date'),
@@ -152,8 +162,8 @@ class TrainingSessionRepository(BaseRepository[TrainingSession]):
             )
             .where(
                 TrainingSession.user_id == user_id,
-                func.extract('year', TrainingSession.training_date) == year,
-                func.extract('month', TrainingSession.training_date) == month
+                TrainingSession.training_date >= month_start,
+                TrainingSession.training_date < month_end
             )
         )
         
