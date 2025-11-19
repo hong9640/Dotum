@@ -28,6 +28,38 @@ class TrainItemPraatFeedback(SQLModel, table=True):
         description="아이템 피드백"
     )
     
+    # 세부 피드백 내용
+    vowel_distortion_feedback: Optional[str] = Field(
+        default=None,
+        sa_column=Column(Text),
+        description="모음 왜곡도 피드백 (NFCD 기반, F1, F2 포먼트 값)"
+    )
+    
+    sound_stability_feedback: Optional[str] = Field(
+        default=None,
+        sa_column=Column(Text),
+        description="소리의 안정도 피드백 (CPP 기반)"
+    )
+    
+    voice_clarity_feedback: Optional[str] = Field(
+        default=None,
+        sa_column=Column(Text),
+        description="음성 맑음도 피드백 (HNR 기반)"
+    )
+    
+    voice_health_feedback: Optional[str] = Field(
+        default=None,
+        sa_column=Column(Text),
+        description="음성 건강지수 피드백 (CSID 기반)"
+    )
+    
+    # 종합 피드백
+    overall_feedback: Optional[str] = Field(
+        default=None,
+        sa_column=Column(Text),
+        description="전체 종합 피드백"
+    )
+    
     # 메타 정보
     created_at: datetime = Field(default_factory=datetime.now)
     
