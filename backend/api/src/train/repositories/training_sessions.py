@@ -36,7 +36,7 @@ class TrainingSessionRepository(BaseRepository[TrainingSession]):
         training_date: Optional[datetime] = None,
         session_metadata: Optional[Dict[str, Any]] = None
     ) -> TrainingSession:
-        """훈련 세션 생성 (바로 시작)"""
+        """연습 세션 생성 (바로 시작)"""
         now = datetime.now()
         session = TrainingSession(
             user_id=user_id,
@@ -58,7 +58,7 @@ class TrainingSessionRepository(BaseRepository[TrainingSession]):
         self, session_id: int, item_index: int, 
         word_id: Optional[int] = None, sentence_id: Optional[int] = None
     ) -> TrainingItem:
-        """훈련 아이템 생성"""
+        """연습 아이템 생성"""
         item = TrainingItem(
             training_session_id=session_id,
             item_index=item_index,
@@ -78,7 +78,7 @@ class TrainingSessionRepository(BaseRepository[TrainingSession]):
         limit: Optional[int] = None,
         offset: int = 0
     ) -> List[TrainingSession]:
-        """사용자의 훈련 세션 목록 조회 (필터링 지원)"""
+        """사용자의 연습 세션 목록 조회 (필터링 지원)"""
         stmt = self._get_base_session_query(True)
         stmt = stmt.where(TrainingSession.user_id == user_id)
         
@@ -96,7 +96,7 @@ class TrainingSessionRepository(BaseRepository[TrainingSession]):
         return result.scalars().all()
 
     async def get_session(self, session_id: int, user_id: int) -> Optional[TrainingSession]:
-        """특정 훈련 세션 조회 (소유권 확인)"""
+        """특정 연습 세션 조회 (소유권 확인)"""
         stmt = self._get_base_session_query(True)
         stmt = stmt.where(
             TrainingSession.id == session_id,
@@ -106,7 +106,7 @@ class TrainingSessionRepository(BaseRepository[TrainingSession]):
         return result.scalar_one_or_none()
 
     async def get_session_by_id(self, session_id: int) -> Optional[TrainingSession]:
-        """ID로 훈련 세션 조회 (소유권 확인 없음)"""
+        """ID로 연습 세션 조회 (소유권 확인 없음)"""
         stmt = self._get_base_session_query(True)
         stmt = stmt.where(TrainingSession.id == session_id)
         result = await self.db.execute(stmt)
@@ -118,7 +118,7 @@ class TrainingSessionRepository(BaseRepository[TrainingSession]):
         training_date: date,
         type: Optional[TrainingType] = None
     ) -> List[TrainingSession]:
-        """특정 날짜의 훈련 세션 조회"""
+        """특정 날짜의 연습 세션 조회"""
         stmt = self._get_base_session_query(True)
         stmt = stmt.where(
             TrainingSession.user_id == user_id,
@@ -140,7 +140,7 @@ class TrainingSessionRepository(BaseRepository[TrainingSession]):
         month: int,
         type: Optional[TrainingType] = None
     ) -> Dict[str, int]:
-        """월별 훈련 달력 데이터 조회"""
+        """월별 연습 달력 데이터 조회"""
         stmt = (
             select(
                 func.date(TrainingSession.training_date).label('date'),
@@ -231,7 +231,7 @@ class TrainingSessionRepository(BaseRepository[TrainingSession]):
     
 
     async def delete_session(self, session_id: int, user_id: int) -> bool:
-        """훈련 세션 삭제"""
+        """연습 세션 삭제"""
         # 세션 소유권 확인
         session = await self.get_session(session_id, user_id)
         if not session:

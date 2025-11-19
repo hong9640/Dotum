@@ -29,7 +29,7 @@ class TrainingItemRepository(BaseRepository[TrainingItem]):
         item_ids: List[int],
         training_type: TrainingType
     ) -> List[TrainingItem]:
-        """훈련 아이템들을 일괄 생성"""
+        """연습 아이템들을 일괄 생성"""
         items = []
         
         for index, item_id in enumerate(item_ids):
@@ -39,7 +39,7 @@ class TrainingItemRepository(BaseRepository[TrainingItem]):
                 'is_completed': False
             }
             
-            # 훈련 타입에 따라 적절한 ID 설정
+            # 연습 타입에 따라 적절한 ID 설정
             if training_type == TrainingType.WORD:
                 item_data['word_id'] = item_id
             elif training_type == TrainingType.SENTENCE:
@@ -71,7 +71,7 @@ class TrainingItemRepository(BaseRepository[TrainingItem]):
         item_id: int,
         include_relations: bool = True
     ) -> Optional[TrainingItem]:
-        """특정 훈련 아이템 조회"""
+        """특정 연습 아이템 조회"""
         stmt = self._get_base_query(include_relations)
         stmt = stmt.where(
             TrainingItem.id == item_id,
@@ -87,7 +87,7 @@ class TrainingItemRepository(BaseRepository[TrainingItem]):
         item_index: int,
         include_relations: bool = True
     ) -> Optional[TrainingItem]:
-        """item_index로 특정 훈련 아이템 조회"""
+        """item_index로 특정 연습 아이템 조회"""
         stmt = self._get_base_query(include_relations)
         stmt = stmt.where(
             TrainingItem.training_session_id == session_id,
@@ -118,7 +118,7 @@ class TrainingItemRepository(BaseRepository[TrainingItem]):
         session_id: int, 
         current_index: int
     ) -> Optional[TrainingItem]:
-        """다음 훈련 아이템 조회"""
+        """다음 연습 아이템 조회"""
         stmt = self._get_base_query(True)
         stmt = stmt.where(
             TrainingItem.training_session_id == session_id,

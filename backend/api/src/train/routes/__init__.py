@@ -6,7 +6,7 @@ from .media import router as media_router
 
 # 모든 train 관련 router를 통합
 router = APIRouter()
-# 통합 훈련 세션 API
+# 통합 연습 세션 API
 router.include_router(training_sessions_router)
 # 기본 데이터 관리 API들
 router.include_router(words_router)

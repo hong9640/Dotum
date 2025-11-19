@@ -123,10 +123,10 @@ def provide_gcs_service() -> GCSService:
     "",
     response_model=TrainingSessionResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="훈련 세션 생성",
-    description="새로운 훈련 세션을 생성합니다. 세션 이름, 훈련 타입, 아이템 개수 등을 지정할 수 있습니다.",
+    summary="연습 세션 생성",
+    description="새로운 연습 세션을 생성합니다. 세션 이름, 연습 타입, 아이템 개수 등을 지정할 수 있습니다.",
     responses={
-        201: {"description": "훈련 세션 생성 성공"},
+        201: {"description": "연습 세션 생성 성공"},
         400: {"model": BadRequestErrorResponse, "description": "잘못된 요청"},
         401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"}
     }
@@ -136,7 +136,7 @@ async def create_training_session(
     current_user: User = Depends(get_current_user),
     service: TrainingSessionService = Depends(get_training_service)
 ):
-    """훈련 세션 생성"""
+    """연습 세션 생성"""
     try:
         new_session = await service.create_training_session(current_user.id, session_data)
         # 생성된 세션을 다시 조회하여 전체 정보 반환
@@ -152,8 +152,8 @@ async def create_training_session(
 @router.get(
     "",
     response_model=List[TrainingSessionResponse],
-    summary="사용자 훈련 세션 목록 조회",
-    description="현재 사용자의 훈련 세션 목록을 조회합니다. 타입, 상태, 페이지네이션을 통해 필터링할 수 있습니다.",
+    summary="사용자 연습 세션 목록 조회",
+    description="현재 사용자의 연습 세션 목록을 조회합니다. 타입, 상태, 페이지네이션을 통해 필터링할 수 있습니다.",
     responses={
         200: {"description": "조회 성공"},
         401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"}
@@ -161,13 +161,13 @@ async def create_training_session(
 )
 async def get_user_training_sessions(
     current_user: User = Depends(get_current_user),
-    type: Optional[TrainingType] = Query(None, description="훈련 타입 필터"),
+    type: Optional[TrainingType] = Query(None, description="연습 타입 필터"),
     status: Optional[TrainingSessionStatus] = Query(None, description="상태 필터"),
     limit: Optional[int] = Query(None, description="조회 개수 제한"),
     offset: int = Query(0, description="조회 시작 위치"),
     service: TrainingSessionService = Depends(get_training_service)
 ):
-    """사용자의 훈련 세션 목록 조회"""
+    """사용자의 연습 세션 목록 조회"""
     sessions = await service.get_user_training_sessions(
         user_id=current_user.id,
         type=type,
@@ -182,8 +182,8 @@ async def get_user_training_sessions(
 @router.get(
     "/{session_id}",
     response_model=TrainingSessionResponse,
-    summary="훈련 세션 상세 조회",
-    description="특정 ID의 훈련 세션 상세 정보를 조회합니다. 세션의 진행 상황과 훈련 아이템 목록을 포함합니다.",
+    summary="연습 세션 상세 조회",
+    description="특정 ID의 연습 세션 상세 정보를 조회합니다. 세션의 진행 상황과 연습 아이템 목록을 포함합니다.",
     responses={
         200: {"description": "조회 성공"},
         401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"},
@@ -195,12 +195,12 @@ async def get_training_session(
     current_user: User = Depends(get_current_user),
     service: TrainingSessionService = Depends(get_training_service)
 ):
-    """특정 훈련 세션 조회"""
+    """특정 연습 세션 조회"""
     session = await service.get_training_session(session_id, current_user.id)
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="훈련 세션을 찾을 수 없습니다."
+            detail="연습 세션을 찾을 수 없습니다."
         )
     return convert_session_to_response(session)
 
@@ -210,8 +210,8 @@ async def get_training_session(
 @router.post(
     "/{session_id}/complete",
     response_model=TrainingSessionResponse,
-    summary="훈련 세션 완료",
-    description="진행 중인 훈련 세션을 완료 처리합니다. 모든 아이템이 완료되어야 세션을 완료할 수 있습니다.",
+    summary="연습 세션 완료",
+    description="진행 중인 연습 세션을 완료 처리합니다. 모든 아이템이 완료되어야 세션을 완료할 수 있습니다.",
     responses={
         200: {"description": "완료 성공"},
         400: {"model": BadRequestErrorResponse, "description": "잘못된 요청"},
@@ -224,13 +224,13 @@ async def complete_training_session(
     current_user: User = Depends(get_current_user),
     service: TrainingSessionService = Depends(get_training_service)
 ):
-    """훈련 세션 완료"""
+    """연습 세션 완료"""
     try:
         session = await service.complete_training_session(session_id, current_user.id)
         if not session:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="훈련 세션을 찾을 수 없습니다."
+                detail="연습 세션을 찾을 수 없습니다."
             )
         return convert_session_to_response(session)
     except ValueError as e:
@@ -245,8 +245,8 @@ async def complete_training_session(
 @router.patch(
     "/{session_id}/status",
     response_model=TrainingSessionResponse,
-    summary="훈련 세션 상태 업데이트",
-    description="훈련 세션의 상태를 업데이트합니다. 상태 전환 사유를 함께 제공할 수 있습니다.",
+    summary="연습 세션 상태 업데이트",
+    description="연습 세션의 상태를 업데이트합니다. 상태 전환 사유를 함께 제공할 수 있습니다.",
     responses={
         200: {"description": "업데이트 성공"},
         400: {"model": BadRequestErrorResponse, "description": "잘못된 요청"},
@@ -260,13 +260,13 @@ async def update_training_session_status(
     current_user: User = Depends(get_current_user),
     service: TrainingSessionService = Depends(get_training_service)
 ):
-    """훈련 세션 상태 업데이트 (유연한 상태 전환)"""
+    """연습 세션 상태 업데이트 (유연한 상태 전환)"""
     try:
         session = await service.update_session_status(session_id, current_user.id, status_update)
         if not session:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="훈련 세션을 찾을 수 없습니다."
+                detail="연습 세션을 찾을 수 없습니다."
             )
         return convert_session_to_response(session)
     except ValueError as e:
@@ -279,8 +279,8 @@ async def update_training_session_status(
 @router.get(
     "/calendar/{year}/{month}",
     response_model=Dict[str, int],
-    summary="월별 훈련 달력 조회",
-    description="지정된 연도와 월의 훈련 달력을 조회합니다. 날짜별 세션 수를 반환합니다.",
+    summary="월별 연습 달력 조회",
+    description="지정된 연도와 월의 연습 달력을 조회합니다. 날짜별 세션 수를 반환합니다.",
     responses={
         200: {"description": "조회 성공"},
         401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"}
@@ -289,19 +289,19 @@ async def update_training_session_status(
 async def get_training_calendar(
     year: int,
     month: int,
-    type: Optional[TrainingType] = Query(None, description="훈련 타입 필터"),
+    type: Optional[TrainingType] = Query(None, description="연습 타입 필터"),
     current_user: User = Depends(get_current_user),
     service: TrainingSessionService = Depends(get_training_service)
 ):
-    """월별 훈련 달력 조회 (날짜별 세션 수)"""
+    """월별 연습 달력 조회 (날짜별 세션 수)"""
     return await service.get_training_calendar(current_user.id, year, month, type)
 
 
 @router.get(
     "/daily/{date_str}",
     response_model=DailyTrainingResponse,
-    summary="일별 훈련 기록 조회",
-    description="특정 날짜(YYYY-MM-DD 형식)의 훈련 기록을 조회합니다. 해당 날짜의 모든 세션 정보를 반환합니다.",
+    summary="일별 연습 기록 조회",
+    description="특정 날짜(YYYY-MM-DD 형식)의 연습 기록을 조회합니다. 해당 날짜의 모든 세션 정보를 반환합니다.",
     responses={
         200: {"description": "조회 성공"},
         400: {"model": BadRequestErrorResponse, "description": "잘못된 날짜 형식"},
@@ -310,11 +310,11 @@ async def get_training_calendar(
 )
 async def get_daily_training_records(
     date_str: str,
-    type: Optional[TrainingType] = Query(None, description="훈련 타입 필터"),
+    type: Optional[TrainingType] = Query(None, description="연습 타입 필터"),
     current_user: User = Depends(get_current_user),
     service: TrainingSessionService = Depends(get_training_service)
 ):
-    """특정 날짜의 훈련 기록 조회"""
+    """특정 날짜의 연습 기록 조회"""
     try:
         training_date = date.fromisoformat(date_str)
         sessions = await service.get_training_sessions_by_date(
@@ -340,8 +340,8 @@ async def get_daily_training_records(
 @router.delete(
     "/{session_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="훈련 세션 삭제",
-    description="지정된 ID의 훈련 세션을 삭제합니다. 삭제된 세션은 복구할 수 없습니다.",
+    summary="연습 세션 삭제",
+    description="지정된 ID의 연습 세션을 삭제합니다. 삭제된 세션은 복구할 수 없습니다.",
     responses={
         204: {"description": "삭제 성공"},
         401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"},
@@ -353,12 +353,12 @@ async def delete_training_session(
     current_user: User = Depends(get_current_user),
     service: TrainingSessionService = Depends(get_training_service)
 ):
-    """훈련 세션 삭제"""
+    """연습 세션 삭제"""
     deleted = await service.delete_training_session(session_id, current_user.id)
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="훈련 세션을 찾을 수 없습니다."
+            detail="연습 세션을 찾을 수 없습니다."
         )
     return
 
@@ -367,7 +367,7 @@ async def delete_training_session(
     "/{session_id}/current-item",
     response_model=CurrentItemResponse,
     summary="현재 진행 중인 아이템 조회",
-    description="세션에서 현재 진행 중인 훈련 아이템을 조회합니다. 단어 또는 문장 정보와 다음 아이템 존재 여부를 반환합니다.",
+    description="세션에서 현재 진행 중인 연습 아이템을 조회합니다. 단어 또는 문장 정보와 다음 아이템 존재 여부를 반환합니다.",
     responses={
         200: {"description": "조회 성공"},
         401: {"model": UnauthorizedErrorResponse, "description": "인증 필요"},
@@ -423,8 +423,8 @@ async def get_current_item(
 @router.post(
     "/{session_id}/submit-current-item",
     response_model=ItemSubmissionResponse,
-    summary="현재 진행중인 훈련 완료",
-    description="현재 진행 중인 훈련 아이템에 동영상을 업로드하고 완료 처리합니다. 다음 훈련 아이템 정보도 함께 반환됩니다.",
+    summary="현재 진행중인 연습 완료",
+    description="현재 진행 중인 연습 아이템에 동영상을 업로드하고 완료 처리합니다. 다음 연습 아이템 정보도 함께 반환됩니다.",
     responses={
         200: {"description": "처리 성공"},
         400: {"model": BadRequestErrorResponse, "description": "잘못된 요청"},
@@ -569,7 +569,7 @@ async def get_item_by_index(
 @router.get(
     "/{session_id}/items/{item_id}/video",
     response_model=MediaUploadUrlResponse,
-    summary="훈련 아이템 동영상 URL 발급",
+    summary="연습 아이템 동영상 URL 발급",
     description="지정된 아이템의 동영상에 대한 서명 URL을 생성해 반환합니다.",
     responses={
         200: {"description": "URL 발급 성공"},
@@ -587,7 +587,7 @@ async def get_item_video_url(
     """아이템 동영상의 서명 URL 발급"""
     result = await service.get_item_with_media(session_id=session_id, item_id=item_id, user_id=current_user.id)
     if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="훈련 아이템을 찾을 수 없습니다.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="연습 아이템을 찾을 수 없습니다.")
     item = result["item"]
     media = result["media"]
     if not media or not media.object_key:
@@ -603,7 +603,7 @@ async def get_item_video_url(
 @router.put(
     "/{session_id}/items/{item_id}/video",
     response_model=ItemSubmissionResponse,
-    summary="훈련 아이템 동영상 재업로드(교체)",
+    summary="연습 아이템 동영상 재업로드(교체)",
     description="완료된 아이템을 포함하여 특정 아이템의 동영상을 재업로드합니다. 진행률 변경 없이 기존 영상을 교체합니다.",
     responses={
         200: {"description": "재업로드 성공"},
@@ -620,7 +620,7 @@ async def resubmit_item_video(
     service: TrainingSessionService = Depends(get_training_service),
     gcs_service: GCSService = Depends(provide_gcs_service)
 ):
-    """특정 훈련 아이템의 동영상을 재업로드(교체)"""
+    """특정 연습 아이템의 동영상을 재업로드(교체)"""
     if not file.content_type or not file.content_type.startswith("video/"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -673,7 +673,7 @@ async def resubmit_item_video(
     "/{session_id}/items/{item_id}/result",
     response_model=MediaUploadUrlResponse,
     summary="Wav2Lip 결과 영상 URL 조회",
-    description="훈련 아이템에 대한 Wav2Lip 처리 결과 영상의 서명된 URL을 조회합니다.",
+    description="연습 아이템에 대한 Wav2Lip 처리 결과 영상의 서명된 URL을 조회합니다.",
     responses={
         200: {"description": "URL 조회 성공"},
         202: {"description": "영상 처리 중"},

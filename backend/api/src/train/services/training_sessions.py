@@ -27,7 +27,7 @@ from ..services.gcs_service import GCSService
 from ..services.media import MediaService
 
 class TrainingSessionService:
-    """통합된 훈련 세션 서비스"""
+    """통합된 연습 세션 서비스"""
     
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -39,14 +39,14 @@ class TrainingSessionService:
         user_id: int, 
         session_data: TrainingSessionCreate
     ) -> TrainingSession:
-        """훈련 세션 생성"""
+        """연습 세션 생성"""
         # 랜덤 아이템 ID들 가져오기
         item_ids = await self._get_random_item_ids(session_data.type, session_data.item_count)
         
         if not item_ids:
             raise ValueError(f"해당 타입({session_data.type})의 아이템을 찾을 수 없습니다")
         
-        # 훈련 세션 생성
+        # 연습 세션 생성
         training_session = await self.repo.create_session(
             user_id=user_id,
             session_name=session_data.session_name,
@@ -56,7 +56,7 @@ class TrainingSessionService:
             session_metadata=session_data.session_metadata
         )
         
-        # 훈련 아이템들 생성
+        # 연습 아이템들 생성
         await self.item_repo.create_batch(
             training_session.id, 
             item_ids,
@@ -67,7 +67,7 @@ class TrainingSessionService:
         return training_session
     
     async def _get_random_item_ids(self, training_type: TrainingType, count: int) -> List[int]:
-        """훈련 타입에 따른 랜덤 아이템 ID들 가져오기"""
+        """연습 타입에 따른 랜덤 아이템 ID들 가져오기"""
         if training_type == TrainingType.WORD:
             from ..repositories.words import WordRepository
             word_repo = WordRepository(self.db)
@@ -89,7 +89,7 @@ class TrainingSessionService:
         session_id: int, 
         user_id: int
     ) -> Optional[TrainingSession]:
-        """훈련 세션 조회"""
+        """연습 세션 조회"""
         return await self.repo.get_session(session_id, user_id)
     
     async def get_user_training_sessions(
@@ -100,7 +100,7 @@ class TrainingSessionService:
         limit: Optional[int] = None,
         offset: int = 0
     ) -> List[TrainingSession]:
-        """사용자의 훈련 세션 목록 조회"""
+        """사용자의 연습 세션 목록 조회"""
         return await self.repo.get_user_sessions(
             user_id=user_id,
             type=type,
@@ -115,7 +115,7 @@ class TrainingSessionService:
         training_date: date,
         type: Optional[TrainingType] = None
     ) -> List[TrainingSession]:
-        """특정 날짜의 훈련 세션 조회"""
+        """특정 날짜의 연습 세션 조회"""
         return await self.repo.get_sessions_by_date(
             user_id=user_id,
             training_date=training_date,
@@ -129,7 +129,7 @@ class TrainingSessionService:
         month: int,
         type: Optional[TrainingType] = None
     ) -> Dict[str, int]:
-        """월별 훈련 달력 조회"""
+        """월별 연습 달력 조회"""
         return await self.repo.get_calendar_data(
             user_id=user_id,
             year=year,
@@ -143,7 +143,7 @@ class TrainingSessionService:
         session_id: int, 
         user_id: int
     ) -> Optional[TrainingSession]:
-        """훈련 세션 완료"""
+        """연습 세션 완료"""
         session = await self.get_training_session(session_id, user_id)
         if not session:
             return None
@@ -200,7 +200,7 @@ class TrainingSessionService:
         is_completed: bool,
         user_id: int
     ) -> Optional[TrainingSession]:
-        """훈련 아이템 완료 처리 (자동 진행률 업데이트)"""
+        """연습 아이템 완료 처리 (자동 진행률 업데이트)"""
         # 아이템 완료 처리
         await self.item_repo.complete_item(item_id, video_url, media_file_id, is_completed)
         
@@ -282,11 +282,11 @@ class TrainingSessionService:
         """내부 메서드: 특정 아이템에 동영상 업로드 및 완료 처리"""
         session = await self.get_training_session(session_id, user.id)
         if not session:
-            raise LookupError("훈련 세션을 찾을 수 없습니다.")
+            raise LookupError("연습 세션을 찾을 수 없습니다.")
         
         item = await self.item_repo.get_item(session_id, item_id, include_relations=True)
         if not item:
-            raise LookupError("훈련 아이템을 찾을 수 없습니다.")
+            raise LookupError("연습 아이템을 찾을 수 없습니다.")
         
         if item.is_completed:
             raise ValueError("이미 완료된 아이템입니다.")
@@ -423,7 +423,7 @@ class TrainingSessionService:
         """현재 진행 중인 아이템에 동영상 업로드 및 완료 처리"""
         session = await self.get_training_session(session_id, user.id)
         if not session:
-            raise LookupError("훈련 세션을 찾을 수 없습니다.")
+            raise LookupError("연습 세션을 찾을 수 없습니다.")
         
         # 현재 진행 중인 아이템 조회
         current_item = await self.item_repo.get_current_item(session_id, include_relations=True)
@@ -462,11 +462,11 @@ class TrainingSessionService:
         """
         session = await self.get_training_session(session_id, user.id)
         if not session:
-            raise LookupError("훈련 세션을 찾을 수 없습니다.")
+            raise LookupError("연습 세션을 찾을 수 없습니다.")
 
         item = await self.item_repo.get_item(session_id, item_id, include_relations=True)
         if not item:
-            raise LookupError("훈련 아이템을 찾을 수 없습니다.")
+            raise LookupError("연습 아이템을 찾을 수 없습니다.")
 
         # 기존 미디어 파일 정보 가져오기 (덮어쓰기용)
         old_media_file = None
@@ -584,10 +584,10 @@ class TrainingSessionService:
         # 1. 세션 및 아이템 존재 여부와 소유권 확인
         item = await self.item_repo.get_item(session_id, item_id, include_relations=False)
         if not item:
-            raise LookupError("훈련 아이템을 찾을 수 없습니다.")
+            raise LookupError("연습 아이템을 찾을 수 없습니다.")
         session = await self.repo.get_session_by_id(item.training_session_id)
         if not session or session.user_id != user.id:
-            raise LookupError("훈련 아이템을 찾을 수 없거나 접근 권한이 없습니다.")
+            raise LookupError("연습 아이템을 찾을 수 없거나 접근 권한이 없습니다.")
 
         # 2. 예상되는 object_key 생성
         object_key = f"results/{user.username}/{session_id}/result_item_{item_id}.mp4"
@@ -694,7 +694,7 @@ class TrainingSessionService:
         session_id: int, 
         user_id: int
     ) -> bool:
-        """훈련 세션 삭제"""
+        """연습 세션 삭제"""
         return await self.repo.delete_session(session_id, user_id)
     
     async def get_item_with_media(self, session_id: int, item_id: int, user_id: int):
