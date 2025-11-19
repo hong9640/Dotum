@@ -178,7 +178,7 @@ class AIService:
                 logger.info(f"Original video resolution: {original_resolution}")
                 
                 # 모델 경로
-                model_local = os.path.join(settings.LOCAL_WAV2LIP_PATH, "checkpoints", "Wav2Lip_gan.pth")
+                model_local = os.path.join(settings.LOCAL_WAV2LIP_PATH, "checkpoints", "wav2lip_gan.pth")
                 if not os.path.exists(model_local):
                     logger.error(f"Wav2Lip model not found: {model_local}")
                     return None

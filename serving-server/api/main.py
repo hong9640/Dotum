@@ -48,7 +48,7 @@ async def health_check():
     try:
         if PORT == 8000:
             # Wav2Lip 서버의 경우 모델 파일 존재 확인
-            wav2lip_model_path = os.path.join(settings.LOCAL_WAV2LIP_PATH, "checkpoints", "Wav2Lip_gan.pth")
+            wav2lip_model_path = os.path.join(settings.LOCAL_WAV2LIP_PATH, "checkpoints", "wav2lip_gan.pth")
             wav2lip_model_exists = os.path.exists(wav2lip_model_path)
             
             log_success("Health check completed", wav2lip_model=wav2lip_model_exists)
