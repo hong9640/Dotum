@@ -1,0 +1,39 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: backend-app
+    ports:
+      - "8000:8000"
+    environment:
+      - TZ=Asia/Seoul
+      - DB_ID=${DB_ID}
+      - DB_PW=${DB_PW}
+      - DB_NAME=${DB_NAME}
+      - DB_NETWORK=${DB_NETWORK}
+      - DB_PORT=${DB_PORT}
+      - JWT_SECRET=${JWT_SECRET}
+      - GCS_BUCKET_NAME=${GCS_BUCKET_NAME}
+      - GCS_PROJECT_ID=${GCS_PROJECT_ID}
+      - GCS_CREDENTIALS_PATH=${GCS_CREDENTIALS_PATH}
+      - ML_SERVER_URL=${ML_SERVER_URL}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - ENABLE_WAV2LIP=${ENABLE_WAV2LIP:-True}
+      - OPEN_AI_API_KEY=${OPEN_AI_API_KEY}
+      - STT_SERVER_URL=${STT_SERVER_URL}
+      - DEBUG=${DEBUG}
+    volumes:
+      - ./api:/code/api
+      - ./migrations:/code/migrations
+      - ./alembic.ini:/code/alembic.ini
+      - ./credentials:/app/credentials
+    networks:
+      - app-network
+    #back-end 로그 추적을 위해 override
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --log-level debug
+
+networks:
+  app-network:
+    driver: bridge
+

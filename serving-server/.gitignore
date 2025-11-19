@@ -1,0 +1,15 @@
+.env
+env.example
+.env.example
+.venv/
+__pycache__/
+
+# Test files
+tests/
+
+# Credentials
+credentials/
+
+# Optimization test files
+test_optimization.py
+*_backup.py

@@ -1,0 +1,226 @@
+from datetime import datetime
+from typing import Optional, List
+from sqlalchemy import select
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from api.modules.training.models.training_session import TrainingSession, TrainingType
+from api.modules.training.models.training_item import TrainingItem
+from api.modules.training.models.media import MediaFile, MediaType
+from api.modules.training.models.praat import PraatFeatures
+from api.modules.training.models.session_praat_result import SessionPraatResult
+from api.modules.training.repositories.training_items import TrainingItemRepository
+from api.modules.training.services.media import MediaService
+
+
+async def save_session_praat_result(
+    db: AsyncSession, 
+    session_id: int, 
+    session: Optional[TrainingSession] = None
+) -> Optional[SessionPraatResult]:
+    """
+    세션의 모든 아이템에 대한 PraatFeatures를 평균내어 SessionPraatResult 테이블에 저장합니다.
+    - vocal 타입: 특정 규칙에 따라 그룹별로 평균을 계산합니다.
+    - word/sentence 타입: 모든 아이템의 Praat 지표를 단순 평균 계산합니다.
+    - Praat 데이터가 일부만 있거나 전혀 없어도 안전하게 처리합니다.
+    - 이미 존재하면 UPDATE, 없으면 INSERT 합니다.
+
+    vocal 타입 세션의 PraatFeatures를 범위별로 평균내어 SessionPraatResult 테이블에 저장합니다.
+    범위 계산:
+    - n = total_items / 5 (프론트에서 받은 반복 횟수)
+    - 첫 번째 그룹 (0 ~ (1 * n) - 1): jitter_local, shimmer_local, nhr, hnr, lh_ratio_mean_db, lh_ratio_sd_db
+      (0번째 아이템의 시도 1, 2, ... n)
+    - 두 번째 그룹 ((1 * n) ~ (5 * n) - 1): max_f0, min_f0, intensity_mean
+      (1번째 아이템 ~ 4번째 아이템)
+    - 전체 (0 ~ (5 * n) - 1): f0, f1, f2
+      (0번째 아이템 ~ 4번째 아이템)
+    
+    Args:
+        db: 데이터베이스 세션
+        session_id: 훈련 세션 ID
+        session: 훈련 세션 객체 (전달되면 재조회 생략하여 성능 최적화)
+    """
+    # 1. 세션 조회 (이미 조회된 세션이 있으면 재조회 생략)
+    if session is None:
+        session_stmt = select(TrainingSession).where(TrainingSession.id == session_id)
+        session_result = await db.execute(session_stmt)
+        session = session_result.scalar_one_or_none()
+    
+    if not session:
+        print(f"⚠️ Session {session_id}: 세션을 찾을 수 없습니다.")
+        return None
+    
+    # 2. 세션의 모든 아이템을 item_index 순서로 가져오기
+    item_repo = TrainingItemRepository(db)
+    items = await item_repo.get_session_items(session_id, include_relations=True)
+    
+    if not items:
+        print(f"⚠️ Session {session_id}: 훈련 아이템을 찾을 수 없습니다.")
+        return None
+    
+    # item_index 순서로 정렬 (이미 정렬되어 있을 수 있지만 확실히)
+    items = sorted(items, key=lambda x: x.item_index)
+    
+    # 3. 각 아이템의 PraatFeatures 조회
+    media_service = MediaService(db)
+    praat_features_list: List[tuple[int, PraatFeatures]] = []  # (item_index, PraatFeatures)
+    
+    for item in items:
+        audio_media_id = None
+        
+        if session.type == TrainingType.VOCAL:
+            # VOCAL 타입: item.media_file_id가 이미 오디오 MediaFile ID를 가리킴
+            # (submit_vocal_item에서 audio_media_file.id로 저장됨)
+            # Eager loading으로 이미 로드된 media_file 사용
+            audio_media = item.media_file
+            if audio_media:
+                audio_media_id = audio_media.id
+                print(f"✅ Session {session_id}: item_index {item.item_index}의 오디오 파일 찾음 (media_id: {audio_media_id}, object_key: {audio_media.object_key})")
+            else:
+                print(f"⚠️ Session {session_id}: item_index {item.item_index}의 오디오 파일을 찾을 수 없습니다. (item_id: {item.id}, media_file_id: {item.media_file_id})")
+                continue
+        else:
+            # WORD/SENTENCE 타입: video media에서 audio media 찾기
+            # Eager loading으로 이미 로드된 media_file 사용
+            video_media = item.media_file
+            if not video_media or not video_media.object_key:
+                continue
+            
+            # 비디오 object_key를 오디오 object_key로 변환
+            if not video_media.object_key.endswith('.mp4'):
+                continue
+            
+            audio_object_key = video_media.object_key.replace('.mp4', '.wav')
+            audio_media = await media_service.get_media_file_by_object_key(audio_object_key)
+            
+            if not audio_media:
+                continue
+            
+            audio_media_id = audio_media.id
+        
+        # PraatFeatures 조회
+        if audio_media_id:
+            praat_stmt = select(PraatFeatures).where(PraatFeatures.media_id == audio_media_id)
+            praat_result = await db.execute(praat_stmt)
+            praat_feature = praat_result.scalar_one_or_none()
+            
+            if praat_feature:
+                praat_features_list.append((item.item_index, praat_feature))
+                print(f"✅ Session {session_id}: item_index {item.item_index}의 PraatFeatures 조회 성공 (media_id: {audio_media_id}, praat_id: {praat_feature.id})")
+            else:
+                print(f"⚠️ Session {session_id}: item_index {item.item_index}의 PraatFeatures가 없습니다. (media_id: {audio_media_id})")
+                print(f"   → submit API에서 Praat 분석 및 저장이 수행되지 않았거나 실패했을 수 있습니다.")
+    
+    if not praat_features_list:
+        print(f"⚠️ Session {session_id}: Praat 데이터가 없어 평균 계산을 건너뜁니다.")
+        print(f"   → 총 {len(items)}개의 아이템 중 PraatFeatures가 조회된 아이템: 0개")
+        print(f"   → 해결 방법: submit API에서 Praat 분석이 정상적으로 수행되고 저장되었는지 확인하세요.")
+        return None
+    
+    # 4. 타입에 따라 그룹 정의 및 평균 계산
+    first_group, second_group, all_group = [], [], []
+    all_praat_features = [pf for _, pf in praat_features_list]
+
+    if session.type == TrainingType.VOCAL:
+        # VOCAL 타입: n값 계산 및 그룹 분할
+        if session.total_items == 0 or session.total_items % 5 != 0:
+            print(f"⚠️ Session {session_id}: VOCAL 타입은 total_items({session.total_items})가 5의 배수여야 합니다. 평균 계산을 건너뜁니다.")
+            return None
+        
+        n = session.total_items / 5
+        if n < 1:
+            print(f"⚠️ Session {session_id}: n 값이 1보다 작아 평균 계산을 건너뜁니다. (n={n})")
+            return None
+        
+        n_int = int(n)
+        first_group = [pf for idx, pf in praat_features_list if 0 <= idx < n_int]
+        second_group = [pf for idx, pf in praat_features_list if n_int <= idx < (5 * n_int)]
+        all_group = all_praat_features
+        print(f"🌀 Session {session_id} (VOCAL): 그룹 분할 완료 (n={n_int}, 첫 그룹={len(first_group)}, 두 번째 그룹={len(second_group)}, 전체={len(all_group)})")
+    else:
+        # WORD, SENTENCE 타입: 모든 그룹을 전체 아이템으로 설정
+        first_group = all_praat_features
+        second_group = all_praat_features
+        all_group = all_praat_features
+        print(f"🌀 Session {session_id} ({session.type}): 단순 평균 계산 (전체 아이템 수: {len(all_group)})")
+
+    # 평균 계산 헬퍼 함수
+    def calc_avg(values: List[Optional[float]]) -> Optional[float]:
+        """None이 아닌 값들의 평균 계산"""
+        valid_values = [v for v in values if v is not None]
+        if not valid_values:
+            return None
+        return sum(valid_values) / len(valid_values)
+
+    # 5. 그룹별 평균 계산 (vocal/word/sentence 공통 로직)
+    # 첫 번째 그룹 평균 (vocal: 0~n-1, other: all)
+    avg_jitter_local = calc_avg([pf.jitter_local for pf in first_group])
+    avg_shimmer_local = calc_avg([pf.shimmer_local for pf in first_group])
+    avg_nhr = calc_avg([pf.nhr for pf in first_group])
+    avg_hnr = calc_avg([pf.hnr for pf in first_group])
+    avg_lh_ratio_mean_db = calc_avg([pf.lh_ratio_mean_db for pf in first_group])
+    avg_lh_ratio_sd_db = calc_avg([pf.lh_ratio_sd_db for pf in first_group])
+    
+    # 두 번째 그룹 평균 (vocal: n~5n-1, other: all)
+    avg_max_f0 = calc_avg([pf.max_f0 for pf in second_group])
+    avg_min_f0 = calc_avg([pf.min_f0 for pf in second_group])
+    avg_intensity_mean = calc_avg([pf.intensity_mean for pf in second_group])
+    
+    # 전체 그룹 평균 (0 ~ (5 * n) - 1)
+    avg_f0 = calc_avg([pf.f0 for pf in all_group])
+    avg_f1 = calc_avg([pf.f1 for pf in all_group])
+    avg_f2 = calc_avg([pf.f2 for pf in all_group])
+
+    # cpp, csid 평균
+    avg_cpp = calc_avg([pf.cpp for pf in all_group])
+    avg_csid = calc_avg([pf.csid for pf in all_group])
+    
+    # 6. DB에 저장 또는 업데이트
+    existing_stmt = select(SessionPraatResult).where(
+        SessionPraatResult.training_session_id == session_id
+    )
+    existing_result = await db.execute(existing_stmt)
+    existing_record = existing_result.scalars().first()
+    
+    if existing_record:
+        existing_record.avg_jitter_local = avg_jitter_local
+        existing_record.avg_shimmer_local = avg_shimmer_local
+        existing_record.avg_nhr = avg_nhr
+        existing_record.avg_hnr = avg_hnr
+        existing_record.avg_lh_ratio_mean_db = avg_lh_ratio_mean_db
+        existing_record.avg_lh_ratio_sd_db = avg_lh_ratio_sd_db
+        existing_record.avg_max_f0 = avg_max_f0
+        existing_record.avg_min_f0 = avg_min_f0
+        existing_record.avg_intensity_mean = avg_intensity_mean
+        existing_record.avg_f0 = avg_f0
+        existing_record.avg_f1 = avg_f1
+        existing_record.avg_f2 = avg_f2
+        existing_record.avg_cpp = avg_cpp
+        existing_record.avg_csid = avg_csid
+        existing_record.updated_at = datetime.utcnow()
+        
+        print(f"🌀 Session {session_id} ({session.type}): 기존 평균 Praat 결과 갱신 완료")
+    else:
+        new_record = SessionPraatResult(
+            training_session_id=session_id,
+            avg_jitter_local=avg_jitter_local,
+            avg_shimmer_local=avg_shimmer_local,
+            avg_nhr=avg_nhr,
+            avg_hnr=avg_hnr,
+            avg_lh_ratio_mean_db=avg_lh_ratio_mean_db,
+            avg_lh_ratio_sd_db=avg_lh_ratio_sd_db,
+            avg_max_f0=avg_max_f0,
+            avg_min_f0=avg_min_f0,
+            avg_intensity_mean=avg_intensity_mean,
+            avg_f0=avg_f0,
+            avg_f1=avg_f1,
+            avg_f2=avg_f2,
+            avg_cpp=avg_cpp,
+            avg_csid=avg_csid
+        )
+        db.add(new_record)
+        existing_record = new_record
+        print(f"✅ Session {session_id} ({session.type}): 평균 Praat 결과 새로 저장")
+    
+    # commit은 호출하는 쪽에서 처리하도록 변경 (트랜잭션 관리 통합)
+    
+    return existing_record
