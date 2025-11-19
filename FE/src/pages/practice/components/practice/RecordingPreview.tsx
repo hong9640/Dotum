@@ -37,11 +37,11 @@ const RecordingPreview: React.FC<RecordingPreviewProps> = ({
 
   // 임계치 (완화된 기준)
   const T = {
-    centerPct: 12,     // 중앙 오차 허용 범위 (%) - 중앙에서 좀 벗어나도 OK
-    scaleMin: 18,      // 최소 얼굴 크기 (화면 높이의 18%) - 훨씬 멀리서도 OK
-    scaleMax: 60,      // 최대 얼굴 크기 (화면 높이의 60%) - 훨씬 가까이서도 OK
-    angle: 15,         // 고개 기울임 허용 각도 (도) - 더 많이 기울여도 OK
-    stableFrames: 8,   // 안정 상태 유지 프레임 수 - 더 빨리 초록색으로 전환
+    centerPct: 25,     // 중앙 오차 허용 범위 (%) - 중앙에서 많이 벗어나도 OK
+    scaleMin: 12,      // 최소 얼굴 크기 (화면 높이의 12%) - 매우 멀리서도 OK
+    scaleMax: 75,      // 최대 얼굴 크기 (화면 높이의 75%) - 매우 가까이서도 OK
+    angle: 30,         // 고개 기울임 허용 각도 (도) - 많이 기울여도 OK
+    stableFrames: 3,   // 안정 상태 유지 프레임 수 - 매우 빨리 초록색으로 전환
   };
 
   const stableCount = useRef(0);
