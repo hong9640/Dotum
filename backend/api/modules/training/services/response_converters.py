@@ -17,9 +17,43 @@ from ..schemas.stt import SttResultResponse
 from ..services.training_sessions import TrainingSessionService
 from ..services.gcs import GCSService
 from ..services.media import MediaService
+from api.shared.utils.file_utils import build_graph_image_candidate_keys
 
 # Sentinel value: "조회하지 않음"을 나타내기 위한 특별한 객체
 _NOT_PROVIDED = object()
+
+
+async def _generate_graph_image_signed_url(
+    item,
+    username: str,
+    session_id: int,
+    gcs_service: GCSService,
+    expiration_hours: int = 24
+) -> Optional[str]:
+    """저장된 image_url을 기반으로 VOCAL 그래프 이미지를 재서명"""
+    if not item or item.item_index is None:
+        return None
+
+    # 이미지가 없는 세션 타입이면 건너뜀
+    if not item.image_url:
+        return None
+
+    candidate_keys = build_graph_image_candidate_keys(
+        username=username,
+        session_id=session_id,
+        item_index=item.item_index,
+        stored_image_url=item.image_url
+    )
+
+    tried: set[str] = set()
+    for object_key in candidate_keys:
+        if not object_key or object_key in tried:
+            continue
+        tried.add(object_key)
+        signed_url = await gcs_service.get_signed_url(object_key, expiration_hours=expiration_hours)
+        if signed_url:
+            return signed_url
+    return None
 
 
 async def get_composited_media_info(
@@ -107,6 +141,15 @@ async def build_current_item_response(
     composited_video_url = composited_video_url if not isinstance(composited_video_url, Exception) else None
     integrate_voice_url = integrate_voice_url if not isinstance(integrate_voice_url, Exception) else None
 
+    refreshed_image_url = await _generate_graph_image_signed_url(
+        item=item,
+        username=username,
+        session_id=session_id,
+        gcs_service=gcs_service
+    )
+    if refreshed_image_url:
+        item.image_url = refreshed_image_url
+
     # Item feedback 및 세부 피드백 조회
     feedback_obj = None
     
@@ -178,6 +221,15 @@ async def convert_training_item_to_response(
     composited_video_url, composited_media_file_id = await get_composited_media_info(
         db, gcs_service, username, session_id, item.id
     )
+
+    refreshed_image_url = await _generate_graph_image_signed_url(
+        item=item,
+        username=username,
+        session_id=session_id,
+        gcs_service=gcs_service
+    )
+    if refreshed_image_url:
+        item.image_url = refreshed_image_url
     
     # Item feedback 조회
     item_feedback = None
@@ -425,6 +477,17 @@ async def convert_session_to_response(
             # Item feedback 가져오기
             item_feedback = item_feedback_map.get(item.id)
             
+            refreshed_image_url = None
+            if include_media_urls:
+                refreshed_image_url = await _generate_graph_image_signed_url(
+                    item=item,
+                    username=username,
+                    session_id=session.id,
+                    gcs_service=gcs_service
+                )
+                if refreshed_image_url:
+                    item.image_url = refreshed_image_url
+
             item_response = TrainingItemResponse(
                 item_id=item.id,
                 training_session_id=item.training_session_id,
