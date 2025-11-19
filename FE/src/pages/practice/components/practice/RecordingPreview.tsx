@@ -234,16 +234,24 @@ const RecordingPreview: React.FC<RecordingPreviewProps> = ({
   const recordingBadge =
     recordingState === "recording" ? (
       <div className="absolute top-3 right-3">
+        {/* 작은 화면: 색상만 보이는 작은 원형 배지 */}
         <div
           className={cn(
-            "px-3 py-1.5 rounded-full text-sm font-semibold shadow",
+            "sm:hidden w-4 h-4 rounded-full shadow-lg",
+            inRange ? "bg-emerald-500" : "bg-red-600"
+          )}
+        />
+        {/* 큰 화면: 텍스트 포함 배지 */}
+        <div
+          className={cn(
+            "hidden sm:block px-3 py-1.5 rounded-full text-sm font-semibold shadow",
             inRange ? "bg-emerald-500 text-white" : "bg-red-600 text-white"
           )}
         >
           {inRange ? "정상 상태" : "가이드 이탈"}
         </div>
         {!inRange && reason && (
-          <div className="mt-2 px-3 py-1.5 rounded-md bg-red-600/90 text-white text-xs shadow">
+          <div className="mt-2 px-3 py-1.5 rounded-md bg-red-600/90 text-white text-xs shadow hidden sm:block">
             {reason}
           </div>
         )}
