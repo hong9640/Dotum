@@ -1,0 +1,43 @@
+# Git ignore files
+.git/
+.gitignore
+
+# Environment files
+.env
+.env.*
+!env.example
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Credentials (DO NOT COPY TO IMAGE)
+credentials/
+
+# Test files
+tests/
+*.test.py
+*_test.py
+
+# Documentation
+*.md
+!README.md
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
