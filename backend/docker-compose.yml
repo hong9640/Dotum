@@ -19,7 +19,10 @@ services:
       - GCS_CREDENTIALS_PATH=${GCS_CREDENTIALS_PATH}
       - ML_SERVER_URL=${ML_SERVER_URL}
       - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
-      - ENABLE_WAV2LIP=${ENABLE_WAV2LIP:-true}
+      - ENABLE_WAV2LIP=${ENABLE_WAV2LIP:-True}
+      - OPEN_AI_API_KEY=${OPEN_AI_API_KEY}
+      - STT_SERVER_URL=${STT_SERVER_URL}
+      - DEBUG=${DEBUG}
     volumes:
       - ./api:/code/api
       - ./migrations:/code/migrations

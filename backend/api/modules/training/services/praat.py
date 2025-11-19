@@ -15,7 +15,9 @@ from api.modules.training.models.media import MediaFile, MediaType
 from api.modules.training.repositories.training_items import TrainingItemRepository
 from api.modules.training.repositories.training_sessions import TrainingSessionRepository
 from api.modules.training.services.media import MediaService
+from api.modules.training.services.gcs import GCSService
 from api.modules.user.models.model import User
+from api.shared.utils.file_utils import build_graph_image_candidate_keys
 
 # ============================
 # 1. 파라미터 정의
@@ -283,7 +285,8 @@ async def get_praat_analysis_from_db(
     db: AsyncSession,
     session_id: int,
     item_id: int,
-    user_id: int,
+    user: User,
+    gcs_service: GCSService,
 ):
     """
     특정 훈련 아이템(item_id)의 Praat 분석 결과를 조회합니다.
@@ -314,7 +317,7 @@ async def get_praat_analysis_from_db(
         raise LookupError("훈련 세션을 찾을 수 없습니다.")
     
     # 세션 소유권 확인
-    if session.user_id != user_id:
+    if session.user_id != user.id:
         raise PermissionError("접근 권한이 없습니다.")
 
     # 3. VOCAL 타입과 WORD/SENTENCE 타입 분기 처리
@@ -333,7 +336,7 @@ async def get_praat_analysis_from_db(
             raise LookupError("연결된 오디오 미디어 파일을 찾을 수 없습니다.")
         
         # 소유권 확인
-        if audio_media.user_id != user_id:
+        if audio_media.user_id != user.id:
             raise PermissionError("접근 권한이 없습니다.")
         
         audio_media_id = audio_media.id
@@ -349,7 +352,7 @@ async def get_praat_analysis_from_db(
             raise LookupError("연결된 비디오 미디어 파일을 찾을 수 없습니다.")
 
         # 소유권 확인
-        if video_media.user_id != user_id:
+        if video_media.user_id != user.id:
             raise PermissionError("접근 권한이 없습니다.")
 
         # 비디오 object_key를 기반으로 오디오 object_key 추론
@@ -377,6 +380,23 @@ async def get_praat_analysis_from_db(
     # PraatFeatures 모델을 딕셔너리로 변환 (model_dump 사용)
     analysis_dict = analysis.model_dump()
     if session.type == TrainingType.VOCAL:
-        analysis_dict["image_url"] = item.image_url
+        refreshed_image_url = None
+        if item.image_url:
+            candidate_keys = build_graph_image_candidate_keys(
+                username=user.username,
+                session_id=session_id,
+                item_index=item.item_index,
+                stored_image_url=item.image_url
+            )
+            tried: set[str] = set()
+            for object_key in candidate_keys:
+                if not object_key or object_key in tried:
+                    continue
+                tried.add(object_key)
+                signed_url = await gcs_service.get_signed_url(object_key, expiration_hours=24)
+                if signed_url:
+                    refreshed_image_url = signed_url
+                    break
+        analysis_dict["image_url"] = refreshed_image_url or item.image_url
 
     return PraatFeaturesResponse(**analysis_dict)
