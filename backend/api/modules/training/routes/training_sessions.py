@@ -30,6 +30,7 @@ from ..services.response_converters import (
     convert_media_to_response,
     convert_praat_to_response,
     build_current_item_response,
+    convert_session_to_summary_response,
 )
 from api.core.database import get_session
 from api.modules.auth.routes.router import get_current_user
@@ -345,19 +346,26 @@ async def get_daily_training_records(
             conversion_elapsed_ms = 0.0
         else:
             conversion_start = time.perf_counter()
-            conversion_tasks = [
-                convert_session_to_response(
-                    session,
-                    service.db,
-                    gcs_service,
-                    current_user.username,
-                    include_media_urls=include_media_urls if include_items else False,
-                    include_training_items=include_items,
-                    include_praat_summary=include_praat
-                )
-                for session in sessions
-            ]
-            converted_sessions = await asyncio.gather(*conversion_tasks)
+            use_detailed_response = include_items or include_praat
+            if use_detailed_response:
+                conversion_tasks = [
+                    convert_session_to_response(
+                        session,
+                        service.db,
+                        gcs_service,
+                        current_user.username,
+                        include_media_urls=include_media_urls if include_items else False,
+                        include_training_items=include_items,
+                        include_praat_summary=include_praat
+                    )
+                    for session in sessions
+                ]
+                converted_sessions = await asyncio.gather(*conversion_tasks)
+            else:
+                converted_sessions = [
+                    convert_session_to_summary_response(session)
+                    for session in sessions
+                ]
             conversion_elapsed_ms = (time.perf_counter() - conversion_start) * 1000
 
         total_elapsed_ms = (time.perf_counter() - overall_start) * 1000

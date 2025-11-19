@@ -3,10 +3,13 @@ Response converters for training session endpoints.
 DB 모델을 API Response 스키마로 변환하는 헬퍼 함수들
 """
 import asyncio
-from typing import Optional
+from typing import Optional, Dict
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..schemas.training_sessions import TrainingSessionResponse
+from ..schemas.training_sessions import (
+    TrainingSessionResponse,
+    TrainingSessionSummaryResponse,
+)
 from ..schemas.training_items import CurrentItemResponse, TrainingItemResponse
 from ..schemas.media import MediaResponse
 from ..schemas.praat import PraatFeaturesResponse, SessionPraatResultResponse
@@ -337,26 +340,25 @@ async def convert_session_to_response(
             composited_medias = result.scalars().all()
             composited_media_map = {media.object_key: media for media in composited_medias}
         
-        # 🚀 성능 개선: Signed URL을 필요할 때만 생성
+        # 🚀 성능 개선: Signed URL을 배치로 생성
         items_with_media = []  # (item, composited_media) 튜플 리스트
         for item in session.training_items:
             composited_object_key = f"results/{username}/{session.id}/result_item_{item.id}.mp4"
             composited_media = composited_media_map.get(composited_object_key)
             items_with_media.append((item, composited_media))
         
+        signed_composited_urls: Dict[str, Optional[str]] = {}
         if include_media_urls:
-            url_generation_tasks = []
-            for _, composited_media in items_with_media:
-                if composited_media:
-                    url_generation_tasks.append(
-                        gcs_service.get_signed_url(composited_media.object_key, expiration_hours=24)
-                    )
-                else:
-                    # 없으면 None을 반환하는 더미 태스크 (순서 유지를 위해)
-                    url_generation_tasks.append(asyncio.sleep(0, result=None))
-            composited_video_urls = await asyncio.gather(*url_generation_tasks, return_exceptions=True)
-        else:
-            composited_video_urls = [None] * len(items_with_media)
+            composited_keys = [
+                composited_media.object_key
+                for _, composited_media in items_with_media
+                if composited_media
+            ]
+            if composited_keys:
+                signed_composited_urls = await gcs_service.get_signed_urls_batch(
+                    composited_keys,
+                    expiration_hours=24
+                )
         
         # 3단계: 결과 조립
         # Item feedback 일괄 조회 (N+1 문제 해결)
@@ -379,65 +381,44 @@ async def convert_session_to_response(
                     audio_key = video_media.object_key.replace('.mp4', '.wav').replace('.MP4', '.wav')
                     audio_key_by_item[item.id] = audio_key
             
-            # 3-2. Audio media 일괄 조회
-            audio_media_by_item: dict[int, MediaFile] = {}
+            # 3-2. Audio media + Praat + Feedback을 한 번의 JOIN으로 조회
             if audio_key_by_item:
-                audio_stmt = select(MediaFile).where(MediaFile.object_key.in_(set(audio_key_by_item.values())))
-                audio_result = await db.execute(audio_stmt)
-                audio_medias = audio_result.scalars().all()
-                audio_media_by_key = {media.object_key: media for media in audio_medias}
-                for item_id, audio_key in audio_key_by_item.items():
-                    audio_media = audio_media_by_key.get(audio_key)
-                    if audio_media:
-                        audio_media_by_item[item_id] = audio_media
-            
-            # 3-3. PraatFeatures 일괄 조회
-            praat_by_item: dict[int, PraatFeatures] = {}
-            if audio_media_by_item:
-                audio_media_ids = {media.id for media in audio_media_by_item.values()}
-                praat_stmt = select(PraatFeatures).where(PraatFeatures.media_id.in_(audio_media_ids))
-                praat_result = await db.execute(praat_stmt)
-                praat_list = praat_result.scalars().all()
-                praat_by_media_id = {praat.media_id: praat for praat in praat_list}
-                for item_id, audio_media in audio_media_by_item.items():
-                    praat = praat_by_media_id.get(audio_media.id)
-                    if praat:
-                        praat_by_item[item_id] = praat
-            
-            # 3-4. 피드백 일괄 조회
-            if praat_by_item:
-                praat_ids = {praat.id for praat in praat_by_item.values()}
-                feedback_stmt = (
-                    select(TrainItemPraatFeedback)
-                    .where(TrainItemPraatFeedback.praat_features_id.in_(praat_ids))
+                audio_keys = list(set(audio_key_by_item.values()))
+                audio_stmt = (
+                    select(
+                        MediaFile.object_key,
+                        TrainItemPraatFeedback.item_feedback
+                    )
+                    .join(PraatFeatures, PraatFeatures.media_id == MediaFile.id)
+                    .outerjoin(
+                        TrainItemPraatFeedback,
+                        TrainItemPraatFeedback.praat_features_id == PraatFeatures.id
+                    )
+                    .where(MediaFile.object_key.in_(audio_keys))
                     .order_by(TrainItemPraatFeedback.created_at.desc())
                 )
-                feedback_result = await db.execute(feedback_stmt)
-                feedbacks = feedback_result.scalars().all()
+                audio_result = await db.execute(audio_stmt)
+                audio_rows = audio_result.all()
                 
-                # 최신 피드백만 유지
-                latest_feedback_by_praat: dict[int, TrainItemPraatFeedback] = {}
-                for feedback in feedbacks:
-                    current = latest_feedback_by_praat.get(feedback.praat_features_id)
+                # object_key -> item_id 매핑
+                item_id_by_audio_key = {audio_key: item_id for item_id, audio_key in audio_key_by_item.items()}
+                
+                for audio_object_key, feedback_text in audio_rows:
+                    item_id = item_id_by_audio_key.get(audio_object_key)
                     if (
-                        current is None 
-                        or (feedback.created_at and current.created_at and feedback.created_at > current.created_at)
-                        or current.created_at is None
+                        item_id is not None
+                        and feedback_text
+                        and item_id not in item_feedback_map
                     ):
-                        latest_feedback_by_praat[feedback.praat_features_id] = feedback
-                
-                for item_id, praat in praat_by_item.items():
-                    feedback = latest_feedback_by_praat.get(praat.id)
-                    if feedback:
-                        item_feedback_map[item_id] = feedback.item_feedback
+                        item_feedback_map[item_id] = feedback_text
         except Exception as e:
             logging.warning(f"[convert_session_to_response] Item feedback 조회 실패: {type(e).__name__} - {e}")
         
-        for idx, (item, composited_media) in enumerate(items_with_media):
-            # URL 생성 결과 가져오기 (예외 발생 시 None)
-            composited_video_url = composited_video_urls[idx]
-            if isinstance(composited_video_url, Exception) or not include_media_urls:
-                composited_video_url = None
+        for item, composited_media in items_with_media:
+            # URL 생성 결과 가져오기
+            composited_video_url = None
+            if include_media_urls and composited_media:
+                composited_video_url = signed_composited_urls.get(composited_media.object_key)
             
             composited_media_file_id = composited_media.id if composited_media else None
             
@@ -485,6 +466,50 @@ async def convert_session_to_response(
         started_at=session.started_at,
         completed_at=session.completed_at,
         training_items=training_items
+    )
+
+
+def convert_session_to_summary_response(session) -> TrainingSessionSummaryResponse:
+    """경량 세션 요약 응답 생성"""
+    empty_praat_result = SessionPraatResultResponse(
+        avg_jitter_local=None,
+        avg_shimmer_local=None,
+        avg_hnr=None,
+        avg_nhr=None,
+        avg_lh_ratio_mean_db=None,
+        avg_lh_ratio_sd_db=None,
+        avg_max_f0=None,
+        avg_min_f0=None,
+        avg_intensity_mean=None,
+        avg_f0=None,
+        avg_f1=None,
+        avg_f2=None,
+        avg_cpp=None,
+        avg_csid=None,
+        created_at=None,
+        updated_at=None
+    )
+
+    return TrainingSessionSummaryResponse(
+        session_id=session.id,
+        user_id=session.user_id,
+        session_name=session.session_name,
+        type=session.type,
+        status=session.status,
+        training_date=session.training_date,
+        total_items=session.total_items,
+        completed_items=session.completed_items,
+        current_item_index=session.current_item_index,
+        progress_percentage=session.progress_percentage,
+        average_score=session.average_score,
+        overall_feedback=session.overall_feedback,
+        session_praat_result=empty_praat_result,
+        session_metadata=session.session_metadata,
+        created_at=session.created_at,
+        updated_at=session.updated_at,
+        started_at=session.started_at,
+        completed_at=session.completed_at,
+        training_items=[]
     )
 
 
