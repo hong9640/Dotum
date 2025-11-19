@@ -378,7 +378,7 @@ const WordSetResults: React.FC = () => {
               <img 
                 src={도드미치료사} 
                 alt="결과 축하 이미지"
-                className="w-full h-auto p-2.5 object-contain rounded-lg max-w-[340px] md:max-w-[380px] lg:max-w-[420px] max-h-[45vh] min-w-[358px] flex-shrink-0" 
+                className="w-full h-auto p-2.5 object-contain rounded-lg max-w-[340px] md:max-w-[380px] lg:max-w-[420px] max-h-[45vh] min-h-[350px] flex-shrink-0" 
               />
             </div>
 
