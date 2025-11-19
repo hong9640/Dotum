@@ -44,8 +44,8 @@ def generate_file_path(
         base_path: 기본 경로 (예: "videos")
         username: 사용자명
         session_id: 세션 ID (필수)
-        train_id: 훈련 ID (단어 훈련용)
-        result_id: 결과 ID (문장 훈련용)
+        train_id: 연습 ID (단어 연습용)
+        result_id: 결과 ID (문장 연습용)
         word_id: 단어 ID
         sentence_id: 문장 ID
         

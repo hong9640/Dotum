@@ -66,8 +66,8 @@ class GCSService:
             file_content: 파일 바이너리 데이터
             username: 사용자명
             session_id: 세션 ID
-            train_id: 훈련 ID (단어 훈련용)
-            result_id: 결과 ID (문장 훈련용)
+            train_id: 연습 ID (단어 연습용)
+            result_id: 결과 ID (문장 연습용)
             word_id: 단어 ID
             sentence_id: 문장 ID
             original_filename: 원본 파일명 (선택사항)

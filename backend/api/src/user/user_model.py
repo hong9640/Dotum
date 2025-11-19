@@ -19,7 +19,7 @@ class User(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.now, nullable=True)
     deleted_at: Optional[datetime] = Field(default=None, nullable=True)
 
-    # 통합 훈련 세션
+    # 통합 연습 세션
     training_sessions: list["TrainingSession"] = Relationship(
         sa_relationship_kwargs={
             "primaryjoin": "User.id==foreign(TrainingSession.user_id)",

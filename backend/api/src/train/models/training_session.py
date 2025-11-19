@@ -32,9 +32,9 @@ class TrainingSession(SQLModel, table=True):
     id: int = Field(default=None, primary_key=True)
     user_id: int = Field(index=True)
     session_name: str = Field(description="세션 이름")
-    type: TrainingType = Field(description="훈련 타입")
+    type: TrainingType = Field(description="연습 타입")
     status: TrainingSessionStatus = Field(default=TrainingSessionStatus.IN_PROGRESS, description="세션 상태")
-    training_date: datetime = Field(default_factory=get_current_datetime, description="훈련 날짜")
+    training_date: datetime = Field(default_factory=get_current_datetime, description="연습 날짜")
     
     # 진행 상황
     total_items: int = Field(description="총 아이템 수")
