@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ResultHeader } from '@/shared/components/result';
-import { ResultVideoDisplay, FeedbackCard } from '../components';
+import { ResultVideoDisplay } from '@/shared/components/media';
+import { FeedbackCard } from '@/shared/components/result';
 import { getSessionItemByIndex, getSessionItemErrorMessage, type SessionItemResponse } from '@/features/training-session/api/session-item-search';
 import { useCompositedVideoPolling } from '@/features/practice/hooks';
 import type { PraatMetrics } from '@/features/training-session/api/praat';
+import { parseItemFeedback, type ItemFeedback } from '../utils/parseItemFeedback';
 
 const ResultDetailPage: React.FC = () => {
   const navigate = useNavigate();
@@ -16,6 +18,12 @@ const ResultDetailPage: React.FC = () => {
   const [compositedVideoError, setCompositedVideoError] = useState<string | null>(null);
   const [isLoadingCompositedVideo, setIsLoadingCompositedVideo] = useState(false);
   const [praatData, setPraatData] = useState<PraatMetrics | null>(null);
+  
+  // 피드백 파싱
+  const parsedFeedback = useMemo<ItemFeedback | null>(() => {
+    if (!itemData?.feedback) return null;
+    return parseItemFeedback(itemData.feedback);
+  }, [itemData?.feedback]);
 
 
   // URL 파라미터에서 sessionId, type, itemIndex, date 가져오기
@@ -148,6 +156,7 @@ const ResultDetailPage: React.FC = () => {
     }
   };
 
+
   // 로딩 상태
   if (isLoading) {
     return (
@@ -203,6 +212,19 @@ const ResultDetailPage: React.FC = () => {
   // 헤더 제목 결정 (word 또는 sentence 중 null이 아닌 것)
   const headerTitle = itemData.word || itemData.sentence || '';
 
+  // 자세히 보기 버튼 클릭 핸들러
+  const handleDetailClick = () => {
+    if (sessionIdParam && typeParam && itemIndexParam) {
+      // praat-detail 페이지로 이동
+      let praatDetailUrl = `/praat-detail?sessionId=${sessionIdParam}&type=${typeParam}&itemIndex=${itemIndexParam}`;
+      // date 파라미터가 있으면 함께 전달
+      if (dateParam) {
+        praatDetailUrl += `&date=${dateParam}`;
+      }
+      navigate(praatDetailUrl);
+    }
+  };
+
   return (
     <div className="self-stretch pt-7 pb-10 flex flex-col justify-start items-center bg-white min-h-screen">
       {/* 헤더 */}
@@ -224,7 +246,14 @@ const ResultDetailPage: React.FC = () => {
         />
         
         {/* 피드백 카드 */}
-        <FeedbackCard hideSections={true} praatData={praatData} praatLoading={false} />
+        <FeedbackCard 
+          hideSections={true} 
+          praatData={praatData} 
+          praatLoading={false} 
+          feedback={parsedFeedback}
+          onDetailClick={handleDetailClick}
+          showDetailButton={true}
+        />
       </div>
     </div>
   );

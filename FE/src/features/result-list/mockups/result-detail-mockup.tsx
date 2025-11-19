@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ResultHeader } from '@/shared/components/result';
-import { ResultVideoDisplay } from '@/features/result-detail/components';
+import { ResultVideoDisplay } from '@/shared/components/media';
 
 const ResultDetailMockup: React.FC = () => {
   const navigate = useNavigate();

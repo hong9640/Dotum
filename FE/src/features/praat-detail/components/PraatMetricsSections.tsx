@@ -1,7 +1,7 @@
 import React from "react";
 import PraatSectionCard from "./PraatSectionCard";
 import PraatMetricTile from "./PraatMetricTile";
-import { statusBadgeByRule, nz } from "./StatusBadge";
+import { statusBadgeByRule, nz } from "@/shared/components/display";
 import type { PraatValues } from "@/features/praat-detail/types";
 
 export type PraatMetricsSectionsProps = {

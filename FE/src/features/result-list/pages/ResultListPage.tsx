@@ -12,6 +12,7 @@ import 도드미치료사 from "@/assets/도드미_치료사.png";
 import { useAlertDialog } from '@/shared/hooks/useAlertDialog';
 import { formatDate } from '@/shared/utils/dateFormatter';
 import { createEmptyVoiceMetrics, type VoiceMetrics } from '@/features/result-list/types';
+import { diagnosePraat } from '../utils/diagnosePraat';
 
 const WordSetResults: React.FC = () => {
   const navigate = useNavigate();
@@ -24,7 +25,7 @@ const WordSetResults: React.FC = () => {
   const [totalItems, setTotalItems] = useState<number>(0);
   const [voiceMetrics, setVoiceMetrics] = useState<VoiceMetrics>(createEmptyVoiceMetrics());
   const [isVoiceTraining, setIsVoiceTraining] = useState<boolean>(false);
-  const [_overallFeedback, setOverallFeedback] = useState<string>('피드백 정보가 없습니다.');
+  const [overallFeedback, setOverallFeedback] = useState<string>('피드백 정보가 없습니다.');
   const [isRetrying, setIsRetrying] = useState(false);
   
   // 연습 세션 훅 사용 (새로운 연습 시작 시 사용)
@@ -162,8 +163,19 @@ const WordSetResults: React.FC = () => {
           }
         }
         
-        // 전체 피드백 설정 (백엔드에서 제공하는 overall_feedback 사용, null이면 기본 메시지)
-        setOverallFeedback(sessionDetailData.overall_feedback || '피드백 정보가 없습니다.');
+        // 전체 피드백 설정
+        // 발성 연습일 때는 Praat 지표 기반 진단, 일반 연습일 때는 overall_feedback 사용
+        if (isVoice) {
+          // 발성 연습: jitter, shimmer 기반 진단
+          const diagnosis = diagnosePraat({
+            jitter: praatResult?.avg_jitter_local ?? null,
+            shimmer: praatResult?.avg_shimmer_local ?? null,
+          });
+          setOverallFeedback(diagnosis);
+        } else {
+          // 일반 연습: 백엔드에서 제공하는 overall_feedback 사용
+          setOverallFeedback(sessionDetailData.overall_feedback || '피드백 정보가 없습니다.');
+        }
         
         setIsLoading(false);
       } catch (err: unknown) {
@@ -330,10 +342,10 @@ const WordSetResults: React.FC = () => {
     try {
       if (sessionType === 'word') {
         // 단어 연습 시작과 동일하게 동작
-        await createWordSession(3);
+        await createWordSession(2);
       } else {
         // 문장 연습 시작과 동일하게 동작
-        await createSentenceSession(3);
+        await createSentenceSession(2);
       }
     } catch (error) {
       // 에러는 훅에서 처리됨 (toast 메시지 표시)
@@ -371,7 +383,7 @@ const WordSetResults: React.FC = () => {
 
             {/* 메트릭 카드: 가변 영역 */}
             <div className="p-8 bg-white rounded-2xl shadow-lg inline-flex flex-col justify-start items-start gap-3.5 flex-1 min-w-0">
-              <div className="w-full flex flex-col justify-start items-stretch gap-4">
+              <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {isVoiceTraining ? (
                   // 발성 연습: 8개 메트릭 카드
                   <>
@@ -393,14 +405,14 @@ const WordSetResults: React.FC = () => {
                 )}
               </div>
 
-              {/* 피드백 메시지 - 숨김 처리 */}
-              {/* <div className="self-stretch p-6 bg-green-50 rounded-2xl flex flex-col justify-start items-start">
+              {/* 전체 피드백 메시지 */}
+              <div className="self-stretch p-6 bg-green-50 rounded-2xl flex flex-col justify-start items-start mt-4">
                 <div className="self-stretch inline-flex justify-start items-center gap-2.5">
                   <div className="justify-start text-slate-700 text-2xl font-semibold leading-8">
-                    {_overallFeedback}
+                    {overallFeedback}
                   </div>
                 </div>
-              </div> */}
+              </div>
             </div>
           </div>
         </div>

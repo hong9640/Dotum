@@ -3,24 +3,12 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/shared/c
 import { Button } from "@/shared/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/shared/components/ui/dialog";
 import { Play, Repeat, Expand, Pause, Loader2, AlertCircle } from "lucide-react";
+import type { VideoPlayerCardProps } from "@/shared/types/media";
 
-// --- VideoPlayerCard 컴포넌트 ---
 /**
  * 비디오 플레이어 카드 컴포넌트
- * @param title 카드 제목
- * @param icon 카드 제목 옆에 표시될 아이콘 (ReactNode)
- * @param videoSrc 비디오/이미지 플레이스홀더 URL
+ * 순수 프레젠테이션 컴포넌트 - props로만 데이터와 콜백을 받습니다.
  */
-interface VideoPlayerCardProps {
-  title: string;
-  icon: React.ReactNode;
-  videoSrc?: string;
-  dialogContent: React.ReactNode;
-  flipHorizontal?: boolean; // 좌우 반전 여부
-  isLoading?: boolean; // 로딩 상태
-  errorMessage?: string; // 에러 메시지
-}
-
 const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
   title,
   icon,
@@ -61,11 +49,8 @@ const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
   }, [videoSrc]);
 
   return (
-    // shadcn/ui Card를 기반으로, 사용자가 요청한 w-[560px]를 반응형으로 적용합니다.
     <Card className="w-full lg:w-[560px] shadow-lg rounded-xl">
-      {/* 사용자가 요청한 px-6 pt-7 pb-6의 p-6과 유사합니다. */}
       <CardHeader>
-        {/* pb-5 적용 */}
         <CardTitle
           className="flex items-center gap-2.5 text-2xl md:text-3xl font-semibold text-slate-800"
         >
@@ -73,24 +58,19 @@ const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
           {title}
         </CardTitle>
       </CardHeader>
-      {/* CardContent는 기본 p-6 pt-0 이므로, 패딩을 조절합니다. */}
       <CardContent className="px-6 pb-4">
-        {/* 비디오 플레이어 영역 (h-80) */}
         <div className="w-full h-80 bg-gray-100 rounded-xl overflow-hidden relative">
           {errorMessage ? (
-            // 에러 상태: 아이콘과 메시지 표시
             <div className="w-full h-full flex flex-col items-center justify-center text-center p-6">
               <AlertCircle className="w-12 h-12 text-red-500 mb-4" strokeWidth={2} />
               <p className="text-red-600 text-lg font-medium">{errorMessage}</p>
             </div>
           ) : isLoading ? (
-            // 로딩 상태: 스피너 표시
             <div className="w-full h-full flex flex-col items-center justify-center">
               <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" strokeWidth={2} />
               <p className="text-gray-600 text-lg">동영상을 불러오는 중...</p>
             </div>
           ) : (
-            // 비디오 플레이어
             <video
               ref={videoRef}
               className="w-full h-full object-cover"
@@ -108,8 +88,6 @@ const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
           )}
         </div>
       </CardContent>
-      {/* 컨트롤러 영역 (h-10, gap-5) */}
-      {/* 로딩 중이거나 에러가 있으면 컨트롤러 숨김 */}
       {!isLoading && !errorMessage && (
         <CardFooter className="h-auto min-h-10 flex justify-center items-center gap-5 px-6 pb-6">
           <Button
@@ -160,6 +138,5 @@ const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
 };
 
 export default VideoPlayerCard;
-
-
+export type { VideoPlayerCardProps };
 

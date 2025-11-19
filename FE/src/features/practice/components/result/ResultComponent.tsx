@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import ResultVideoDisplay from "./ResultVideoDisplay";
-import FeedbackCard from "./FeedbackCard";
+import { ResultVideoDisplay } from "@/shared/components/media";
+import { FeedbackCard } from "@/shared/components/result";
 import ActionButtons from "./ActionButtons";
 import { getTrainingSession, completeTrainingSession, type CreateTrainingSessionResponse } from "@/features/training-session/api";
 import type { PraatMetrics } from "@/features/training-session/api/praat";
@@ -21,6 +21,7 @@ interface ResultComponentProps {
   praatData?: PraatMetrics | null;
   praatLoading?: boolean;
   isUploading?: boolean;
+  isCompletingSession?: boolean;
 }
 
 const ResultComponent: React.FC<ResultComponentProps> = ({
@@ -37,9 +38,21 @@ const ResultComponent: React.FC<ResultComponentProps> = ({
   praatData,
   praatLoading = false,
   isUploading = false,
+  isCompletingSession: isCompletingSessionProp = false,
 }) => {
   const navigate = useNavigate();
   const [isCompletingSession, setIsCompletingSession] = useState(false);
+  
+  // prop으로 받은 값이 있으면 그것을 사용, 없으면 내부 상태 사용
+  const isCompleting = isCompletingSessionProp || isCompletingSession;
+
+  // 자세히 보기 버튼 클릭 핸들러 (praat-detail 페이지로 이동)
+  const handleDetailClick = () => {
+    if (sessionId && sessionType) {
+      const praatDetailUrl = `/praat-detail?sessionId=${sessionId}&type=${sessionType}`;
+      navigate(praatDetailUrl);
+    }
+  };
 
   const handleRetake = () => {
     // onRetake prop이 있으면 그것을 사용, 없으면 기본 동작 (navigate)
@@ -126,19 +139,19 @@ const ResultComponent: React.FC<ResultComponentProps> = ({
           compositedVideoError={compositedVideoError}
         />
       )}
-      {/* <ResultVideoDisplay 
-        userVideoUrl={userVideoUrl}
-        compositedVideoUrl={compositedVideoUrl}
-        isLoadingCompositedVideo={isLoadingCompositedVideo}
-        compositedVideoError={compositedVideoError}
-      /> */}
-      <FeedbackCard hideSections={!!onBack} praatData={praatData} praatLoading={praatLoading} />
+      <FeedbackCard 
+        hideSections={!!onBack} 
+        praatData={praatData} 
+        praatLoading={praatLoading}
+        onDetailClick={handleDetailClick}
+        showDetailButton={true}
+      />
       <ActionButtons
         onRetake={onBack ? undefined : handleRetake}
         onViewAllResults={onBack ? undefined : handleViewAllResults}
         onNext={onBack ? undefined : onNext}
         hasNext={hasNext}
-        isCompletingSession={isCompletingSession}
+        isCompletingSession={isCompleting}
         isUploading={isUploading}
         onBack={onBack}
       />

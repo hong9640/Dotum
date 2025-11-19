@@ -156,6 +156,8 @@ export const useVideoUpload = (options: UseVideoUploadOptions) => {
                 return;
               }
 
+              // 세션 완료 API 호출 전에 로딩 상태는 호출하는 쪽에서 관리
+              // 여기서는 API만 호출
               await completeTrainingSession(sessionId);
 
               const resultListUrl = `/result-list?sessionId=${sessionIdParam}&type=${sessionTypeParam}`;

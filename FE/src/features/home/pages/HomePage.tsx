@@ -40,7 +40,7 @@ const HomePage: React.FC<HomePageProps> = ({ isLoggedIn }) => {
     
     // 로그인한 상태면 바로 시작
     try {
-      await createWordSession(3); // 3개 단어
+      await createWordSession(2); // 2개 단어
     } catch (error) {
       console.error('단어 연습 세션 생성 실패:', error);
     }
@@ -68,7 +68,7 @@ const HomePage: React.FC<HomePageProps> = ({ isLoggedIn }) => {
     
     // 로그인한 상태면 바로 시작
     try {
-      await createSentenceSession(3); // 3개 문장
+      await createSentenceSession(2); // 2개 문장
     } catch (error) {
       console.error('문장 연습 세션 생성 실패:', error);
     }

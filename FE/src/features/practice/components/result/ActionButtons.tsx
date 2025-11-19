@@ -1,6 +1,5 @@
 import React from "react";
 import { Button } from "@/shared/components/ui/button";
-// import { RotateCcw, ListChecks, Loader2, ArrowRight, ArrowUp } from "lucide-react";
 import { RotateCcw, ListChecks, Loader2, ArrowRight } from "lucide-react";
 
 interface ActionButtonsProps {
@@ -31,28 +30,9 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
     }
   };
 
-  // 페이지 상단으로 스크롤하는 함수
-  // const scrollToTop = () => {
-  //   window.scrollTo({ top: 0, behavior: 'smooth' });
-  // };
-
-  // onBack이 있으면 맨 위로 버튼만 표시 (result-detail 페이지용)
+  // onBack이 있으면 아무것도 렌더링하지 않음 (result-detail 페이지용)
   if (onBack) {
-    return (
-      <div className="self-stretch pt-2 inline-flex justify-center items-start">
-        {/* <div className="flex-1 pt-8 flex justify-center items-center gap-6 flex-wrap content-center">
-          <Button
-            variant="default"
-            size="lg"
-            onClick={scrollToTop}
-            className="w-full md:w-auto h-auto min-h-10 px-6 py-4 bg-green-500 text-white hover:bg-green-600 rounded-xl text-xl md:text-3xl font-semibold leading-9"
-          >
-            <ArrowUp className="w-8 h-8 mr-2" strokeWidth={3} />
-            맨 위로
-          </Button>
-        </div> */}
-      </div>
-    );
+    return null;
   }
 
   // 버튼이 하나도 없으면 렌더링하지 않음

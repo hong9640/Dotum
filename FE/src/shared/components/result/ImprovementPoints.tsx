@@ -10,11 +10,13 @@ const improvementData: ImprovementPoint[] = [
   "문장 끝에서는 음 높이를 자연스럽게 내려보세요.",
 ];
 
-// 개선 포인트 리스트 컴포넌트
+/**
+ * 개선 포인트 리스트 컴포넌트
+ * 순수 프레젠테이션 컴포넌트 - 현재는 목업 데이터 사용
+ */
 const ImprovementPoints: React.FC = () => {
   return (
     <section className="w-full self-stretch pb-4">
-      {/* shadcn 카드 느낌의 컨테이너 (반응형 크기 적용) */}
       <div className="mx-auto w-full max-w-6xl rounded-2xl border-2 border-green-200 bg-green-50/50 py-6 px-4 shadow-lg sm:py-7 sm:px-5">
         {/* 타이틀 영역 */}
         <div className="pb-5 flex items-center">
@@ -46,5 +48,4 @@ const ImprovementPoints: React.FC = () => {
 };
 
 export default ImprovementPoints;
-
 

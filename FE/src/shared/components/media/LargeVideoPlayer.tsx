@@ -3,19 +3,12 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/shared/c
 import { Button } from "@/shared/components/ui/button";
 import { DialogClose } from "@/shared/components/ui/dialog";
 import { Play, Pause, Repeat, Minimize2 } from "lucide-react";
+import type { LargeVideoPlayerProps } from "@/shared/types/media";
 
-// --- LargeVideoPlayer 컴포넌트 ---
 /**
  * Dialog 내부에 표시될 큰 비디오 플레이어 컴포넌트
+ * 순수 프레젠테이션 컴포넌트 - props로만 데이터와 콜백을 받습니다.
  */
-interface LargeVideoPlayerProps {
-  title: string;
-  icon: React.ReactNode;
-  videoSrc?: string;
-  posterSrc?: string;
-  flipHorizontal?: boolean; // 좌우 반전 여부
-}
-
 const LargeVideoPlayer: React.FC<LargeVideoPlayerProps> = ({
   title,
   icon,
@@ -47,10 +40,8 @@ const LargeVideoPlayer: React.FC<LargeVideoPlayerProps> = ({
   // videoSrc 변경 시 비디오를 새로 로드하여 반영
   useEffect(() => {
     if (videoRef.current) {
-      // 일시정지 후 새 소스 로드
       videoRef.current.pause();
       setIsPlaying(false);
-      // 강제 리로드
       videoRef.current.load();
     }
   }, [videoSrc]);
@@ -69,7 +60,6 @@ const LargeVideoPlayer: React.FC<LargeVideoPlayerProps> = ({
         </DialogClose>
       </CardHeader>
       <CardContent className="p-0 pb-4">
-        {/* 비디오만 반전하기 위해 video 엘리먼트에만 직접 적용 */}
         <div className="w-full h-[300px] sm:h-[400px] md:h-[455px] bg-gray-100 rounded-xl overflow-hidden relative">
           <video
             ref={videoRef}
@@ -114,6 +104,5 @@ const LargeVideoPlayer: React.FC<LargeVideoPlayerProps> = ({
 };
 
 export default LargeVideoPlayer;
-
-
+export type { LargeVideoPlayerProps };
 

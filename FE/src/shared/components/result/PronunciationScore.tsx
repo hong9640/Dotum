@@ -1,8 +1,8 @@
 import React from "react";
 
-// --- PronunciationScore 컴포넌트 ---
 /**
  * 발음 유사도 점수 표시 컴포넌트
+ * 순수 프레젠테이션 컴포넌트 - props로만 데이터를 받습니다.
  */
 interface PronunciationScoreProps {
   similarity?: number;
@@ -37,6 +37,5 @@ const PronunciationScore: React.FC<PronunciationScoreProps> = ({
 };
 
 export default PronunciationScore;
-
-
+export type { PronunciationScoreProps };
 

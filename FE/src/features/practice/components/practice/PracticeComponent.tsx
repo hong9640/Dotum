@@ -22,7 +22,6 @@ interface PracticeComponentProps {
   onStartRecording: () => void;
   onStopRecording: () => void;
   onRetake: () => void;
-  onViewResults: () => void;
   onUpload?: () => void;
   isUploading?: boolean;
   uploadError?: string | null;
@@ -38,7 +37,6 @@ const PracticeComponent: React.FC<PracticeComponentProps> = ({
   onStartRecording,
   onStopRecording,
   onRetake,
-  onViewResults,
   onUpload,
   isUploading = false,
   uploadError,
@@ -116,7 +114,6 @@ const PracticeComponent: React.FC<PracticeComponentProps> = ({
         onStartRecording={onStartRecording}
         onStopRecording={onStopRecording}
         onRetake={onRetake}
-        onViewResults={onViewResults}
         onUpload={onUpload}
         isUploading={isUploading}
       />

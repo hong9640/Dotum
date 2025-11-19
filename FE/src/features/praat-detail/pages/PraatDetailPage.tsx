@@ -11,7 +11,6 @@ import { getTrainingSession } from "@/features/training-session/api";
 import type { PraatValues } from "@/features/praat-detail/types";
 import { usePraat } from "@/features/praat-detail/hooks";
 import { getPraatErrorMessage } from "@/features/training-session/api/praat";
-// import type { PraatMetrics } from "@/features/training-session/api/praat";
 
 /**
  * Praat 상세 페이지

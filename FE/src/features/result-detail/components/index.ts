@@ -1,21 +1,24 @@
 // Video 관련
-export { default as ResultVideoDisplay } from './video/ResultVideoDisplay';
-export { default as VideoPlayerCard } from './video/VideoPlayerCard';
-export { default as LargeVideoPlayer } from './video/LargeVideoPlayer';
+// 비디오 컴포넌트는 shared/components/media로 이동됨
+export { ResultVideoDisplay } from '@/shared/components/media';
 
-// Feedback 관련
-export { default as FeedbackCard } from './feedback/FeedbackCard';
-export { default as FeedbackSummary } from './feedback/FeedbackSummary';
-export { default as PronunciationScore } from './feedback/PronunciationScore';
-export { default as ImprovementPoints } from './feedback/ImprovementPoints';
-
-// Evaluation 관련
-export { default as DetailedEvaluationItems } from './evaluation/DetailedEvaluationItems';
-export { default as DetailedEvaluationItemCard } from './evaluation/DetailedEvaluationItemCard';
+// Feedback 및 Evaluation 관련
+// 결과 관련 컴포넌트는 shared/components/result로 이동됨
+export { 
+  FeedbackCard, 
+  FeedbackSummary, 
+  PronunciationScore, 
+  ImprovementPoints,
+  DetailedEvaluationItems,
+  DetailedEvaluationItemCard
+} from '@/shared/components/result';
 
 // Types
-export type { FeedbackCardProps } from './feedback/FeedbackCard';
-export type { DetailedEvaluationItem, EvaluationStatus } from './evaluation/DetailedEvaluationItemCard';
+export type { 
+  FeedbackCardComponentProps as FeedbackCardProps,
+  DetailedEvaluationItem, 
+  EvaluationStatus 
+} from '@/shared/components/result';
 
 
 

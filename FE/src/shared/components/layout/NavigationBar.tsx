@@ -34,7 +34,7 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ isLoggedIn, onLogout }) =
     
     // 로그인한 상태면 바로 시작
     try {
-      await createWordSession(3); // 3개 단어
+      await createWordSession(2); // 2개 단어
     } catch (error) {
       // 에러는 훅에서 처리됨
       console.error('단어 연습 세션 생성 실패:', error);
@@ -52,7 +52,7 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ isLoggedIn, onLogout }) =
     
     // 로그인한 상태면 바로 시작
     try {
-      await createSentenceSession(3); // 3개 문장
+      await createSentenceSession(2); // 2개 문장
     } catch (error) {
       // 에러는 훅에서 처리됨
       console.error('문장 연습 세션 생성 실패:', error);

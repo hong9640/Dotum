@@ -2,21 +2,13 @@ import React from "react";
 import { MonitorPlay, User } from "lucide-react";
 import VideoPlayerCard from "./VideoPlayerCard";
 import LargeVideoPlayer from "./LargeVideoPlayer";
-// URL 파라미터/사전서명 조회는 제거. 업로드 응답의 video_url을 직접 전달받아 사용
+import type { ResultVideoDisplayProps } from "@/shared/types/media";
 
-
-// --- ResultVideoDisplay 컴포넌트 ---
 /**
  * 연습 결과 비디오 표시 컴포넌트
  * 두 개의 비디오 플레이어 카드를 나란히 배치합니다.
+ * 순수 프레젠테이션 컴포넌트 - props로만 데이터를 받습니다.
  */
-interface ResultVideoDisplayProps {
-  userVideoUrl?: string;
-  compositedVideoUrl?: string;
-  isLoadingCompositedVideo?: boolean;
-  compositedVideoError?: string | null;
-}
-
 const ResultVideoDisplay: React.FC<ResultVideoDisplayProps> = ({ 
   userVideoUrl,
   compositedVideoUrl,
@@ -24,8 +16,6 @@ const ResultVideoDisplay: React.FC<ResultVideoDisplayProps> = ({
   compositedVideoError,
 }) => {
   return (
-    // 카드들을 감싸는 flex 컨테이너. gap-8 적용.
-    // 모바일에선 세로(flex-col), 데스크탑에선 가로(lg:flex-row)로 배치.
     <div className="flex flex-col lg:flex-row flex-wrap justify-center items-start gap-8">
       <VideoPlayerCard
         title="정확한 발음 (wav2lip)"
@@ -65,3 +55,5 @@ const ResultVideoDisplay: React.FC<ResultVideoDisplayProps> = ({
 };
 
 export default ResultVideoDisplay;
+export type { ResultVideoDisplayProps };
+

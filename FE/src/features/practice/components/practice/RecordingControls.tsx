@@ -2,7 +2,6 @@ import React, { useState, useRef } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Square, RotateCcw, Upload } from "lucide-react";
 import { stopAllTTS } from "@/shared/utils/tts";
-// import { useNavigate } from "react-router-dom";
 
 interface RecordingControlsProps {
   recordingState: "idle" | "recording" | "processing" | "error";
@@ -10,7 +9,6 @@ interface RecordingControlsProps {
   onStartRecording: () => void;
   onStopRecording: () => void;
   onRetake: () => void;
-  onViewResults?: () => void;
   onUpload?: () => void;
   isUploading?: boolean;
 }
@@ -21,11 +19,9 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   onStartRecording,
   onStopRecording,
   onRetake,
-  // onViewResults,
   onUpload,
   isUploading = false,
 }) => {
-  // const navigate = useNavigate();
   const [isProcessing, setIsProcessing] = useState(false);
   const timeoutRef = useRef<number | null>(null);
   const prevRecordingStateRef = useRef(recordingState);
@@ -54,13 +50,6 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
       }
     }
   }, [isUploading]);
-
-  // const handleViewResults = () => {
-  //   if (onViewResults) {
-  //     onViewResults();
-  //   }
-  //   navigate('/result');
-  // };
   
   const handleStartRecording = () => {
     if (isProcessing || recordingState !== "idle") return;
@@ -139,16 +128,6 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
               {isUploading ? "업로드 중..." : "영상 업로드"}
             </Button>
           )}
-          {/* {onViewResults && (
-            <Button 
-              size="lg" 
-              variant="outline" 
-              className="px-8 py-6 text-xl flex items-center gap-3" 
-              // onClick={handleViewResults}
-            >
-              결과 보기
-            </Button>
-          )} */}
         </div>
       )}
     </div>
