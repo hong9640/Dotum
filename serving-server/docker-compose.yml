@@ -1,0 +1,73 @@
+version: "3.8"
+
+# ===================================================================
+# GCE GPU VM 환경용 Docker Compose 설정
+# ===================================================================
+# 사전 요구사항:
+#   1. nvidia-docker2 설치 필수
+#   2. GPU 드라이버 설치 (NVIDIA Driver)
+#   3. Docker Compose v1.28+ (GPU 지원)
+#
+# 실행 방법:
+#   docker-compose up -d --build
+#
+# GPU 확인:
+#   nvidia-smi
+#   docker exec serving-server-gpu nvidia-smi
+# ===================================================================
+
+services:
+  serving-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: serving-server-gpu
+
+    # 포트 매핑: 호스트 8001번 → 컨테이너 8000번
+    ports:
+      - "8001:8000"
+
+    # 환경 변수 설정
+    environment:
+      # GCP 설정
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID}
+      - GCS_BUCKET=${GCS_BUCKET}
+      - GCS_CREDENTIAL_PATH=${GCS_CREDENTIAL_PATH}
+
+      # Python 설정
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+
+      # GPU 환경 변수 (GCE GPU VM)
+      - CUDA_VISIBLE_DEVICES=0
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+    # 볼륨 마운트
+    volumes:
+      # GCS 인증키 (읽기 전용)
+      - ./credentials:/app/credentials:ro
+
+    # 재시작 정책
+    restart: unless-stopped
+
+    # GPU 리소스 설정 (nvidia-docker2 필요)
+    deploy:
+      resources:
+        limits:
+          memory: 16G # GPU 사용 시 메모리 증가
+        reservations:
+          memory: 8G
+          # NVIDIA GPU 할당
+          devices:
+            - driver: nvidia
+              count: 1 # GPU 개수
+              capabilities: [gpu] # GPU 기능 활성화
+
+    # 헬스 체크
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s # GPU 모델 로딩에 시간 필요
