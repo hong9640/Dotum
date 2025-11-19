@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import { ResultHeader } from '@/shared/components/result';
 import WordResultsList from '../components/WordResultsList';
 import ActionButtons from '../components/ActionButtons';
@@ -25,7 +26,7 @@ const WordSetResults: React.FC = () => {
   const [totalItems, setTotalItems] = useState<number>(0);
   const [voiceMetrics, setVoiceMetrics] = useState<VoiceMetrics>(createEmptyVoiceMetrics());
   const [isVoiceTraining, setIsVoiceTraining] = useState<boolean>(false);
-  const [overallFeedback, setOverallFeedback] = useState<string>('피드백 정보가 없습니다.');
+  const [overallFeedback, setOverallFeedback] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
   
   // 연습 세션 훅 사용 (새로운 연습 시작 시 사용)
@@ -98,7 +99,7 @@ const WordSetResults: React.FC = () => {
           wordResults = vocalTrainingNames.map((trainingName, index) => ({
             id: index + 1,
             word: trainingName,
-            feedback: '피드백 정보가 없습니다.',
+            feedback: null,
             score: 0,
           }));
         } else {
@@ -119,7 +120,7 @@ const WordSetResults: React.FC = () => {
             return {
               id: item.item_index + 1, // 1부터 시작하는 ID
               word: text,
-              feedback: item.feedback || '피드백 정보가 없습니다.',
+              feedback: item.feedback || null,
               score: item.score ?? 0, // score가 null이면 0으로 설정
             };
           });
@@ -174,7 +175,7 @@ const WordSetResults: React.FC = () => {
           setOverallFeedback(diagnosis);
         } else {
           // 일반 연습: 백엔드에서 제공하는 overall_feedback 사용
-          setOverallFeedback(sessionDetailData.overall_feedback || '피드백 정보가 없습니다.');
+          setOverallFeedback(sessionDetailData.overall_feedback || null);
         }
         
         setIsLoading(false);
@@ -408,9 +409,15 @@ const WordSetResults: React.FC = () => {
               {/* 전체 피드백 메시지 */}
               <div className="self-stretch p-6 bg-green-50 rounded-2xl flex flex-col justify-start items-start mt-4">
                 <div className="self-stretch inline-flex justify-start items-center gap-2.5">
-                  <div className="justify-start text-slate-700 text-2xl font-semibold leading-8">
-                    {overallFeedback}
-                  </div>
+                  {overallFeedback ? (
+                    <div className="justify-start text-slate-700 text-2xl font-semibold leading-8">
+                      {overallFeedback}
+                    </div>
+                  ) : (
+                    <div className="flex justify-center items-center w-full py-4">
+                      <Loader2 className="w-8 h-8 text-blue-500 animate-spin" strokeWidth={2} />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
