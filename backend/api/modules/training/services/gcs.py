@@ -196,12 +196,10 @@ class GCSService:
         """
         try:
             blob = self.bucket.blob(object_path)
-            if not blob.exists():
-                return None
-            
             expiration = datetime.utcnow() + timedelta(hours=expiration_hours)
             return blob.generate_signed_url(expiration=expiration)
-            
+        except NotFound:
+            return None
         except Exception as e:
             print(f"서명된 URL 생성 오류: {e}")
             return None

@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Dict
 from datetime import date
 import asyncio
+import time
 
 from ..schemas.training_sessions import (
     TrainingSessionCreate,
@@ -309,28 +310,67 @@ async def get_training_calendar(
 async def get_daily_training_records(
     date_str: str,
     type: Optional[TrainingType] = Query(None, description="훈련 타입 필터"),
+    include_media_urls: bool = Query(
+        False,
+        description="훈련 아이템의 서명된 미디어 URL 포함 여부 (기본값: 제외)"
+    ),
+    include_items: bool = Query(
+        False,
+        description="훈련 아이템 세부 정보 포함 여부 (기본값: 제외)"
+    ),
+    include_praat: bool = Query(
+        False,
+        description="세션 Praat 요약 및 전체 피드백 포함 여부 (기본값: 제외)"
+    ),
     current_user: User = Depends(get_current_user),
     service: TrainingSessionService = Depends(get_training_service),
     gcs_service: GCSService = Depends(provide_gcs_service)
 ):
     """특정 날짜의 훈련 기록 조회 (병렬 변환 최적화)"""
     try:
+        overall_start = time.perf_counter()
         training_date = date.fromisoformat(date_str)
+
+        query_start = time.perf_counter()
         sessions = await service.get_training_sessions_by_date(
             current_user.id, 
             training_date, 
             type
         )
+        query_elapsed_ms = (time.perf_counter() - query_start) * 1000
         
         # 🚀 성능 개선: 여러 세션을 병렬로 변환
         if not sessions:
             converted_sessions = []
+            conversion_elapsed_ms = 0.0
         else:
+            conversion_start = time.perf_counter()
             conversion_tasks = [
-                convert_session_to_response(session, service.db, gcs_service, current_user.username)
+                convert_session_to_response(
+                    session,
+                    service.db,
+                    gcs_service,
+                    current_user.username,
+                    include_media_urls=include_media_urls if include_items else False,
+                    include_training_items=include_items,
+                    include_praat_summary=include_praat
+                )
                 for session in sessions
             ]
             converted_sessions = await asyncio.gather(*conversion_tasks)
+            conversion_elapsed_ms = (time.perf_counter() - conversion_start) * 1000
+
+        total_elapsed_ms = (time.perf_counter() - overall_start) * 1000
+
+        logger.debug(
+            "[DailyTraining] user=%s date=%s sessions=%d db=%.1fms convert=%.1fms total=%.1fms",
+            current_user.id,
+            date_str,
+            len(converted_sessions),
+            query_elapsed_ms,
+            conversion_elapsed_ms,
+            total_elapsed_ms,
+        )
         
         return DailyTrainingResponse(
             date=date_str, 
