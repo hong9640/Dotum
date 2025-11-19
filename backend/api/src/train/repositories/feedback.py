@@ -167,7 +167,12 @@ class FeedbackRepository:
         self,
         praat_features_id: int,
         item_feedback: Optional[str],
-        ai_model_id: int
+        ai_model_id: int,
+        vowel_distortion_feedback: Optional[str] = None,
+        sound_stability_feedback: Optional[str] = None,
+        voice_clarity_feedback: Optional[str] = None,
+        voice_health_feedback: Optional[str] = None,
+        overall_feedback: Optional[str] = None
     ) -> TrainItemPraatFeedback:
         """
         아이템 피드백 생성
@@ -176,6 +181,11 @@ class FeedbackRepository:
             praat_features_id: PraatFeatures ID
             item_feedback: 아이템 피드백
             ai_model_id: AI 모델 ID (FK)
+            vowel_distortion_feedback: 모음 왜곡도 피드백 (NFCD 기반)
+            sound_stability_feedback: 소리의 안정도 피드백 (CPP 기반)
+            voice_clarity_feedback: 음성 맑음도 피드백 (HNR 기반)
+            voice_health_feedback: 음성 건강지수 피드백 (CSID 기반)
+            overall_feedback: 전체 종합 피드백
             
         Returns:
             생성된 TrainItemPraatFeedback
@@ -183,7 +193,12 @@ class FeedbackRepository:
         feedback = TrainItemPraatFeedback(
             praat_features_id=praat_features_id,
             item_feedback=item_feedback,
-            ai_model_id=ai_model_id
+            ai_model_id=ai_model_id,
+            vowel_distortion_feedback=vowel_distortion_feedback,
+            sound_stability_feedback=sound_stability_feedback,
+            voice_clarity_feedback=voice_clarity_feedback,
+            voice_health_feedback=voice_health_feedback,
+            overall_feedback=overall_feedback
         )
         self.db.add(feedback)
         await self.db.commit()

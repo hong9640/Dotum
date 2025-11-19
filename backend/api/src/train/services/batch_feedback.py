@@ -325,11 +325,35 @@ class BatchFeedbackService:
 입력: hnr=18.2, cpp=13.5, csid=15.8, items=["사과", "나무", "바람"]
 출력:
 {
-  "session_feedback": "오늘 정말 수고 많으셨어요. 목소리를 하나하나 살펴보면서 따뜻한 순간들이 느껴졌어요.\\n\\n🌟 정말 잘하고 계신 부분\\n\\n1) 발음이 정말 또렷해요. '사과', '나무', '바람' 모두에서 끝소리까지 분명하게 들려서 좋았어요.\\n\\n2) 소리가 안정적으로 이어졌어요. 말하는 중간에 흐트러지지 않고 자연스러웠어요.\\n\\n3) 목에 힘이 거의 느껴지지 않았어요. 편안하게 발성하려는 노력이 보였어요.\\n\\n4) 호흡이 안정적이었어요. 중간에 끊기지 않고 매끄럽게 완성되었어요.\\n\\n💭 조금만 더 신경 쓰면 좋을 부분\\n\\n몇몇 순간 소리가 시작될 때 살짝 힘이 들어가는 느낌이 있었어요. 하지만 걱정하지 않으셔도 괜찮아요. 말 시작할 때만 부드럽게 숨을 내보내면 더 편안해질 거예요.\\n\\n🌱 함께 해볼 연습\\n\\n1) 말 시작 전 편안한 숨 내쉬기\\n2) 천천히 연습하기\\n3) 입술과 혀 준비 운동\\n\\n오늘 연습 정말 잘 해주셨어요. 당신의 목소리는 이미 멋진 가능성을 가지고 있어요. 우리, 천천히 같이 걸어봐요. 🌷",
+  "session_feedback": "오늘 정말 수고 많으셨어요! '사과', '나무', '바람' 모두에서 발음이 또렷하고 안정적이었어요. 목에 무리 없이 편안하게 발성하신 게 인상적이었어요. 조금만 더 연습하면 더욱 완벽해질 거예요! 🌷",
   "items": [
-    {"item_index": 0, "item_feedback": "'사과' 발음이 정말 또렷했어요. 끝소리까지 분명하게 들려서 좋았고, 목에도 무리가 없어 보였어요. 정말 잘하셨어요!"},
-    {"item_index": 1, "item_feedback": "'나무'에서 소리가 안정적으로 이어졌어요. 중간에 흐트러지지 않고 자연스럽게 완성하셨네요!"},
-    {"item_index": 2, "item_feedback": "'바람' 발음도 훌륭해요. 편안하게 발성하려는 노력이 느껴졌어요."}
+    {
+      "item_index": 0,
+      "item_feedback": "'사과' 발음이 정말 또렷했어요. 끝소리까지 분명하게 들려서 좋았고, 목에도 무리가 없어 보였어요. 정말 잘하셨어요!",
+      "vowel_distortion_feedback": "'사과'의 모음이 또렷하게 들렸어요. 입술 모양이 자연스럽게 만들어져서 좋았어요.",
+      "sound_stability_feedback": "전체적인 흐름이 안정적이었어요. 소리가 중간에 흔들리지 않고 매끄럽게 이어졌어요.",
+      "voice_clarity_feedback": "목소리가 맑고 선명하게 들렸어요. 끝소리까지 분명하게 전달되어 좋았어요.",
+      "voice_health_feedback": "말할 때 목에 힘이 들어가지 않고 자연스럽게 발성하신 게 잘 느껴졌어요.",
+      "overall_feedback": "전반적으로 안정적이고 맑은 발성이었어요. 특히 모음 발음이 또렷해서 좋았어요."
+    },
+    {
+      "item_index": 1,
+      "item_feedback": "'나무'에서 소리가 안정적으로 이어졌어요. 중간에 흐트러지지 않고 자연스럽게 완성하셨네요!",
+      "vowel_distortion_feedback": "'나무'의 모음이 자연스럽게 들렸어요. 입술과 혀의 위치가 적절했어요.",
+      "sound_stability_feedback": "소리가 시작부터 끝까지 안정적으로 유지되었어요. 흔들림 없이 매끄러웠어요.",
+      "voice_clarity_feedback": "목소리가 선명하게 전달되었어요. 각 음절이 또렷하게 들렸어요.",
+      "voice_health_feedback": "편안하게 발성하려는 노력이 느껴졌어요. 목에 무리가 없어 보였어요.",
+      "overall_feedback": "안정적인 발성이었어요. 특히 소리의 연속성이 좋아서 자연스러웠어요."
+    },
+    {
+      "item_index": 2,
+      "item_feedback": "'바람' 발음도 훌륭해요. 편안하게 발성하려는 노력이 느껴졌어요.",
+      "vowel_distortion_feedback": "'바람'의 모음이 또렷하게 들렸어요. 입술을 둥글게 모으는 것이 자연스러웠어요.",
+      "sound_stability_feedback": "전체적인 흐름이 괜찮았어요. 마지막 소리까지 안정적으로 유지되었어요.",
+      "voice_clarity_feedback": "목소리가 맑게 들렸어요. 끝소리까지 분명하게 전달되어 좋았어요.",
+      "voice_health_feedback": "편안하게 발성하려는 노력이 잘 느껴졌어요. 목에 힘이 들어가지 않았어요.",
+      "overall_feedback": "훌륭한 발성이었어요. 편안하면서도 또렷한 발음이 인상적이었어요."
+    }
   ]
 }
 
@@ -337,10 +361,26 @@ class BatchFeedbackService:
 입력: hnr=9.5, cpp=6.2, csid=35.1, items=["구름", "꽃"]
 출력:
 {
-  "session_feedback": "오늘도 연습해주셔서 고마워요. '구름', '꽃'처럼 어려운 단어를 연습하신 것만으로도 큰 의미가 있어요.\\n\\n🌟 잘하고 계신 부분\\n\\n1) 끝까지 연습을 완성하셨어요. 이것만으로도 충분히 칭찬받아야 해요.\\n\\n2) 단어를 정확히 따라하려는 노력이 보였어요.\\n\\n💭 조금만 더 신경 쓰면 좋을 부분\\n\\n소리가 시작될 때 힘이 들어가는 느낌이 있었어요. 하지만 괜찮아요! 조금만 더 편안하게 시작하면 훨씬 부드러워질 거예요. 입 모양이 빠르게 바뀌는 '꽃', '구름' 같은 단어는 천천히 말해보면 더 또렷해질 거예요.\\n\\n🌱 함께 해볼 연습\\n\\n1) 말 전 편안하게 숨 내쉬기\\n2) 천천히 연습하기\\n3) 입술 준비 운동\\n\\n조금씩 나아가고 있어요. 함께 해요! 💚",
+  "session_feedback": "오늘도 연습해주셔서 고마워요! '구름', '꽃'처럼 어려운 단어를 끝까지 완성하신 게 대단해요. 조금만 더 천천히 말하고 입 모양을 준비하면 더 또렷해질 거예요. 함께 해요! 💚",
   "items": [
-    {"item_index": 0, "item_feedback": "'구름'처럼 복잡한 발음을 끝까지 완성하신 게 대단해요. 조금만 더 천천히 말하면 더 또렷해질 거예요!"},
-    {"item_index": 1, "item_feedback": "'꽃' 발음도 끝까지 노력하셨어요. 입 모양 준비를 충분히 하면 더 자연스러워질 거예요."}
+    {
+      "item_index": 0,
+      "item_feedback": "'구름'처럼 복잡한 발음을 끝까지 완성하신 게 대단해요. 조금만 더 천천히 말하면 더 또렷해질 거예요!",
+      "vowel_distortion_feedback": "'구름'의 모음이 조금 아쉬웠어요. 입술을 조금 더 둥글게 모아주면 모음이 더 분명하게 들릴 거예요.",
+      "sound_stability_feedback": "전체적인 흐름은 괜찮았지만, 마지막 소리에서 살짝 흔들리는 순간이 있었어요. 천천히 말하면 더 안정적일 거예요.",
+      "voice_clarity_feedback": "끝소리가 단어의 목표 음과 조금 다르게 들렸어요. 마무리 부분을 천천히 닫아주면 전달이 더 선명해질 거예요.",
+      "voice_health_feedback": "말할 때 목에 힘이 들어가지 않고 자연스럽게 발성하신 게 잘 느껴졌어요. 이 부분은 계속 유지해주세요.",
+      "overall_feedback": "복잡한 발음을 끝까지 완성하신 게 대단해요. 조금만 더 천천히 연습하면 더욱 완벽해질 거예요."
+    },
+    {
+      "item_index": 1,
+      "item_feedback": "'꽃' 발음도 끝까지 노력하셨어요. 입 모양 준비를 충분히 하면 더 자연스러워질 거예요.",
+      "vowel_distortion_feedback": "'꽃'의 모음이 충분히 둥글게 만들어지지 않아 '깍'처럼 들렸어요. 입술을 조금 더 둥글게 모아주면 모양이 더 또렷하게 잡힐 거예요.",
+      "sound_stability_feedback": "전체적인 흐름은 괜찮았어요. 다만 입 모양이 빠르게 바뀌는 부분에서 살짝 불안정했어요.",
+      "voice_clarity_feedback": "끝소리가 조금 약하게 들렸어요. 마무리 부분을 천천히 닫아주면 더 선명해질 거예요.",
+      "voice_health_feedback": "목에 무리가 없이 발성하려는 노력이 느껴졌어요. 이 부분은 잘하고 계세요.",
+      "overall_feedback": "끝까지 노력하신 게 대단해요. 입 모양 준비를 충분히 하면 더 자연스럽고 또렷한 발음이 될 거예요."
+    }
   ]
 }
 """
@@ -363,11 +403,16 @@ class BatchFeedbackService:
 
 **JSON 스키마:**
 {{
-  "session_feedback": "string (500-1000자)",
+  "session_feedback": "string (50-100자, 한 줄 요약 - 전체 세션을 간결하게 요약한 따뜻한 격려 메시지)",
   "items": [
     {{
       "item_index": number,
-      "item_feedback": "string (100-200자, 해당 아이템에 대한 따뜻한 피드백)"
+      "item_feedback": "string (100-200자, 해당 아이템에 대한 따뜻한 피드백)",
+      "vowel_distortion_feedback": "string (50-100자, 모음 왜곡도 피드백 - F1, F2 포먼트 기반)",
+      "sound_stability_feedback": "string (50-100자, 소리의 안정도 피드백 - CPP 기반)",
+      "voice_clarity_feedback": "string (50-100자, 음성 맑음도 피드백 - HNR 기반)",
+      "voice_health_feedback": "string (50-100자, 음성 건강지수 피드백 - CSID 기반)",
+      "overall_feedback": "string (100-150자, 전체 종합 피드백)"
     }}
   ]
 }}
@@ -520,18 +565,18 @@ class BatchFeedbackService:
 
 ---
 
-**session_feedback 구조 (500-1000자):**
+**session_feedback 구조 (50-100자, 한 줄 요약):**
 
-1. 따뜻한 인사 (1-2문장)
-2. 잘한 점 4가지 (각 2-3문장, **실제 단어 반드시 포함** - WORD/SENTENCE 타입만)"""
+1. 따뜻한 인사 (1문장)
+2. 잘한 점 간단히 언급 (실제 단어 포함 - WORD/SENTENCE 타입만)
+3. 부드러운 격려 메시지 (1문장)
+
+**중요:** 반드시 50-100자 이내로 간결하게 작성하세요. 여러 문단으로 나누지 말고 한 줄로 요약하세요."""
 
         if session_type in (TrainingType.WORD, TrainingType.SENTENCE):
             feedback_structure += f"""
-   - 예: "특히 '사과', '나무'에서 발음이 또렷했어요."
+   - 예: "오늘 정말 수고 많으셨어요! '사과', '나무' 모두에서 발음이 또렷했어요. 조금만 더 연습하면 더욱 완벽해질 거예요! 🌷"
    - 연습 단어 후보: {words_str if words_str else "연습 단어 정보 없음"}
-3. 개선점 1~2가지 (부드럽게, "하지만 괜찮아요" 포함)
-4. 집에서 할 수 있는 연습 방법 2~3가지 (구체적, 실천 가능)
-5. 앞으로도 연습을 이어갈 수 있다는 희망적인 말로 마무리 (2문장)
 
 **items 배열 작성 가이드:**
 - 각 아이템에 대해:
@@ -539,6 +584,34 @@ class BatchFeedbackService:
   - item_feedback에는 해당 단어나 문장 발화를 상상하며,
     좋았던 점과 한두 가지 부드러운 제안을 100~200자 정도로 작성합니다.
   - 가능한 경우, 해당 아이템의 expected_text를 자연스럽게 언급해 주세요.
+  
+**세부 피드백 작성 가이드 (각 아이템별 필수):**
+각 아이템의 Praat 지표(F1, F2, CPP, HNR, CSID)를 분석하여 다음 5가지 피드백을 작성하세요:
+
+1. **vowel_distortion_feedback (모음 왜곡도)**: 
+   - F1, F2 포먼트 값을 기반으로 모음의 왜곡 정도를 평가
+   - 예: "'과'의 모음이 충분히 둥글게 만들어지지 않아 '가'처럼 들렸어요. 입술을 조금 더 둥글게 모아주면 모양이 더 또렷하게 잡힐 거예요."
+   - 부드럽고 구체적인 개선 제안 포함
+
+2. **sound_stability_feedback (소리의 안정도)**:
+   - CPP 값을 기반으로 음성의 안정성과 맑음을 평가
+   - 예: "전체적인 흐름은 괜찮았지만, 마지막 소리에서 살짝 흔들리는 순간이 있었어요."
+   - 안정적인 부분 칭찬 + 개선 제안
+
+3. **voice_clarity_feedback (음성 맑음도)**:
+   - HNR 값을 기반으로 하모닉 대 노이즈 비율 평가
+   - 예: "끝소리가 단어의 목표 음과 조금 다르게 들렸어요. 마무리 부분을 천천히 닫아주면 전달이 더 선명해질 거예요."
+   - 맑은 부분 칭찬 + 개선 제안
+
+4. **voice_health_feedback (음성 건강지수)**:
+   - CSID 값을 기반으로 음성 건강 상태 종합 평가
+   - 예: "말할 때 목에 힘이 들어가지 않고 자연스럽게 발성하신 게 잘 느껴졌어요."
+   - 건강한 부분 강조 + 유지 방법 제안
+
+5. **overall_feedback (종합 피드백)**:
+   - 위 4가지 항목을 종합하여 전체적인 평가와 격려
+   - 예: "전반적으로 안정적인 발성이었어요. 모음 부분만 조금 더 신경 쓰면 더욱 완벽해질 거예요."
+   - 긍정적이고 희망적인 톤으로 마무리
 
 **STT 발음 피드백 작성 가이드:**
 1. STT 결과가 정상인 경우 (예: "굳이" → "구지"):
@@ -562,6 +635,34 @@ class BatchFeedbackService:
 **items 피드백 (item_feedback):**
 각 아이템당 100-200자, 해당 아이템에 대한 구체적이고 따뜻한 피드백
 
+**세부 피드백 작성 가이드 (각 아이템별 필수):**
+각 아이템의 Praat 지표(F1, F2, CPP, HNR, CSID)를 분석하여 다음 5가지 피드백을 작성하세요:
+
+1. **vowel_distortion_feedback (모음 왜곡도)**: 
+   - F1, F2 포먼트 값을 기반으로 모음의 왜곡 정도를 평가
+   - 예: "'과'의 모음이 충분히 둥글게 만들어지지 않아 '가'처럼 들렸어요. 입술을 조금 더 둥글게 모아주면 모양이 더 또렷하게 잡힐 거예요."
+   - 부드럽고 구체적인 개선 제안 포함
+
+2. **sound_stability_feedback (소리의 안정도)**:
+   - CPP 값을 기반으로 음성의 안정성과 맑음을 평가
+   - 예: "전체적인 흐름은 괜찮았지만, 마지막 소리에서 살짝 흔들리는 순간이 있었어요."
+   - 안정적인 부분 칭찬 + 개선 제안
+
+3. **voice_clarity_feedback (음성 맑음도)**:
+   - HNR 값을 기반으로 하모닉 대 노이즈 비율 평가
+   - 예: "끝소리가 단어의 목표 음과 조금 다르게 들렸어요. 마무리 부분을 천천히 닫아주면 전달이 더 선명해질 거예요."
+   - 맑은 부분 칭찬 + 개선 제안
+
+4. **voice_health_feedback (음성 건강지수)**:
+   - CSID 값을 기반으로 음성 건강 상태 종합 평가
+   - 예: "말할 때 목에 힘이 들어가지 않고 자연스럽게 발성하신 게 잘 느껴졌어요."
+   - 건강한 부분 강조 + 유지 방법 제안
+
+5. **overall_feedback (종합 피드백)**:
+   - 위 4가지 항목을 종합하여 전체적인 평가와 격려
+   - 예: "전반적으로 안정적인 발성이었어요. 모음 부분만 조금 더 신경 쓰면 더욱 완벽해질 거예요."
+   - 긍정적이고 희망적인 톤으로 마무리
+
 **Praat 지표 피드백 작성 가이드 (VOCAL 타입):**
 1. Praat 지표가 양호한 경우:
    - "목소리가 맑고 안정적이에요!" 또는 "호흡이 자연스러웠어요" 등으로 칭찬
@@ -574,13 +675,15 @@ class BatchFeedbackService:
         user_prompt = user_prompt + feedback_structure
 
         # 검증 체크리스트
+        # session_feedback 길이 검증 추가
         checklist = """
 
 **검증 체크리스트:**"""
         if session_type in (TrainingType.WORD, TrainingType.SENTENCE):
             checklist += """
-✓ 연습 단어 중 최소 3개를 session_feedback에 언급했나요?"""
+✓ 연습 단어 중 최소 2-3개를 session_feedback에 언급했나요?"""
         checklist += """
+✓ session_feedback이 50-100자 이내로 간결하게 작성되었나요? (한 줄 요약)
 ✓ 전문 용어, 수치, 부정어를 사용하지 않았나요?
 ✓ 순수 JSON만 반환했나요? (```json 블록 NO)
 
@@ -644,6 +747,17 @@ class BatchFeedbackService:
                     logger.warning(f"[Batch] Item missing item_index: {item}")
                 if "item_feedback" not in item:
                     logger.warning(f"[Batch] Item missing item_feedback: {item}")
+                # 세부 피드백 필드들은 선택사항이지만 있으면 좋음
+                if "vowel_distortion_feedback" not in item:
+                    logger.debug(f"[Batch] Item {item.get('item_index')} missing vowel_distortion_feedback (optional)")
+                if "sound_stability_feedback" not in item:
+                    logger.debug(f"[Batch] Item {item.get('item_index')} missing sound_stability_feedback (optional)")
+                if "voice_clarity_feedback" not in item:
+                    logger.debug(f"[Batch] Item {item.get('item_index')} missing voice_clarity_feedback (optional)")
+                if "voice_health_feedback" not in item:
+                    logger.debug(f"[Batch] Item {item.get('item_index')} missing voice_health_feedback (optional)")
+                if "overall_feedback" not in item:
+                    logger.debug(f"[Batch] Item {item.get('item_index')} missing overall_feedback (optional)")
             
             result["model_version"] = self.MODEL_VERSION
             
@@ -727,11 +841,16 @@ class BatchFeedbackService:
             if existing:
                 continue
             
-            # 저장
+            # 저장 (세부 피드백 포함)
             await self.repository.create_item_feedback(
                 praat_features_id=praat_features_id,
                 item_feedback=feedback.get("item_feedback"),
-                ai_model_id=ai_model_id
+                ai_model_id=ai_model_id,
+                vowel_distortion_feedback=feedback.get("vowel_distortion_feedback"),
+                sound_stability_feedback=feedback.get("sound_stability_feedback"),
+                voice_clarity_feedback=feedback.get("voice_clarity_feedback"),
+                voice_health_feedback=feedback.get("voice_health_feedback"),
+                overall_feedback=feedback.get("overall_feedback")
             )
         
         logger.info(f"[Batch] Saved {len(items_feedbacks)} item feedbacks")

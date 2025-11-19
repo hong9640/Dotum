@@ -104,13 +104,15 @@ async def build_current_item_response(
     composited_video_url = composited_video_url if not isinstance(composited_video_url, Exception) else None
     integrate_voice_url = integrate_voice_url if not isinstance(integrate_voice_url, Exception) else None
 
-    # Item feedback 조회
-    item_feedback = None
+    # Item feedback 및 세부 피드백 조회
+    feedback_obj = None
+    
     try:
         from sqlmodel import select
         from ..models.training_item_praat_feedback import TrainItemPraatFeedback
         from ..models.praat import PraatFeatures
         from ..models.media import MediaFile
+        from ..schemas.training_items import FeedbackResponse
         
         # 아이템의 audio media 찾기
         if item.media_file_id:
@@ -131,7 +133,14 @@ async def build_current_item_response(
                         feedback_result = await service.db.execute(feedback_stmt)
                         feedback = feedback_result.scalar_one_or_none()
                         if feedback:
-                            item_feedback = feedback.item_feedback
+                            # 피드백 객체 생성 (프론트엔드에서 키로 접근 가능)
+                            feedback_obj = FeedbackResponse(
+                                item=feedback.item_feedback,
+                                vowel_distortion=feedback.vowel_distortion_feedback,
+                                sound_stability=feedback.sound_stability_feedback,
+                                voice_clarity=feedback.voice_clarity_feedback,
+                                voice_health=feedback.voice_health_feedback
+                            )
     except Exception as e:
         import logging
         logging.warning(f"[build_current_item_response] Item {item.id} feedback 조회 실패: {type(e).__name__} - {e}")
@@ -144,7 +153,7 @@ async def build_current_item_response(
         word=word,
         sentence=sentence,
         is_completed=item.is_completed,
-        feedback=item_feedback,  # 피드백 추가
+        feedback=feedback_obj,  # 피드백 객체
         video_url=video_url,
         composited_video_url=composited_video_url,
         media_file_id=item.media_file_id,
