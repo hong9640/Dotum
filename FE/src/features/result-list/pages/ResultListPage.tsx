@@ -384,7 +384,7 @@ const WordSetResults: React.FC = () => {
 
             {/* 메트릭 카드: 가변 영역 */}
             <div className="p-8 bg-white rounded-2xl shadow-lg inline-flex flex-col justify-start items-start gap-3.5 flex-1 min-w-0">
-              <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="w-full grid grid-cols-1 lg:grid-cols-2 lg:grid-cols-3 gap-4">
                 {isVoiceTraining ? (
                   // 발성 연습: 8개 메트릭 카드
                   <>
@@ -410,7 +410,7 @@ const WordSetResults: React.FC = () => {
               <div className="self-stretch p-6 bg-green-50 rounded-2xl flex flex-col justify-start items-start mt-4">
                 <div className="self-stretch inline-flex justify-start items-center gap-2.5">
                   {overallFeedback ? (
-                    <div className="justify-start text-slate-700 text-2xl font-semibold leading-8">
+                    <div className="justify-start text-slate-700 text-xl md:text-2xl font-semibold leading-8">
                       {overallFeedback}
                     </div>
                   ) : (

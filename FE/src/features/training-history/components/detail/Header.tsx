@@ -23,7 +23,7 @@ export function Header({ date, totalSets, onBack }: HeaderProps) {
           돌아가기
         </span>
       </Button>
-      <div className="w-full h-auto md:h-20 inline-flex flex-col justify-start items-center gap-2.5">
+      <div className="w-full h-auto md:h-20 inline-flex flex-col justify-start items-center gap-3">
         {/* 제목 */}
         <div className="self-stretch px-4 inline-flex justify-center items-center gap-2.5">
           <h1 className="text-center justify-start text-slate-700 text-2xl md:text-4xl font-bold leading-tight md:leading-[48px]">
@@ -32,7 +32,7 @@ export function Header({ date, totalSets, onBack }: HeaderProps) {
         </div>
         {/* 날짜 */}
         <div className="self-stretch px-4 inline-flex justify-center items-center gap-2.5">
-          <p className="text-center justify-start text-slate-500 text-base md:text-xl font-semibold leading-snug md:leading-7">
+          <p className="text-center justify-start text-gray-500 text-base md:text-xl font-semibold leading-snug md:leading-7">
             총 {totalSets}개의 세트를 연습했습니다.
           </p>
         </div>

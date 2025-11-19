@@ -151,10 +151,10 @@ const DetailedEvaluationItems: React.FC<DetailedEvaluationItemsComponentProps> =
   }, [praatData, nfcd, feedback]);
 
   return (
-    <div className="self-stretch px-6 py-7 rounded-2xl shadow-[0px_1px_2px_-1px_rgba(0,0,0,0.10)] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.10)] border-t border-slate-200 flex flex-col gap-6">
+    <div className="self-stretch px-7 py-8 rounded-2xl shadow-[0px_1px_2px_-1px_rgba(0,0,0,0.10)] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.10)] border-t border-slate-200 flex flex-col gap-6">
       {/* 제목 섹션 */}
       <div className="self-stretch flex justify-start items-start">
-        <div className="flex-1 h-6 flex justify-start items-center">
+        <div className="flex-1 h-6 flex justify-start items-center mb-6">
           <div className="pr-3 flex justify-start items-start">
             <div className="self-stretch flex justify-start items-center">
               <ListChecks
@@ -169,8 +169,8 @@ const DetailedEvaluationItems: React.FC<DetailedEvaluationItemsComponentProps> =
         </div>
       </div>
 
-      {/* 카드 그리드 - 가로 1개씩 4개 배치 */}
-      <div className="self-stretch flex flex-col justify-start items-start gap-4">
+      {/* 카드 그리드 - md 미만: 세로 1개, md 이상: 가로 2개 */}
+      <div className="self-stretch grid grid-cols-1 md:grid-cols-2 gap-4">
         {evaluationData.map((item) => (
           <DetailedEvaluationItemCard key={item.id} item={item} />
         ))}

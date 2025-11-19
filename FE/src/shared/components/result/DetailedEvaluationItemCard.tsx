@@ -36,28 +36,28 @@ const DetailedEvaluationItemCard: React.FC<Props> = ({ item }) => {
   const styles = statusStyles[status];
 
   return (
-    <div className={`w-full p-6 bg-gradient-to-r rounded-2xl border-2 ${styles.gradient} ${styles.border} flex flex-col justify-start items-start gap-4`}>
+    <div className={`w-full p-6 bg-gradient-to-r rounded-2xl border-2 ${styles.gradient} ${styles.border} flex flex-col justify-start items-start gap-3`}>
       <div className="self-stretch flex justify-between items-center">
         <div className="flex justify-start items-center gap-3">
-          <div className="pr-3 flex justify-start items-start">
-            <div className="w-10 h-10 flex justify-center items-center">
-              <Icon className={`w-10 h-10 ${styles.icon}`} strokeWidth={2.5} />
+          <div className="pr-1 sm:pr-1.5 flex justify-start items-start">
+            <div className="w-6 sm:w-8 h-6 sm:h-8 flex justify-center items-center">
+              <Icon className={`w-6 sm:w-8 h-6 sm:h-8 ${styles.icon}`} strokeWidth={2.5} />
             </div>
           </div>
           <div className="flex justify-start items-center">
-            <div className="text-slate-700 text-2xl md:text-3xl font-semibold leading-9">
+            <div className="text-slate-700 text-xl sm:text-[28px] font-semibold leading-9">
               {title}
             </div>
           </div>
         </div>
-        <div className="px-5 py-2.5 bg-white/50 rounded-full flex justify-start items-center">
-          <div className={`${styles.text} text-2xl md:text-3xl font-bold leading-9`}>
+        <div className="px-4 py-1 bg-white/50 rounded-full flex justify-start items-center">
+          <div className={`${styles.text} text-lg md:text-[20px] font-semibold leading-9`}>
             {status}
           </div>
         </div>
       </div>
       {content ? (
-        <div className="self-stretch text-slate-700 text-xl md:text-2xl leading-relaxed">
+        <div className="self-stretch text-slate-600 text-xl md:text-[22px] font-semibold leading-relaxed px-1.5">
           {content}
         </div>
       ) : (

@@ -83,17 +83,17 @@ const MetricCard: React.FC<MetricCardProps> = ({
   };
 
   return (
-    <div className="w-full p-3 rounded-xl outline outline-1 outline-offset-[-1px] outline-gray-200 inline-flex flex-col justify-start items-start gap-1.5 shadow-sm">
+    <div className="w-full p-4 rounded-xl outline outline-1 outline-offset-[-1px] outline-gray-200 inline-flex flex-col justify-start items-start gap-2 shadow-sm">
       {/* 제목 */}
       <div className="w-full inline-flex justify-start items-start">
-        <div className="justify-center text-gray-900 text-base font-medium leading-6">
+        <div className="justify-center text-gray-700 text-xl font-semibold leading-6">
           {title}
         </div>
       </div>
       
       {/* 값 표시 */}
       <div className="w-full inline-flex justify-start items-baseline gap-1">
-        <div className="justify-center text-gray-900 text-2xl font-bold leading-10">
+        <div className="justify-center text-gray-800 text-2xl font-bold leading-10">
           {value !== null ? value.toFixed(3) : '0.000'}
         </div>
         <div className="justify-center text-gray-500 text-sm font-normal leading-6">
@@ -104,7 +104,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
       {/* 설명 */}
       {config.description && (
         <div className="w-full">
-          <div className="text-gray-900 text-base font-normal leading-6">
+          <div className="text-gray-500 text-base font-medium leading-6">
             {config.description}
           </div>
         </div>
