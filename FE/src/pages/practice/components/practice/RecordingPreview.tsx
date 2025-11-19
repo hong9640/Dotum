@@ -317,10 +317,7 @@ const RecordingPreview: React.FC<RecordingPreviewProps> = ({
             {/* 녹화 상태 표시 */}
             {recordingState === "recording" && (
               <div className="absolute top-0 left-0 right-0 p-3">
-                <div className="h-2 w-full bg-white/20 rounded-full overflow-hidden">
-                  <div className="h-full bg-red-500 animate-pulse" />
-                </div>
-                <div className="mt-2 flex justify-between text-white/90 text-sm">
+                <div className="flex justify-between text-white/90 text-sm">
                   <span>녹화 중…</span>
                   <span>{elapsed.toString().padStart(2, "0")}s</span>
                 </div>
