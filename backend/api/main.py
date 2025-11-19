@@ -43,7 +43,7 @@ app.include_router(train_router, prefix="/api/v1/train", tags=["train"])
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(user_router, prefix="/api/v1/user", tags=["user"])
 
-@app.get("/")
+@app.get("/api/v1/health")
 async def health_check():
     return {"status": "ok"}
 

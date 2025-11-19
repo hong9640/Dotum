@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, field_validator, field_serializer, ConfigDict
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from datetime import datetime, date
 from enum import Enum
 
@@ -81,6 +81,35 @@ class TrainingSessionResponse(BaseModel):
         return value.value.upper()
 
 
+class TrainingSessionSummaryResponse(BaseModel):
+    """훈련 세션 요약 응답 (경량)"""
+    session_id: int
+    user_id: int
+    session_name: str
+    type: TrainingType
+    status: TrainingSessionStatus
+    training_date: datetime
+    total_items: int
+    completed_items: int
+    current_item_index: int
+    progress_percentage: float
+    average_score: Optional[float] = None
+    overall_feedback: Optional[str] = None
+    session_praat_result: SessionPraatResultResponse
+    session_metadata: Dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    training_items: List[TrainingItemResponse] = Field(default_factory=list)
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @field_serializer("type", mode="plain")
+    def _serialize_type(self, value: TrainingType) -> str:
+        return value.value.upper()
+
+
 class ItemSubmissionResponse(BaseModel):
     """아이템 제출 응답 (업로드 + 완료 + 다음 아이템 정보)"""
     session: TrainingSessionResponse
@@ -115,7 +144,7 @@ class CalendarResponse(BaseModel):
 class DailyTrainingResponse(BaseModel):
     """일별 훈련 기록 응답"""
     date: str
-    sessions: List[TrainingSessionResponse]
+    sessions: List[Union[TrainingSessionSummaryResponse, TrainingSessionResponse]]
     total_sessions: int
     completed_sessions: int
     in_progress_sessions: int
