@@ -70,8 +70,8 @@ class GCSService:
             file_path: 업로드할 파일의 로컬 경로
             username: 사용자명
             session_id: 세션 ID
-            train_id: 훈련 ID (단어 훈련용)
-            result_id: 결과 ID (문장 훈련용)
+            train_id: 연습 ID (단어 연습용)
+            result_id: 결과 ID (문장 연습용)
             word_id: 단어 ID
             sentence_id: 문장 ID
             item_index: 아이템 인덱스 (VOCAL 타입용)

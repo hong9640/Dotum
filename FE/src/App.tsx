@@ -1,25 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useSearchParams } from 'react-router-dom';
-import NavigationBar from '@/components/NavigationBar';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
-// import ScrollToTop from '@/components/ScrollToTop';
-import HomePage from '@/pages/home';
-import PracticePage from '@/pages/practice';
-import LoginPage from '@/pages/login';
-import SignupPage from '@/pages/signup';
-import WordSetResults from '@/pages/result-list';
-import ResultDetailPage from '@/pages/result-detail';
-import PraatDetailPage from '@/pages/praat-detail';
-import TrainingHistoryPage from '@/pages/training-history';
-import VoiceTrainingIntro from '@/pages/voice-training';
-import MPTPage from '@/pages/voice-training/mpt';
-import CrescendoPage from '@/pages/voice-training/crescendo';
-import DecrescendoPage from '@/pages/voice-training/decrescendo';
-import LoudSoftPage from '@/pages/voice-training/loud-soft';
-import SoftLoudPage from '@/pages/voice-training/soft-loud';
-import { clearAuthCookies } from '@/lib/cookies';
-import { checkAuthStatus } from '@/api/user';
-import { Logout } from '@/api/logout/Logout';
+import NavigationBar from '@/shared/components/layout/NavigationBar';
+import { ProtectedRoute } from '@/shared/components/routing/ProtectedRoute';
+import HomePage from '@/features/home/pages/HomePage';
+import PracticePage from '@/features/practice/pages/PracticePage';
+import LoginPage from '@/features/auth/pages/login/LoginPage';
+import SignupPage from '@/features/auth/pages/signup/SignupPage';
+import WordSetResults from '@/features/result-list/pages/ResultListPage';
+import ResultDetailPage from '@/features/result-detail/pages/ResultDetailPage';
+import PraatDetailPage from '@/features/praat-detail/pages/PraatDetailPage';
+import TrainingHistoryPage from '@/features/training-history/pages/TrainingHistoryPage';
+import VoiceTrainingIntro from '@/features/voice-training';
+import MPTPage from '@/features/voice-training/mpt';
+import CrescendoPage from '@/features/voice-training/crescendo';
+import DecrescendoPage from '@/features/voice-training/decrescendo';
+import LoudSoftPage from '@/features/voice-training/loud-soft';
+import SoftLoudPage from '@/features/voice-training/soft-loud';
+import ResultListMockup from '@/features/result-list/mockups/result-list-mockup';
+import ResultDetailMockup from '@/features/result-list/mockups/result-detail-mockup';
+import { clearAuthCookies } from '@/shared/utils/cookies';
+import { checkAuthStatus } from '@features/auth/api/user';
+import { Logout } from '@features/auth/api/logout';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,8 +30,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Toaster } from '@/components/ui/sonner';
+} from '@/shared/components/ui/alert-dialog';
+import { Toaster } from '@/shared/components/ui/sonner';
 
 // PracticePage를 sessionId와 type으로 완전히 새로 생성하는 Wrapper
 const PracticePageWrapper: React.FC = () => {
@@ -213,6 +214,10 @@ const AppContent: React.FC<{
               </ProtectedRoute>
             } 
           />
+          
+          {/* 목업 페이지 (개발용) */}
+          <Route path="/mockup/result-list" element={<ResultListMockup />} />
+          <Route path="/mockup/result-detail" element={<ResultDetailMockup />} />
         </Routes>
       </main>
     </div>
@@ -264,7 +269,6 @@ const App: React.FC = () => {
 
   return (
     <Router>
-      {/* <ScrollToTop /> */}
       <AppContent 
         isLoggedIn={isLoggedIn}
         handleLogin={handleLogin}

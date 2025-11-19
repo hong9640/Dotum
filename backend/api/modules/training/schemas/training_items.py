@@ -16,7 +16,7 @@ class FeedbackResponse(BaseModel):
 
 
 class TrainingItemResponse(BaseModel):
-    """훈련 아이템 응답"""
+    """연습 아이템 응답"""
     item_id: int = Field(description="아이템 ID")
     training_session_id: int
     item_index: int
@@ -41,7 +41,7 @@ class TrainingItemResponse(BaseModel):
 
 
 class CurrentItemResponse(BaseModel):
-    """현재 훈련 아이템 응답"""
+    """현재 연습 아이템 응답"""
     item_id: int = Field(description="아이템 ID")
     item_index: int
     word_id: Optional[int] = None
