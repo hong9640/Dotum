@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Application settings."""
 
-    PROJECT_NAME: str = "init"
+    PROJECT_NAME: str = "dotum"
     DEBUG: bool = False
     
     # Database settings
