@@ -68,7 +68,7 @@ class MediaListResponse(BaseModel):
 class MediaUploadUrlResponse(BaseModel):
     """미디어 파일 업로드 URL 응답 스키마"""
     upload_url: str = Field(..., description="업로드용 서명된 URL")
-    media_file_id: int = Field(..., description="미디어 파일 ID")
+    media_file_id: Optional[int] = Field(None, description="미디어 파일 ID")
     expires_in: int = Field(..., description="URL 만료 시간 (초)")
 
 
