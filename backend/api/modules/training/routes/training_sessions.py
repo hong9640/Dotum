@@ -968,7 +968,8 @@ async def read_praat_analysis(
     session_id: int,
     item_id: int,
     db: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    gcs_service: GCSService = Depends(provide_gcs_service)
 ):
     """
     특정 미디어 파일의 Praat 분석 결과를 조회합니다.
@@ -981,7 +982,8 @@ async def read_praat_analysis(
             session_id=session_id,
             item_id=item_id,
             db=db,
-            user_id=current_user.id
+            user=current_user,
+            gcs_service=gcs_service
         )
         
         if analysis_results:

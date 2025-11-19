@@ -36,6 +36,7 @@ from ..services.praat_session import save_session_praat_result
 from ..services.stt import request_stt_transcription
 from api.modules.user.models.model import User
 from api.core.config import settings
+from api.shared.utils.file_utils import sanitize_username_for_path
 
 logger = logging.getLogger(__name__)
 
@@ -1236,7 +1237,6 @@ class TrainingSessionService:
             raise RuntimeError("오디오 파일 URL 생성에 실패했습니다.")
         
         # 4. 그래프 이미지 GCS 업로드
-        from api.shared.utils.file_utils import sanitize_username_for_path
         safe_username = sanitize_username_for_path(user.username)
         # 이미지 파일 확장자 추출
         image_ext = image_filename.split('.')[-1] if '.' in image_filename else "png"
@@ -1380,6 +1380,7 @@ class TrainingSessionService:
             "video_image_url": video_url,  # graph_video URL (video_url과 동일)
             "has_next": has_next
         }
+
     
     async def get_vocal_results_summary(
         self,

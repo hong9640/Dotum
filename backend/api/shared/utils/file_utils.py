@@ -5,7 +5,8 @@
 import os
 import re
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
+from urllib.parse import urlparse
 
 
 def sanitize_username_for_path(username: str) -> str:
@@ -109,6 +110,78 @@ def generate_unique_filename(original_filename: str, prefix: str = "") -> str:
         new_name = f"{timestamp}_{unique_id}_{name}{ext}"
     
     return new_name
+
+
+def extract_object_key_from_url(url: str) -> Optional[str]:
+    """
+    GCS 퍼블릭/서명 URL에서 object key 추출
+
+    Args:
+        url: GCS URL (예: https://storage.googleapis.com/{bucket}/path/to/file.png)
+
+    Returns:
+        str: object key (예: path/to/file.png) 또는 None
+    """
+    if not url:
+        return None
+
+    try:
+        parsed = urlparse(url)
+        if not parsed.path:
+            return None
+
+        path = parsed.path.lstrip('/')
+
+        # storage.googleapis.com 도메인은 첫 세그먼트가 bucket
+        if parsed.netloc.endswith("storage.googleapis.com"):
+            parts = path.split('/', 1)
+            if len(parts) < 2:
+                return None
+            return parts[1]
+
+        # 커스텀 도메인은 경로 전체가 object key일 수 있음
+        return path or None
+    except Exception:
+        return None
+
+
+GRAPH_IMAGE_EXTENSIONS = ("png", "webp", "jpg", "jpeg")
+
+
+def build_graph_image_candidate_keys(
+    username: str,
+    session_id: Union[int, str],
+    item_index: int,
+    stored_image_url: Optional[str] = None
+) -> list[str]:
+    """
+    VOCAL 그래프 이미지 object key 후보 생성
+
+    Args:
+        username: 사용자명
+        session_id: 세션 ID
+        item_index: 아이템 인덱스
+        stored_image_url: 기존에 저장된 (만료된) 이미지 URL
+    """
+    safe_username = sanitize_username_for_path(username)
+    session_id_str = str(session_id)
+    base_key = f"images/{safe_username}/{session_id_str}/graph_item_{item_index}"
+
+    candidates: list[str] = []
+    if stored_image_url:
+        extracted = extract_object_key_from_url(stored_image_url)
+        if extracted:
+            candidates.append(extracted)
+
+    for ext in GRAPH_IMAGE_EXTENSIONS:
+        candidates.append(f"{base_key}.{ext}")
+
+    deduped: list[str] = []
+    for key in candidates:
+        if key and key not in deduped:
+            deduped.append(key)
+
+    return deduped
 
 
 def validate_video_file(filename: str, content_type: str) -> tuple[bool, str]:
