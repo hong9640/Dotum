@@ -23,6 +23,7 @@ const RecordingPreview: React.FC<RecordingPreviewProps> = ({
 
   const detectorRef = useRef<FaceDetector | null>(null);
   const rafRef = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   // 가이드라인 상태
   const [level, setLevel] = useState<GuidanceLevel>("idle");
@@ -30,6 +31,9 @@ const RecordingPreview: React.FC<RecordingPreviewProps> = ({
 
   // 녹화 중 정상/이탈 표시용
   const [inRange, setInRange] = useState<boolean>(false);
+
+  // 가이드라인 크기 (비디오 컨테이너 크기에 비례)
+  const [guideSize, setGuideSize] = useState<number>(0);
 
   // 임계치 (완화된 기준)
   const T = {
@@ -41,6 +45,37 @@ const RecordingPreview: React.FC<RecordingPreviewProps> = ({
   };
 
   const stableCount = useRef(0);
+
+  // 비디오 컨테이너 크기 추적하여 가이드라인 크기 조정
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const updateGuideSize = () => {
+      const width = container.offsetWidth;
+      const height = container.offsetHeight;
+      // 너비와 높이 중 작은 값을 기준으로 계산 (가이드라인이 넘치지 않도록)
+      const minDimension = Math.min(width, height);
+      // 작은 차원의 50%로 설정 (원래 md:w-56 = 224px는 450px 높이의 약 50%)
+      // 얼굴이 충분히 들어갈 수 있도록 크게 설정
+      const size = minDimension * 0.5;
+      setGuideSize(size);
+    };
+
+    // 초기 크기 설정
+    updateGuideSize();
+
+    // ResizeObserver로 크기 변경 감지
+    const resizeObserver = new ResizeObserver(() => {
+      updateGuideSize();
+    });
+
+    resizeObserver.observe(container);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
 
   // WASM + 모델 로드
   useEffect(() => {
@@ -227,7 +262,7 @@ const RecordingPreview: React.FC<RecordingPreviewProps> = ({
     <div className="flex justify-center">
       <div className="w-full max-w-[800px]">
         <div className="w-full max-w-[800px] rounded-2xl overflow-hidden">
-          <div className="relative aspect-video bg-slate-900">
+          <div ref={containerRef} className="relative aspect-video bg-slate-900">
             {/* 라이브 비디오 */}
             <div className="absolute inset-0 overflow-hidden">
               <video
@@ -248,9 +283,12 @@ const RecordingPreview: React.FC<RecordingPreviewProps> = ({
             >
               <div
                 className={cn(
-                  "w-48 sm:w-52 md:w-56 aspect-[3/4] rounded-full",
+                  "aspect-[3/4] rounded-full",
                   ringClass
                 )}
+                style={{
+                  width: `${guideSize}px`,
+                }}
               />
             </div>
 

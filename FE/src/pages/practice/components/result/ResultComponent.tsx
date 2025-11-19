@@ -115,21 +115,12 @@ const ResultComponent: React.FC<ResultComponentProps> = ({
 
   return (
     <>
-      {/* result-detail 페이지에서는 동영상 부분 주석처리 */}
-      {!onBack && (
-        <ResultVideoDisplay 
-          userVideoUrl={userVideoUrl}
-          compositedVideoUrl={compositedVideoUrl}
-          isLoadingCompositedVideo={isLoadingCompositedVideo}
-          compositedVideoError={compositedVideoError}
-        />
-      )}
-      {/* <ResultVideoDisplay 
+      <ResultVideoDisplay 
         userVideoUrl={userVideoUrl}
         compositedVideoUrl={compositedVideoUrl}
         isLoadingCompositedVideo={isLoadingCompositedVideo}
         compositedVideoError={compositedVideoError}
-      /> */}
+      />
       <FeedbackCard hideSections={!!onBack} praatData={praatData} praatLoading={praatLoading} />
       <ActionButtons
         onRetake={onBack ? undefined : handleRetake}

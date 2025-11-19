@@ -32,20 +32,17 @@ const FeedbackCard: React.FC<FeedbackCardProps> = ({ hideSections = false, praat
       {/* CardContent에 p-7을 적용하고, 상단 패딩은 0으로 설정 */}
       <CardContent className="p-7 pt-0">
         <div className="flex flex-col space-y-6">
-          {/* 1. 발음 유사도 섹션 - result-detail 페이지에서 주석처리 */}
-          {/* <PronunciationScore similarity={similarity} /> */}
-          {!hideSections && <PronunciationScore similarity={similarity} />}
+          {/* 1. 발음 유사도 섹션 */}
+          <PronunciationScore similarity={similarity} />
 
-          {/* 2. 피드백 요약 섹션(한 줄 요약) - result-detail 페이지에서 주석처리 */}
-          {/* <FeedbackSummary /> */}
-          {!hideSections && <FeedbackSummary />}
+          {/* 2. 피드백 요약 섹션(한 줄 요약) */}
+          <FeedbackSummary />
 
           {/* 3. 세부 평가 항목 섹션 */}
           <DetailedEvaluationItems praatData={praatData} />
 
-          {/* 4. 개선 포인트 섹션 - result-detail 페이지에서 주석처리 */}
-          {/* <ImprovementPoints /> */}
-          {!hideSections && <ImprovementPoints />}
+          {/* 4. 개선 포인트 섹션 */}
+          <ImprovementPoints />
         </div>
       </CardContent>
     </Card>
