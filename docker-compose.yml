@@ -121,6 +121,8 @@ services:
       - ML_SERVER_URL=${ML_SERVER_URL}
       - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
       - ENABLE_WAV2LIP=${ENABLE_WAV2LIP:-true}
+      - OPEN_AI_API_KEY=${OPEN_AI_API_KEY}
+      - STT_SERVER_URL=${STT_SERVER_URL}
     ports:
       - "8000:8000"
     volumes:
@@ -128,7 +130,7 @@ services:
     networks:
       - dotum-braindeck-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
       interval: 30s
       timeout: 10s
       retries: 3

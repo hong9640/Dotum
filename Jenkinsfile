@@ -12,7 +12,7 @@ pipeline {
         // GitLab Settings → Webhooks에서 Secret Token 설정 필요
         gitlab(
             triggerOnPush: true, 
-            triggerOnMergeRequest: true, 
+            triggerOnMergeRequest: false, 
             branchFilterType: 'NameBasedFilter',
             includeBranchesSpec: 'master,develop'
         )
@@ -55,14 +55,33 @@ pipeline {
                         }
                     }
                     
-                    // 변경된 파일 확인
-                    def changedFiles = sh(
-                        script: 'git diff --name-only HEAD~1 HEAD',
-                        returnStdout: true
-                    ).trim()
+                    // 변경된 파일 확인 (첫 커밋 처리)
+                    def changedFiles = ''
+                    try {
+                        def commitCount = sh(
+                            script: 'git rev-list --count HEAD 2>/dev/null || echo "0"',
+                            returnStdout: true
+                        ).trim().toInteger()
+                        
+                        if (commitCount > 1) {
+                            changedFiles = sh(
+                                script: 'git diff --name-only HEAD~1 HEAD 2>/dev/null || echo ""',
+                                returnStdout: true
+                            ).trim()
+                        } else {
+                            // 첫 커밋이거나 단일 커밋인 경우 모든 파일을 변경된 것으로 간주
+                            changedFiles = sh(
+                                script: 'git diff --name-only --diff-filter=A HEAD 2>/dev/null || git ls-files 2>/dev/null || echo ""',
+                                returnStdout: true
+                            ).trim()
+                        }
+                    } catch (Exception e) {
+                        echo "⚠️ 변경 파일 확인 실패, 전체 배포로 진행: ${e.message}"
+                        changedFiles = ''
+                    }
                     
                     echo "📝 변경된 파일:"
-                    echo changedFiles
+                    echo changedFiles ?: '없음'
                     
                     // 변경된 파일을 환경 변수에 저장 (알림용)
                     env.CHANGED_FILES = changedFiles ?: '없음'
@@ -89,54 +108,54 @@ pipeline {
             }
         }
         
-        stage('Backend Build') {
-            when {
-                anyOf {
-                    expression { return env.BACKEND_CHANGED == 'true' }
-                    expression { return env.FULL_DEPLOY == 'true' }
-                }
-            }
-            steps {
-                script {
-                    echo '🔨 Backend 빌드 중...'
-                    withCredentials([file(credentialsId: 'gcp-service-account-key', variable: 'GOOGLE_CREDENTIALS')]) {
-                        sh """
-                            cd ${WORKSPACE}
-                            
-                            echo "📄 .env 파일 확인..."
-                            if [ ! -f .env ]; then
-                                echo "⚠️ .env 파일 없음 - 다시 복사"
-                                cp /home/ubuntu/.env .env
-                            fi
-                            echo "✅ .env 파일 존재 확인"
+        stage('Build') {
+            parallel {
+                stage('Backend Build') {
+                    when {
+                        anyOf {
+                            expression { return env.BACKEND_CHANGED == 'true' }
+                            expression { return env.FULL_DEPLOY == 'true' }
+                        }
+                    }
+                    steps {
+                        script {
+                            echo '🔨 Backend 빌드 중...'
+                            withCredentials([file(credentialsId: 'gcp-service-account-key', variable: 'GOOGLE_CREDENTIALS')]) {
+                                sh """
+                                    cd ${WORKSPACE}
+                                    
+                                    # .env 파일 확인 및 복사
+                                    [ ! -f .env ] && cp /home/ubuntu/.env .env || true
 
-                            echo "🔐 GCP 서비스 계정 키 복사"
-                            mkdir -p backend/credentials
-                            cp "$GOOGLE_CREDENTIALS" backend/credentials/key.json
-                            ls -al backend/credentials
+                                    # GCP 서비스 계정 키 복사
+                                    mkdir -p backend/credentials
+                                    cp "$GOOGLE_CREDENTIALS" backend/credentials/key.json
 
-                            echo "🧱 Backend Docker 이미지 빌드 시작"
-                            ${DOCKER_COMPOSE} build backend
-                        """
+                                    # Docker BuildKit 활성화하여 빌드 속도 향상
+                                    DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 ${DOCKER_COMPOSE} build backend
+                                """
+                            }
+                        }
                     }
                 }
-            }
-        }
-        
-        stage('Frontend Build') {
-            when {
-                anyOf {
-                    expression { return env.FRONTEND_CHANGED == 'true' }
-                    expression { return env.FULL_DEPLOY == 'true' }
-                }
-            }
-            steps {
-                script {
-                    echo '🔨 Frontend 빌드 중...'
-                    sh """
-                        cd ${WORKSPACE}
-                        ${DOCKER_COMPOSE} build frontend
-                    """
+                
+                stage('Frontend Build') {
+                    when {
+                        anyOf {
+                            expression { return env.FRONTEND_CHANGED == 'true' }
+                            expression { return env.FULL_DEPLOY == 'true' }
+                        }
+                    }
+                    steps {
+                        script {
+                            echo '🔨 Frontend 빌드 중...'
+                            sh """
+                                cd ${WORKSPACE}
+                                # Docker BuildKit 활성화하여 빌드 속도 향상
+                                DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 ${DOCKER_COMPOSE} build frontend
+                            """
+                        }
+                    }
                 }
             }
         }
@@ -182,65 +201,30 @@ stage('Deploy') {
             sh """
                 cd ${WORKSPACE}
                 
-                echo "📄 .env 파일 확인..."
-                if [ -f .env ]; then
-                    echo "✅ .env 파일 존재"
-                    echo "📝 ML_SERVER_URL 값:"
-                    grep "ML_SERVER_URL" .env || echo "ML_SERVER_URL 없음"
-                    echo "📝 ELEVENLABS_API_KEY 값:"
-                    grep "ELEVENLABS_API_KEY" .env || echo "ELEVENLABS_API_KEY 없음"
-                else
-                    echo "❌ .env 파일 없음 - 다시 복사"
-                    cp /home/ubuntu/.env .env
-                fi
+                # .env 파일 확인 및 복사
+                [ ! -f .env ] && cp /home/ubuntu/.env .env || true
                 
-                echo "🔍 기존 컨테이너 상태 확인..."
-                docker-compose -p dotum ps || true
-                
-                # Postgres 컨테이너 확인
-                if docker-compose -p dotum ps | grep -q 'dotum-postgres'; then
-                    echo "✅ Postgres가 이미 실행 중입니다."
-                else
-                    echo "⚠️ Postgres 컨테이너가 없습니다. Postgres를 먼저 시작합니다..."
+                # Postgres 컨테이너 확인 및 시작 (없는 경우만)
+                if ! docker-compose -p dotum ps | grep -q 'dotum-postgres.*Up'; then
+                    echo "⚠️ Postgres 시작 중..."
                     docker-compose -p dotum up -d postgres
-                    echo "⏳ Postgres 시작 대기..."
-                    sleep 2
+                    # healthcheck 대기 (최대 10초)
+                    timeout 10 bash -c 'until docker-compose -p dotum ps | grep -q "dotum-postgres.*Up"; do sleep 0.5; done' || true
                 fi
                 
-                echo "🛑 기존 backend, frontend 컨테이너 중지 및 제거..."
+                # 기존 컨테이너 중지 및 제거 (한 번에 처리)
+                echo "🛑 기존 컨테이너 중지 및 제거..."
+                docker-compose -p dotum stop backend frontend 2>/dev/null || true
+                docker-compose -p dotum rm -f backend frontend 2>/dev/null || true
                 
-                # Backend 컨테이너 중지 및 제거
-                if docker-compose -p dotum ps | grep -q 'dotum-backend'; then
-                    echo "Backend 컨테이너 중지 및 제거..."
-                    docker-compose -p dotum stop backend 2>/dev/null || true
-                    docker-compose -p dotum rm -f backend 2>/dev/null || true
-                fi
-                
-                # Frontend 컨테이너 중지 및 제거
-                if docker-compose -p dotum ps | grep -q 'dotum-frontend'; then
-                    echo "Frontend 컨테이너 중지 및 제거..."
-                    docker-compose -p dotum stop frontend 2>/dev/null || true
-                    docker-compose -p dotum rm -f frontend 2>/dev/null || true
-                fi
-                
-                echo "⏳ 대기 중..."
-                sleep 1
-                
-                echo "🚀 backend, frontend 시작 (환경변수 갱신을 위해 강제 재생성)..."
+                # 새 컨테이너 시작 (환경변수 갱신을 위해 강제 재생성)
+                echo "🚀 컨테이너 시작 중..."
                 docker-compose -p dotum up -d --no-deps --force-recreate backend frontend
                 
-                echo "⏳ 컨테이너 시작 대기..."
-                sleep 2
-                
-                echo "🔍 Backend 컨테이너 환경변수 확인:"
-                docker exec dotum-backend printenv | grep -E "ML_SERVER_URL|ELEVENLABS_API_KEY" || echo "환경변수 확인 실패"
-                
-                echo "✅ 배포된 컨테이너 상태:"
-                docker-compose -p dotum ps
-                
-                # 컨테이너 상태 저장
-                echo "💾 컨테이너 상태 저장 중..."
+                # 컨테이너 상태 확인 및 저장
+                sleep 1
                 docker-compose -p dotum ps > /tmp/dotum_containers.txt 2>/dev/null || true
+                echo "✅ 배포 완료"
             """
             
             // 컨테이너 상태를 환경 변수에 저장
