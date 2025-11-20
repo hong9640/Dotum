@@ -2,6 +2,7 @@ from sqlmodel import SQLModel, Field, Relationship, Column
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
 from sqlalchemy import Text
+from api.core.time_utils import now_kst
 
 if TYPE_CHECKING:
     from api.modules.training.models.session_praat_result import SessionPraatResult
@@ -16,7 +17,7 @@ class TrainSessionPraatFeedback(SQLModel, table=True):
     ai_model_id: int = Field(index=True, description="AI 모델 ID (논리 FK)")
     
     feedback_text: str = Field(sa_column=Column(Text), description="LLM 피드백 내용 저장")
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=now_kst)
     
     # 관계 (논리 FK, 1:1)
     session_praat_result: Optional["SessionPraatResult"] = Relationship(
