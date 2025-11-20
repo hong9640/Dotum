@@ -1,8 +1,9 @@
 from typing import Optional, TYPE_CHECKING
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 from sqlmodel import Field, SQLModel, Relationship
 from sqlalchemy.orm import foreign
 from .enum import UserRoleEnum
+from api.core.time_utils import now_kst
 if TYPE_CHECKING:
     from api.modules.training.models import TrainingSession
     from api.modules.training.models.media import MediaFile
@@ -17,8 +18,12 @@ class UserVoice(SQLModel, table=True):
     update_count: int = Field(default=0, description="Voice ID 갱신 횟수")
     source_audio_duration_ms: int = Field(default=0, description="Voice ID 생성에 사용된 원본 음성의 길이 (ms)")
     
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
-    updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False, sa_column_kwargs={"onupdate": datetime.utcnow})
+    created_at: datetime = Field(default_factory=now_kst, nullable=False)
+    updated_at: datetime = Field(
+        default_factory=now_kst,
+        nullable=False,
+        sa_column_kwargs={"onupdate": now_kst}
+    )
 
 
 class User(SQLModel, table=True):
@@ -28,8 +33,8 @@ class User(SQLModel, table=True):
     password: str = Field(nullable=True)
     name: str = Field(max_length=10, nullable=True)
     role: UserRoleEnum = Field(nullable=False)
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now, nullable=True)
+    created_at: datetime = Field(default_factory=now_kst)
+    updated_at: datetime = Field(default_factory=now_kst, nullable=True)
     deleted_at: Optional[datetime] = Field(default=None, nullable=True)
 
     # 통합 연습 세션
