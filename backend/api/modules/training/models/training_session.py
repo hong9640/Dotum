@@ -4,18 +4,12 @@ from typing import TYPE_CHECKING, Optional, List, Dict, Any
 from enum import Enum
 from sqlalchemy.orm import foreign
 from sqlalchemy import Column, JSON
-
-
-def get_current_datetime():
-    """현재 시간을 00:00:00으로 설정"""
-    now = datetime.now()
-    return now.replace(hour=0, minute=0, second=0, microsecond=0)
-
+from api.core.time_utils import now_kst, today_kst
 
 if TYPE_CHECKING:
     from .training_item import TrainingItem
     from .session_praat_result import SessionPraatResult
-    from user.user_model import User
+    from api.modules.user.models.model import User
 
 
 class TrainingType(str, Enum):
@@ -37,7 +31,7 @@ class TrainingSession(SQLModel, table=True):
     type: TrainingType = Field(description="훈련 타입")
     status: TrainingSessionStatus = Field(default=TrainingSessionStatus.IN_PROGRESS, description="세션 상태")
     training_date: datetime = Field(
-        default_factory=get_current_datetime,
+        default_factory=today_kst,
         description="훈련 날짜",
         index=True
     )
@@ -58,8 +52,8 @@ class TrainingSession(SQLModel, table=True):
     session_metadata: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON), description="추가 메타데이터")
     
     # 시간 정보
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=now_kst)
+    updated_at: datetime = Field(default_factory=now_kst)
     started_at: Optional[datetime] = Field(default=None, description="시작 시간")
     completed_at: Optional[datetime] = Field(default=None, description="완료 시간")
     
@@ -83,7 +77,7 @@ class TrainingSession(SQLModel, table=True):
         """진행률 자동 업데이트"""
         if self.total_items > 0:
             self.progress_percentage = self.completed_items / self.total_items
-            self.updated_at = datetime.now()
+            self.updated_at = now_kst()
     
     def can_start(self) -> bool:
         """세션 시작 가능 여부 (이미 시작된 상태이므로 항상 False)"""

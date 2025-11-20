@@ -1,6 +1,7 @@
 from typing import Optional, TYPE_CHECKING
 from sqlmodel import Field, Relationship, SQLModel
 from datetime import datetime
+from api.core.time_utils import now_kst
 
 if TYPE_CHECKING:
     from api.modules.training.models.training_item import TrainingItem
@@ -14,7 +15,7 @@ class TrainingItemSttResults(SQLModel, table=True):
     training_item_id: int = Field(index=True, description="훈련 아이템 id(논리 fk)")
     ai_model_id: int = Field(index=True, description="AI 모델 ID (논리 FK)")
     stt_result: str = Field(description="STT 결과")
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=now_kst)
 
     # 관계 (논리 FK)
     training_item: Optional["TrainingItem"] = Relationship(
