@@ -1,12 +1,19 @@
 FROM python:3.11-slim
 
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Seoul
+
 # 컨테이너 내 작업 디렉토리 설정
 WORKDIR /code
 
-# FFmpeg 설치
-RUN apt-get update && apt-get install -y \
-    ffmpeg \
-    curl \
+# FFmpeg 및 타임존 데이터 설치
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ffmpeg \
+        curl \
+        tzdata \
+    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
+    && echo $TZ > /etc/timezone \
     && rm -rf /var/lib/apt/lists/*
 
 # uv 설치

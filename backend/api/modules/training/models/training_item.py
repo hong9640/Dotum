@@ -2,12 +2,7 @@ from sqlmodel import Field, SQLModel, Relationship
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from sqlalchemy.orm import foreign
-
-
-def get_current_datetime():
-    """현재 시간 반환"""
-    return datetime.now()
-
+from api.core.time_utils import now_kst
 
 if TYPE_CHECKING:
     from .training_session import TrainingSession
@@ -32,8 +27,8 @@ class TrainingItem(SQLModel, table=True):
     image_url: Optional[str] = Field(default=None, description="업로드된 이미지 URL")
     media_file_id: Optional[int] = Field(default=None, description="미디어 파일 ID")
     completed_at: Optional[datetime] = Field(default=None, description="완료 시간")
-    created_at: datetime = Field(default_factory=get_current_datetime)
-    updated_at: datetime = Field(default_factory=get_current_datetime)
+    created_at: datetime = Field(default_factory=now_kst)
+    updated_at: datetime = Field(default_factory=now_kst)
     
     # Relationships (논리 FK)
     # training_session은 backref로 자동 생성됨
