@@ -8,6 +8,7 @@ from ..models.training_session import TrainingSession, TrainingType, TrainingSes
 from ..models.training_item import TrainingItem
 from api.shared.repositories.base import BaseRepository
 from ..models.words import TrainWords
+from api.core.time_utils import today_kst
 
 
 class TrainingSessionRepository(BaseRepository[TrainingSession]):
@@ -50,7 +51,7 @@ class TrainingSessionRepository(BaseRepository[TrainingSession]):
             total_items=total_items,
             completed_items=0,
             current_item_index=0,
-            training_date=training_date or now,
+            training_date=today_kst(),
             session_metadata=session_metadata or {},
             started_at=now  # 시작 시간도 바로 설정
         )
