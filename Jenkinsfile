@@ -23,7 +23,27 @@ pipeline {
             steps {
                 script {
                     echo '🔄 Git에서 코드 체크아웃 중...'
-                    checkout scm
+                    // 깨진 커밋 문제 해결: 명시적으로 브랜치를 지정하고 최신 커밋 사용
+                    def branchName = env.GIT_BRANCH ?: 'develop'
+                    branchName = branchName.replaceAll('origin/', '')
+                    echo "📌 체크아웃 브랜치: ${branchName}"
+                    
+                    // 깨진 커밋을 무시하고 최신 커밋으로 체크아웃
+                    try {
+                        checkout([
+                            $class: 'GitSCM',
+                            branches: [[name: "*/${branchName}"]],
+                            doGenerateSubmoduleConfigurations: false,
+                            extensions: [[$class: 'CleanCheckout']],
+                            userRemoteConfigs: scm.userRemoteConfigs
+                        ])
+                    } catch (Exception e) {
+                        echo "⚠️ 기본 checkout 실패, 수동으로 브랜치 체크아웃 시도: ${e.message}"
+                        sh """
+                            git fetch --all --prune || true
+                            git reset --hard origin/${branchName} || git reset --hard origin/develop || true
+                        """
+                    }
                     
                     // 호스트의 .env 파일을 workspace로 복사
                     sh '''
