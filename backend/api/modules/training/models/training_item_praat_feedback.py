@@ -7,6 +7,7 @@ from sqlmodel import SQLModel, Field, Relationship, Column
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
 from sqlalchemy import Text
+from api.core.time_utils import now_kst
 
 if TYPE_CHECKING:
     from api.modules.training.models.praat import PraatFeatures
@@ -61,7 +62,7 @@ class TrainItemPraatFeedback(SQLModel, table=True):
     )
     
     # 메타 정보
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=now_kst)
     
     # 관계 (논리 FK, 1:1)
     praat_features: Optional["PraatFeatures"] = Relationship(

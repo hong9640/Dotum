@@ -2,6 +2,7 @@ from sqlmodel import SQLModel, Field, Relationship
 from typing import Optional, TYPE_CHECKING
 from datetime import datetime
 from enum import Enum
+from api.core.time_utils import now_kst
 
 if TYPE_CHECKING:
     from api.modules.user.models.model import User
@@ -40,8 +41,8 @@ class MediaFile(SQLModel, table=True):
     height_px: Optional[int] = Field(default=None, description="높이 (픽셀)")
     status: MediaStatus = Field(default=MediaStatus.UPLOADED, description="처리 상태")
     is_public: Optional[bool] = Field(default=False, description="공개 여부")
-    created_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
-    updated_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
+    created_at: Optional[datetime] = Field(default_factory=now_kst)
+    updated_at: Optional[datetime] = Field(default_factory=now_kst)
     
     # 관계 (논리 FK)
     user: Optional["User"] = Relationship(

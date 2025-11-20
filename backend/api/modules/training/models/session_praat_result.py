@@ -2,6 +2,7 @@ from sqlmodel import SQLModel, Field, Relationship
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
 from sqlalchemy.orm import foreign
+from api.core.time_utils import now_kst
 
 if TYPE_CHECKING:
     from api.modules.training.models.training_session import TrainingSession
@@ -37,8 +38,8 @@ class SessionPraatResult(SQLModel, table=True):
     avg_cpp: Optional[float] = None
     avg_csid: Optional[float] = None
     
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=now_kst)
+    updated_at: datetime = Field(default_factory=now_kst)
     
     # 관계 (논리 FK)
     training_session: Optional["TrainingSession"] = Relationship(
