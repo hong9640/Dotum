@@ -1,7 +1,7 @@
 import React from 'react';
 import { ChevronRight } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
-import type { WordResult } from "@/features/result-list/types";
+import type { WordResult } from "../types";
 
 interface WordResultItemProps {
   result: WordResult;

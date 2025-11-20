@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate, useSearchParams } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import NavigationBar from '@/shared/components/layout/NavigationBar';
 import { ProtectedRoute } from '@/shared/components/routing/ProtectedRoute';
 import HomePage from '@/features/home/pages/HomePage';
-import PracticePage from '@/features/practice/pages/PracticePage';
+import PracticePageWrapper from '@/shared/components/routing/PracticePageWrapper';
 import LoginPage from '@/features/auth/pages/login/LoginPage';
 import SignupPage from '@/features/auth/pages/signup/SignupPage';
 import WordSetResults from '@/features/result-list/pages/ResultListPage';
@@ -11,11 +11,7 @@ import ResultDetailPage from '@/features/result-detail/pages/ResultDetailPage';
 import PraatDetailPage from '@/features/praat-detail/pages/PraatDetailPage';
 import TrainingHistoryPage from '@/features/training-history/pages/TrainingHistoryPage';
 import VoiceTrainingIntro from '@/features/voice-training';
-import MPTPage from '@/features/voice-training/mpt';
-import CrescendoPage from '@/features/voice-training/crescendo';
-import DecrescendoPage from '@/features/voice-training/decrescendo';
-import LoudSoftPage from '@/features/voice-training/loud-soft';
-import SoftLoudPage from '@/features/voice-training/soft-loud';
+import { MPTPage, CrescendoPage, DecrescendoPage, LoudSoftPage, SoftLoudPage } from '@/features/voice-training/pages';
 import ResultListMockup from '@/features/result-list/mockups/result-list-mockup';
 import ResultDetailMockup from '@/features/result-list/mockups/result-detail-mockup';
 import { clearAuthCookies } from '@/shared/utils/cookies';
@@ -32,16 +28,6 @@ import {
   AlertDialogTitle,
 } from '@/shared/components/ui/alert-dialog';
 import { Toaster } from '@/shared/components/ui/sonner';
-
-// PracticePage를 sessionId와 type으로 완전히 새로 생성하는 Wrapper
-const PracticePageWrapper: React.FC = () => {
-  const [searchParams] = useSearchParams();
-  const sessionId = searchParams.get('sessionId');
-  const type = searchParams.get('type');
-  
-  // sessionId와 type이 바뀔 때마다 PracticePage를 완전히 새로 생성
-  return <PracticePage key={`${sessionId}-${type}`} />;
-};
 
 const AppContent: React.FC<{
   isLoggedIn: boolean;

@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import WaveRecorder from './components/WaveRecorder';
-import PromptCardDecrescendo from './components/PromptCardDecrescendo';
+import WaveRecorder from '../components/WaveRecorder';
+import PromptCardDecrescendo from '../components/PromptCardDecrescendo';
 import { toast } from 'sonner';
 import { 
   getTrainingSession,
   type CreateTrainingSessionResponse 
-} from '@/features/training-session/api';
-import { submitVocalItem } from '@features/voice-training/api';
+} from '../../training-session/api';
+import { submitVocalItem } from '../api';
 
 const DecrescendoPage: React.FC = () => {
   const [searchParams] = useSearchParams();

@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/shared/components/ui/dropdown-menu";
+import { getYearOptions } from "../utils";
 
 interface CalendarHeaderProps {
   year: number;
@@ -17,8 +18,7 @@ function CalendarHeader({
   onNext, 
   onYearChange 
 }: CalendarHeaderProps) {
-  // 현재 연도 기준으로 이전 2년, 현재, 다음 2년 (총 5개)
-  const YEARS = Array.from({ length: 5 }, (_, i) => year - 2 + i);
+  const YEARS = getYearOptions(year, 2);
 
   return (
     <div className="flex items-center justify-center">

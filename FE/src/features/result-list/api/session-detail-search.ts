@@ -1,6 +1,6 @@
 
 import { apiClient } from "@/shared/api/axios";
-import type { TrainingItem } from "@/features/training-session/api";
+import type { TrainingItem } from "../../training-session/api";
 import type { AxiosErrorResponse } from "@/shared/types/api";
 import { EnhancedError } from "@/shared/types/api";
 

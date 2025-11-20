@@ -1,13 +1,9 @@
 import React, { useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Calendar } from "../components";
+import { Calendar, type TrainingCountMap } from "../components";
 import TrainingDayDetail from "./TrainingHistoryDetailPage";
-import { getTrainingCalendar } from "@/features/training-history/api";
-
-// 연습 세트 수 데이터 타입
-interface TrainingCountMap {
-  [isoDate: string]: number; // "YYYY-MM-DD" -> 세트 수
-}
+import { getTrainingCalendar } from "../api";
+import { formatDateForUrl, formatDateFromUrl } from "../utils";
 
 
 export default function TrainingHistoryPage() {
@@ -16,23 +12,6 @@ export default function TrainingHistoryPage() {
 
   // URL에서 date 파라미터 읽기
   const dateParam = searchParams.get('date');
-
-  // 날짜 형식 변환: YYYY-MM-DD -> YYYYMMDD 또는 그 반대
-  const formatDateForUrl = (date: string): string => {
-    // YYYY-MM-DD 형식이면 YYYYMMDD로 변환
-    if (date.includes('-')) {
-      return date.replace(/-/g, '');
-    }
-    return date;
-  };
-
-  const formatDateFromUrl = (dateStr: string): string => {
-    // YYYYMMDD 형식이면 YYYY-MM-DD로 변환
-    if (dateStr.length === 8 && !dateStr.includes('-')) {
-      return `${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`;
-    }
-    return dateStr;
-  };
 
   const handleDateClick = (date: string) => {
     // 날짜를 YYYYMMDD 형식으로 변환하여 URL에 추가

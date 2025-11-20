@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import type { TrainingSet } from '@/features/training-history/types';
+import type { TrainingSet } from '../types';
 
 interface UseTrainingDayDetailProps {
   trainingSets: TrainingSet[];

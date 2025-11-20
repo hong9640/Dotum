@@ -1,21 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import WaveRecorder from './components/WaveRecorder';
-import PromptCardSoftLoud from './components/PromptCardSoftLoud';
+import WaveRecorder from '../components/WaveRecorder';
+import PromptCardCrescendo from '../components/PromptCardCrescendo';
 import { toast } from 'sonner';
-import {
+import { 
   getTrainingSession,
-  completeTrainingSession,
-  type CreateTrainingSessionResponse
-} from '@/features/training-session/api';
-import { submitVocalItem } from '@features/voice-training/api';
-const SoftLoudPage: React.FC = () => {
+  type CreateTrainingSessionResponse 
+} from '../../training-session/api';
+import { submitVocalItem } from '../api';
+
+const CrescendoPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const attempt = parseInt(searchParams.get('attempt') || '1', 10);
   const sessionIdParam = searchParams.get('sessionId');
-
+  
   const [_blob, setBlob] = useState<Blob | null>(null);
   const [_url, setUrl] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -25,6 +25,7 @@ const SoftLoudPage: React.FC = () => {
   const [_session, setSession] = useState<CreateTrainingSessionResponse | null>(null);
   const [resetTrigger, setResetTrigger] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
+  const promptCardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const loadSession = async () => {
@@ -56,6 +57,16 @@ const SoftLoudPage: React.FC = () => {
     prevAttemptRef.current = attempt;
   }, [attempt]);
 
+  // 페이지 진입 시 또는 attempt 변경 시 PromptCardCrescendo로 스크롤
+  useEffect(() => {
+    if (promptCardRef.current) {
+      promptCardRef.current.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+    }
+  }, [attempt]);
+
   const handleRecordEnd = (b: Blob, u: string) => {
     setBlob(b);
     setUrl(u);
@@ -72,14 +83,14 @@ const SoftLoudPage: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      // Soft-Loud는 item_index 12, 13, 14 (attempt + 11)
-      const itemIndex = attempt + 11;
-
+      // Crescendo는 item_index 3, 4, 5 (attempt + 2)
+      const itemIndex = attempt + 2;
+      
       const result = await submitVocalItem({
         sessionId,
         itemIndex,
-        audioFile: new File([audioBlob], `soft_loud_${attempt}.wav`, { type: 'audio/wav' }),
-        graphImage: new File([graphImageBlob], `soft_loud_${attempt}_graph.png`, { type: 'image/png' }),
+        audioFile: new File([audioBlob], `crescendo_${attempt}.wav`, { type: 'audio/wav' }),
+        graphImage: new File([graphImageBlob], `crescendo_${attempt}_graph.png`, { type: 'image/png' }),
       });
 
       if (result.session) {
@@ -92,26 +103,16 @@ const SoftLoudPage: React.FC = () => {
             // 같은 연습 다음 시도
             setResetTrigger(prev => prev + 1);
             setTimeout(() => {
-              navigate(`/voice-training/soft-loud?attempt=${attempt + 1}&sessionId=${sessionId}`);
+              navigate(`/voice-training/crescendo?attempt=${attempt + 1}&sessionId=${sessionId}`);
               setIsSubmitting(false);  // ✅ navigate 후 로딩 해제
             }, 100);
           } else {
-            // 마지막 시도(attempt 3)가 완료되면 세션 완료 처리 후 result-list로 이동
-            // ⚠️ setIsSubmitting(false)를 호출하지 않음 → 로딩 화면 유지
-            try {
-              await completeTrainingSession(sessionId);
-              toast.success('모든 발성 연습을 완료했습니다! 🎉');
-              setResetTrigger(prev => prev + 1);
-              // ✅ setTimeout 제거 - 바로 이동
-              navigate(`/result-list?sessionId=${sessionId}&type=vocal`);
-              // 페이지 이동 후 언마운트되므로 setIsSubmitting 불필요
-            } catch (error: unknown) {
-              console.error('세션 완료 처리 실패:', error);
-              setResetTrigger(prev => prev + 1);
-              // ✅ setTimeout 제거 - 바로 이동
-              navigate(`/result-list?sessionId=${sessionId}&type=vocal`);
-              // 페이지 이동 후 언마운트되므로 setIsSubmitting 불필요
-            }
+            // 다음 연습으로
+            setResetTrigger(prev => prev + 1);
+            setTimeout(() => {
+              navigate(`/voice-training/decrescendo?attempt=1&sessionId=${sessionId}`);
+              setIsSubmitting(false);  // ✅ navigate 후 로딩 해제
+            }, 100);
           }
         } else {
           toast.error('연습이 완료되지 않았습니다. 다시 시도해주세요.');
@@ -159,31 +160,33 @@ const SoftLoudPage: React.FC = () => {
     <div className="w-full min-h-[calc(100vh-96px)] p-4 sm:p-8">
       <div className="max-w-4xl mx-auto">
         <Card className="border-0 shadow-none">
+        <div id="prompt-card-crescendo" ref={promptCardRef}>
+
           <CardContent className="p-6 sm:p-8">
-            <PromptCardSoftLoud
-              main="아아아아아"
-              subtitle="연속 강약 조절 연습"
-              attempt={attempt}
-              totalAttempts={3}
-              isRecording={isRecording}
-            />
+              <PromptCardCrescendo 
+                main="아아아아" 
+                subtitle="크레셴도 연습"
+                attempt={attempt}
+                totalAttempts={3}
+                isRecording={isRecording}
+              />
 
             <div className="mb-6">
-              <WaveRecorder
+              <WaveRecorder 
                 onRecordEnd={handleRecordEnd}
                 onSubmit={handleSubmit}
                 isSubmitting={isSubmitting}
-                isLastSubmit={attempt === 3}
                 resetTrigger={resetTrigger}
                 onRecordingStateChange={setIsRecording}
               />
             </div>
           </CardContent>
+          </div>
         </Card>
       </div>
     </div>
   );
 };
 
-export default SoftLoudPage;
+export default CrescendoPage;
 

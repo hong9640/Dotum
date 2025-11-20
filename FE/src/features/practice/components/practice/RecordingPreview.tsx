@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/shared/utils/cn";
 import type { RefObject } from "react";
 import { FaceDetector, FilesetResolver } from "@mediapipe/tasks-vision";
@@ -36,13 +36,13 @@ const RecordingPreview: React.FC<RecordingPreviewProps> = ({
   const [guideSize, setGuideSize] = useState<number>(0);
 
   // 임계치 (완화된 기준)
-  const T = {
+  const T = useMemo(() => ({
     centerPct: 25,     // 중앙 오차 허용 범위 (%) - 중앙에서 많이 벗어나도 OK
     scaleMin: 12,      // 최소 얼굴 크기 (화면 높이의 12%) - 매우 멀리서도 OK
     scaleMax: 75,      // 최대 얼굴 크기 (화면 높이의 75%) - 매우 가까이서도 OK
     angle: 30,         // 고개 기울임 허용 각도 (도) - 많이 기울여도 OK
     stableFrames: 3,   // 안정 상태 유지 프레임 수 - 매우 빨리 초록색으로 전환
-  };
+  }), []);
 
   const stableCount = useRef(0);
 
@@ -197,7 +197,7 @@ const RecordingPreview: React.FC<RecordingPreviewProps> = ({
           setReason(nextReason);
           setInRange(nextInRange);
         }
-      } catch (e) {
+      } catch {
         // 탐지 실패 시: 기본 안전 상태 유지
         setInRange(false);
       }
@@ -212,7 +212,7 @@ const RecordingPreview: React.FC<RecordingPreviewProps> = ({
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [videoRef, isCameraReady]);
+  }, [videoRef, isCameraReady, T]);
 
   // 링 스타일: 녹화 중에는 "정상=초록 / 이탈=빨강"
   // 녹화 전에는 기존 로직(흰/노랑/초록)

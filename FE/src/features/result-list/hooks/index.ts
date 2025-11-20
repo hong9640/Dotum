@@ -1,0 +1,2 @@
+export { useResultList } from './useResultList';
+
