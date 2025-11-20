@@ -10,7 +10,8 @@ const FeedbackSummary: React.FC<FeedbackSummaryProps> = ({
   feedback
 }) => {
   return (
-    <div className="self-stretch px-7 py-8 rounded-2xl shadow-[0px_1px_2px_-1px_rgba(0,0,0,0.10)] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.10)] border-t border-slate-200 flex flex-col gap-6">
+    <div className="self-stretch px-7 py-8 border-t border-slate-200 flex flex-col gap-6">
+    {/* <div className="self-stretch px-7 py-8 flex flex-col gap-6"> */}
       {/* 제목 섹션 */}
       <div className="self-stretch flex justify-start items-start">
         <div className="flex-1 h-6 flex justify-start items-center">
