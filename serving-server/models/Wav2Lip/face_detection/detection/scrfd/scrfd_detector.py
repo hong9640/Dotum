@@ -11,12 +11,20 @@ from torch.utils.model_zoo import load_url
 
 from ..core import FaceDetector
 
+INSIGHTFACE_AVAILABLE = False
+IMPORT_ERROR = None
+
 try:
     import insightface
     from insightface.app import FaceAnalysis
     INSIGHTFACE_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     INSIGHTFACE_AVAILABLE = False
+    IMPORT_ERROR = str(e)
+except Exception as e:
+    # 다른 예외도 잡기 (예: CUDA 관련 에러)
+    INSIGHTFACE_AVAILABLE = False
+    IMPORT_ERROR = f"{type(e).__name__}: {str(e)}"
 
 
 class SCRFDDetector(FaceDetector):
@@ -30,19 +38,36 @@ class SCRFDDetector(FaceDetector):
     def __init__(self, device, path_to_detector=None, verbose=False):
         super(SCRFDDetector, self).__init__(device, verbose)
         
-        if not INSIGHTFACE_AVAILABLE:
-            raise ImportError(
+        # Import 체크를 다시 시도 (런타임에 다시 확인)
+        try:
+            import insightface
+            from insightface.app import FaceAnalysis
+        except ImportError as e:
+            error_msg = (
                 "insightface is required for SCRFD detector. "
                 "Install with: pip install insightface"
             )
+            if IMPORT_ERROR:
+                error_msg += f"\nImport error: {IMPORT_ERROR}"
+            if verbose:
+                import sys
+                print(f"Python path: {sys.path}", file=sys.stderr)
+                print(f"Trying to import insightface...", file=sys.stderr)
+            raise ImportError(error_msg) from e
         
         # Initialize InsightFace FaceAnalysis with SCRFD model
         # SCRFD is the default detector in InsightFace
-        self.app = FaceAnalysis(
-            name='buffalo_l',  # Large model (best accuracy)
-            providers=['CUDAExecutionProvider'] if 'cuda' in device else ['CPUExecutionProvider']
-        )
-        self.app.prepare(ctx_id=0 if 'cuda' in device else -1, det_size=(640, 640))
+        try:
+            self.app = FaceAnalysis(
+                name='buffalo_l',  # Large model (best accuracy)
+                providers=['CUDAExecutionProvider'] if 'cuda' in device else ['CPUExecutionProvider']
+            )
+            self.app.prepare(ctx_id=0 if 'cuda' in device else -1, det_size=(640, 640))
+        except Exception as e:
+            if verbose:
+                import sys
+                print(f"Failed to initialize InsightFace: {e}", file=sys.stderr)
+            raise RuntimeError(f"Failed to initialize InsightFace FaceAnalysis: {e}") from e
         
         if self.verbose:
             print(f"SCRFD detector initialized on {device}")
