@@ -123,21 +123,29 @@ class AIService:
     def _detect_optimal_batch_size(self) -> int:
         """GPU 메모리에 따라 최적 배치 크기 자동 감지 (L4 GPU 최적화)"""
         if not torch.cuda.is_available():
+            logger.warning("CUDA not available, using CPU batch size: 8")
             return 8
         
         gpu_memory_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+        gpu_name = torch.cuda.get_device_properties(0).name
+        
+        logger.info(f"GPU detected: {gpu_name}, Memory: {gpu_memory_gb:.2f}GB")
         
         # L4 GPU (24GB) + STT 모델 고려: STT가 가볍다고 했으므로 Wav2Lip에 더 많은 메모리 할당 가능
+        # nvidia-smi에서 3.4GB만 사용 중이므로 더 큰 배치 가능
         if gpu_memory_gb >= 40:
-            return 48  # A100 등: 더 큰 배치
-        elif gpu_memory_gb >= 24:  # L4 GPU (24GB)
-            return 32  # L4: STT 모델 고려하여 32로 증가 (20 → 32)
+            batch_size = 48  # A100 등: 더 큰 배치
+        elif gpu_memory_gb >= 22:  # L4 GPU (약 22-24GB 실제 사용 가능)
+            batch_size = 48  # L4: 메모리 여유 있으므로 48로 증가 (32 → 48)
         elif gpu_memory_gb >= 15:  # T4 GPU (15.75GB)
-            return 16  # T4: 약간 증가 (12 → 16)
+            batch_size = 24  # T4: 증가 (16 → 24)
         elif gpu_memory_gb >= 12:
-            return 12  # 12GB GPU
+            batch_size = 16  # 12GB GPU
         else:
-            return 8  # 8GB 이하
+            batch_size = 8  # 8GB 이하
+        
+        logger.info(f"Optimal batch size determined: {batch_size} (GPU: {gpu_name}, {gpu_memory_gb:.2f}GB)")
+        return batch_size
     
     async def _download_file_from_gcs(self, gs_path: str, filename: str) -> Optional[str]:
         """GCS에서 파일 다운로드"""
