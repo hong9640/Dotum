@@ -193,11 +193,11 @@ class AIService:
                 device = "cuda" if torch.cuda.is_available() and use_gpu else "cpu"
                 logger.info(f"Running Wav2Lip on {device.upper()}")
                 
-                # GPU 파라미터 설정 (품질 우선)
+                # GPU 파라미터 설정 (속도 최적화)
                 if device == "cuda":
-                    # T4 GPU: 품질을 위한 안정적인 배치 크기
-                    batch_size = str(min(self._optimal_batch_size, 16))  # 배치 크기 제한
-                    face_det_batch = str(min(self._optimal_batch_size // 2, 8))
+                    # T4 GPU: 속도를 위한 최대 배치 크기 활용
+                    batch_size = str(min(self._optimal_batch_size, 32))  # 배치 크기 증가 (16 -> 32)
+                    face_det_batch = str(min(self._optimal_batch_size // 2, 16))  # 얼굴 감지 배치도 증가
                 else:
                     # CPU: 보수적 배치 크기
                     batch_size = "8"
@@ -214,6 +214,7 @@ class AIService:
                     "--face_det_batch_size", face_det_batch,
                     "--resize_factor", "1",  # 원본 해상도 유지 (품질 우선)
                     "--box", "-1", "-1", "-1", "-1",  # 자동 얼굴 감지
+                    "--face_detector", "scrfd",  # SCRFD GPU detector 사용 (2-3배 빠름)
                 ]
                 
                 logger.info(f"Running Wav2Lip inference: {' '.join(cmd)}")
@@ -365,14 +366,15 @@ class AIService:
             # GPU 인코딩 가능 여부 확인
             gpu_encoding_available = torch.cuda.is_available()
             
-            # 하이브리드 파이프라인: CPU 스케일링 + GPU 인코딩
+            # 하이브리드 파이프라인: CPU 스케일링 + GPU 인코딩 (속도 최적화)
+            # 스케일링 필터: fast_bilinear (lanczos보다 빠르지만 여전히 좋은 품질)
             cmd = [
                 "ffmpeg",
                 "-y",
                 "-i", input_path,
-                "-vf", f"scale={resolution}:flags=lanczos,fps={target_fps}",  # CPU 스케일링 (고품질)
+                "-vf", f"scale={resolution}:flags=fast_bilinear,fps={target_fps}",  # 빠른 스케일링
                 "-c:v", "h264_nvenc" if gpu_encoding_available else "libx264",  # GPU 인코딩 (가능 시)
-                "-preset", "medium",  # 품질 우선
+                "-preset", "fast",  # 빠른 인코딩 (medium -> fast)
             ]
             
             # 비트레이트 또는 CRF 설정
@@ -385,13 +387,13 @@ class AIService:
                 ])
             else:
                 if gpu_encoding_available:
-                    # NVENC: CRF 대신 QP 사용 (19 = 고품질)
-                    cmd.extend(["-rc", "constqp", "-qp", "19"])
-                    logger.info("Using NVENC QP 19 (high quality)")
+                    # NVENC: QP 21 (19보다 약간 빠르지만 여전히 고품질)
+                    cmd.extend(["-rc", "constqp", "-qp", "21"])
+                    logger.info("Using NVENC QP 21 (fast high quality)")
                 else:
-                    # CPU: CRF 사용
-                    cmd.extend(["-crf", "15"])
-                    logger.info("Using CRF 15 (near-lossless quality)")
+                    # CPU: CRF 18 (15보다 빠르지만 여전히 좋은 품질) + 멀티스레딩
+                    cmd.extend(["-crf", "18", "-threads", "0"])
+                    logger.info("Using CRF 18 with multithreading (fast high quality)")
             
             # 공통 옵션
             cmd.extend([
