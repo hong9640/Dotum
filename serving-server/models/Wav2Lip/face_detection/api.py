@@ -57,6 +57,19 @@ class FaceAlignment:
             torch.backends.cudnn.benchmark = True
 
         # Get the face detector
+        # If SCRFD is requested but insightface is not available, fallback to SFD
+        if face_detector == 'scrfd':
+            try:
+                import insightface
+            except ImportError:
+                if verbose:
+                    import warnings
+                    warnings.warn(
+                        "insightface not available. Falling back to SFD detector. "
+                        "Install insightface for faster GPU face detection: pip install insightface"
+                    )
+                face_detector = 'sfd'
+        
         face_detector_module = __import__('face_detection.detection.' + face_detector,
                                           globals(), locals(), [face_detector], 0)
         self.face_detector = face_detector_module.FaceDetector(device=device, verbose=verbose)
