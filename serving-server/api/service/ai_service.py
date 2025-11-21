@@ -121,23 +121,23 @@ class AIService:
                 logger.info(f"Cleaned up {cleaned_count} temporary files")
     
     def _detect_optimal_batch_size(self) -> int:
-        """GPU 메모리에 따라 최적 배치 크기 자동 감지 (품질 우선)"""
+        """GPU 메모리에 따라 최적 배치 크기 자동 감지 (L4 GPU 최적화)"""
         if not torch.cuda.is_available():
             return 8
         
         gpu_memory_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
         
-        # 품질 우선: 원본 해상도 사용 시 더 작은 배치 크기 필요
+        # L4 GPU (24GB) + STT 모델 고려: STT가 가볍다고 했으므로 Wav2Lip에 더 많은 메모리 할당 가능
         if gpu_memory_gb >= 40:
-            return 32  # 64 → 32
-        elif gpu_memory_gb >= 24:
-            return 20  # 32 → 20
+            return 48  # A100 등: 더 큰 배치
+        elif gpu_memory_gb >= 24:  # L4 GPU (24GB)
+            return 32  # L4: STT 모델 고려하여 32로 증가 (20 → 32)
         elif gpu_memory_gb >= 15:  # T4 GPU (15.75GB)
-            return 12  # 20 → 12 (원본 해상도 대응)
+            return 16  # T4: 약간 증가 (12 → 16)
         elif gpu_memory_gb >= 12:
-            return 10  # 16 → 10
+            return 12  # 12GB GPU
         else:
-            return 8  # 12 → 8
+            return 8  # 8GB 이하
     
     async def _download_file_from_gcs(self, gs_path: str, filename: str) -> Optional[str]:
         """GCS에서 파일 다운로드"""
@@ -194,11 +194,13 @@ class AIService:
                 device = "cuda" if torch.cuda.is_available() and use_gpu else "cpu"
                 logger.info(f"Running Wav2Lip on {device.upper()}")
                 
-                # GPU 파라미터 설정 (속도 최적화)
+                # GPU 파라미터 설정 (L4 GPU 최적화)
                 if device == "cuda":
-                    # T4 GPU: 속도를 위한 최대 배치 크기 활용
-                    batch_size = str(min(self._optimal_batch_size, 32))  # 배치 크기 증가 (16 -> 32)
-                    face_det_batch = str(min(self._optimal_batch_size // 2, 16))  # 얼굴 감지 배치도 증가
+                    # L4 GPU (24GB): STT 모델과 공존 고려하여 최적 배치 크기 활용
+                    # L4는 24GB이므로 Wav2Lip에 충분한 메모리 할당 가능
+                    batch_size = str(self._optimal_batch_size)  # 자동 감지된 최적 크기 사용
+                    face_det_batch = str(min(self._optimal_batch_size // 2, 24))  # 얼굴 감지 배치 증가 (최대 24)
+                    logger.info(f"L4 GPU detected: Using batch_size={batch_size}, face_det_batch={face_det_batch}")
                 else:
                     # CPU: 보수적 배치 크기
                     batch_size = "8"
