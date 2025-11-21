@@ -336,11 +336,15 @@ class AIService:
         output_path: str,
         resolution: str,
         target_fps: int = 18,
-        original_video_path: str = None,
-        prefer_gpu: bool = True
+        original_video_path: str = None
     ) -> bool:
         """
-        FFmpeg를 사용하여 영상을 특정 해상도로 리사이즈 (최고 품질)
+        FFmpeg를 사용하여 영상을 특정 해상도로 리사이즈 (하이브리드 방식)
+        
+        하이브리드 파이프라인:
+        - CPU: 스케일링 (lanczos, 고품질) + FPS 조절
+        - GPU: 인코딩 (h264_nvenc, 빠른 속도)
+        - 오디오: 복사 (재인코딩 없음)
         
         Args:
             input_path: 입력 영상 경로
@@ -358,87 +362,54 @@ class AIService:
             if original_video_path:
                 original_bitrate = await self._get_video_bitrate(original_video_path)
             
-            # GPU 가속 가능 여부
-            gpu_accel_enabled = prefer_gpu and torch.cuda.is_available()
+            # GPU 인코딩 가능 여부 확인
+            gpu_encoding_available = torch.cuda.is_available()
             
-            def _build_bitrate_args():
-                if original_bitrate:
-                    logger.info(f"Using original bitrate: {original_bitrate}")
-                    return [
-                        "-b:v", original_bitrate,
-                        "-maxrate", original_bitrate,
-                        "-bufsize", f"{int(original_bitrate.replace('k', '')) * 2}k",
-                    ]
-                logger.info("Using CRF 15 (near-lossless quality)")
-                return ["-crf", "15"]
+            # 하이브리드 파이프라인: CPU 스케일링 + GPU 인코딩
+            cmd = [
+                "ffmpeg",
+                "-y",
+                "-i", input_path,
+                "-vf", f"scale={resolution}:flags=lanczos,fps={target_fps}",  # CPU 스케일링 (고품질)
+                "-c:v", "h264_nvenc" if gpu_encoding_available else "libx264",  # GPU 인코딩 (가능 시)
+                "-preset", "medium",  # 품질 우선
+            ]
             
-            # GPU 가속 명령 구성 (가능 시)
-            if gpu_accel_enabled:
-                filters = f"scale_cuda={resolution}"
-                cmd = [
-                    "ffmpeg",
-                    "-y",
-                    "-hwaccel", "cuda",
-                    "-hwaccel_output_format", "cuda",
-                    "-i", input_path,
-                    "-vf", filters,
-                    "-r", str(target_fps),
-                    "-c:v", "h264_nvenc",
-                    "-preset", "slow",
-                ]
-                cmd.extend(_build_bitrate_args())
+            # 비트레이트 또는 CRF 설정
+            if original_bitrate:
+                logger.info(f"Using original bitrate: {original_bitrate}")
                 cmd.extend([
-                    "-pix_fmt", "yuv420p",
-                    "-profile:v", "high",
-                    "-level", "4.2",
-                    "-movflags", "+faststart",
-                    "-c:a", "copy",
-                    output_path
+                    "-b:v", original_bitrate,
+                    "-maxrate", original_bitrate,
+                    "-bufsize", f"{int(original_bitrate.replace('k', '')) * 2}k",
                 ])
-                logger.info(f"GPU-accelerated encoding command: {' '.join(cmd)}")
             else:
-                # CPU 경로 (기존 방식 유지)
-                cmd = [
-                    "ffmpeg",
-                    "-y",  # 기존 파일 덮어쓰기
-                    "-i", input_path,
-                    "-vf", f"scale={resolution}:flags=lanczos,fps={target_fps}",  # 고품질 스케일링 + FPS 설정
-                    "-c:v", "libx264",  # H.264 코덱
-                    "-preset", "fast",  # preset 조정
-                    "-threads", "0",    # 사용 가능한 모든 CPU 스레드 활용
-                ]
-                cmd.extend(_build_bitrate_args())
-                cmd.extend([
-                    "-pix_fmt", "yuv420p",  # 호환성 최대화
-                    "-profile:v", "high",   # High Profile (최고 압축 효율)
-                    "-level", "4.2",        # Level 4.2 (4K 지원)
-                    "-movflags", "+faststart",  # 웹 스트리밍 최적화
-                    "-c:a", "copy",  # 오디오는 복사 (재인코딩 안함)
-                    output_path
-                ])
-                logger.info(f"High-quality CPU encoding: {' '.join(cmd)}")
+                if gpu_encoding_available:
+                    # NVENC: CRF 대신 QP 사용 (19 = 고품질)
+                    cmd.extend(["-rc", "constqp", "-qp", "19"])
+                    logger.info("Using NVENC QP 19 (high quality)")
+                else:
+                    # CPU: CRF 사용
+                    cmd.extend(["-crf", "15"])
+                    logger.info("Using CRF 15 (near-lossless quality)")
             
-            try:
-                result = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    check=True
-                )
-            except subprocess.CalledProcessError as e:
-                if gpu_accel_enabled:
-                    logger.warning(f"GPU ffmpeg failed ({e.stderr.strip()}), falling back to CPU pipeline")
-                    return await self._resize_video_to_resolution(
-                        input_path=input_path,
-                        output_path=output_path,
-                        resolution=resolution,
-                        target_fps=target_fps,
-                        original_video_path=original_video_path,
-                        prefer_gpu=False
-                    )
-                raise
+            # 공통 옵션
+            cmd.extend([
+                "-pix_fmt", "yuv420p",
+                "-c:a", "copy",  # 오디오 복사
+                output_path
+            ])
             
-            logger.info(f"Video resized successfully to {resolution} with high quality")
+            logger.info(f"Hybrid pipeline (CPU scale + {'GPU' if gpu_encoding_available else 'CPU'} encode): {' '.join(cmd)}")
+            
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            
+            logger.info(f"Video resized successfully to {resolution} @ {target_fps}fps")
             return True
             
         except subprocess.CalledProcessError as e:
