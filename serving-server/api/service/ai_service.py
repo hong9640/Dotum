@@ -3,6 +3,7 @@ AI Service - Wav2Lip 립싱크 처리
 """
 
 import os
+import sys
 import subprocess
 import tempfile
 import time
@@ -203,8 +204,11 @@ class AIService:
                     batch_size = "8"
                     face_det_batch = "4"
                 
+                # Python 실행 경로 확인 (venv 사용 시)
+                python_exec = sys.executable if hasattr(sys, 'executable') else "python3"
+                
                 cmd = [
-                    "python3", inference_path,
+                    python_exec, inference_path,
                     "--checkpoint_path", model_local,
                     "--face", face_local,
                     "--audio", audio_local,
