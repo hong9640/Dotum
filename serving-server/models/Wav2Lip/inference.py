@@ -289,8 +289,8 @@ def main():
 		# CUDA 스트림 최적화 + Mixed Precision
 		with torch.no_grad():
 			if device == 'cuda' and next(model.parameters()).dtype == torch.float16:
-				# FP16 autocast로 추가 최적화
-				with torch.cuda.amp.autocast():
+				# FP16 autocast로 추가 최적화 (deprecated 경고 수정)
+				with torch.amp.autocast('cuda'):
 					pred = model(mel_batch, img_batch)
 			else:
 				pred = model(mel_batch, img_batch)
@@ -318,13 +318,13 @@ def main():
 				# NumPy 벡터화로 페더링 적용 (훨씬 빠름)
 				fade_range = np.arange(feather_amount, dtype=np.float32) / feather_amount
 				
-				# 위쪽/아래쪽 가장자리
-				mask[:feather_amount, :] *= fade_range[:, np.newaxis]
-				mask[-feather_amount:, :] *= fade_range[::-1, np.newaxis]
+				# 위쪽/아래쪽 가장자리 (올바른 브로드캐스팅)
+				mask[:feather_amount, :] *= fade_range[:, np.newaxis]  # (feather_amount, 1) -> (feather_amount, width)
+				mask[-feather_amount:, :] *= fade_range[::-1, np.newaxis]  # (feather_amount, 1) -> (feather_amount, width)
 				
-				# 왼쪽/오른쪽 가장자리
-				mask[:, :feather_amount] *= fade_range[np.newaxis, :]
-				mask[:, -feather_amount:] *= fade_range[::-1, np.newaxis]
+				# 왼쪽/오른쪽 가장자리 (올바른 브로드캐스팅)
+				mask[:, :feather_amount] *= fade_range[np.newaxis, :]  # (1, feather_amount) -> (height, feather_amount)
+				mask[:, -feather_amount:] *= fade_range[::-1, np.newaxis].T  # transpose로 (1, feather_amount) -> (height, feather_amount)
 				
 				# 알파 블렌딩 (벡터화)
 				mask = mask[:, :, np.newaxis]  # (H, W, 1)
