@@ -14,6 +14,9 @@ from api.utils.gcs_client import gcs_client
 from api.core.config import settings
 from api.core.logger import logger, log_step, log_success, log_error
 
+# Wav2Lip inference 모듈은 _load_wav2lip_model에서 동적으로 import
+WAV2LIP_AVAILABLE = False
+
 
 class AIService:
     """AI 모델 서비스 클래스"""
@@ -21,6 +24,9 @@ class AIService:
     def __init__(self):
         self.gcs_client = gcs_client
         self._optimal_batch_size = self._detect_optimal_batch_size()
+        self._wav2lip_model = None  # 모델을 메모리에 상주
+        self._model_device = None
+        self._load_wav2lip_model()  # 서버 시작 시 모델 로드
     
     async def process_lip_video_pipeline(
         self,
@@ -120,6 +126,78 @@ class AIService:
             if cleaned_count > 0:
                 logger.info(f"Cleaned up {cleaned_count} temporary files")
     
+    def _load_wav2lip_model(self):
+        """Wav2Lip 모델을 GPU 메모리에 로드 (서버 시작 시 한 번만)"""
+        global WAV2LIP_AVAILABLE
+        
+        # 경로 설정
+        wav2lip_path = settings.LOCAL_WAV2LIP_PATH
+        if wav2lip_path and wav2lip_path not in sys.path:
+            sys.path.insert(0, wav2lip_path)
+        
+        # 동적 import 시도
+        try:
+            from wav2lip_inference import run_wav2lip_inference
+            from models import Wav2Lip
+            WAV2LIP_AVAILABLE = True
+            self._run_wav2lip_inference_func = run_wav2lip_inference
+            logger.info("Wav2Lip inference module imported successfully")
+        except ImportError as e:
+            logger.warning(f"Could not import Wav2Lip inference module: {e}, will use subprocess method")
+            WAV2LIP_AVAILABLE = False
+            self._run_wav2lip_inference_func = None
+            return
+        
+        if not torch.cuda.is_available():
+            logger.warning("CUDA not available, model will be loaded on CPU")
+            self._model_device = 'cpu'
+        else:
+            self._model_device = 'cuda'
+        
+        try:
+            model_path = os.path.join(settings.LOCAL_WAV2LIP_PATH, "checkpoints", "wav2lip_gan.pth")
+            if not os.path.exists(model_path):
+                logger.warning(f"Wav2Lip model not found: {model_path}, will use subprocess method")
+                return
+            
+            logger.info("Loading Wav2Lip model into GPU memory (one-time initialization)...")
+            
+            # 모델 로드
+            checkpoint = torch.load(model_path, map_location=self._model_device)
+            s = checkpoint["state_dict"]
+            new_s = {}
+            for k, v in s.items():
+                new_s[k.replace('module.', '')] = v
+            
+            model = Wav2Lip()
+            model.load_state_dict(new_s)
+            model = model.to(self._model_device)
+            
+            # FP16 변환
+            if self._model_device == 'cuda':
+                try:
+                    model = model.half()
+                    logger.info("Model converted to FP16 (half precision)")
+                except Exception as e:
+                    logger.warning(f"Could not convert to FP16: {e}, using FP32")
+            
+            # torch.compile
+            try:
+                if hasattr(torch, 'compile') and self._model_device == 'cuda':
+                    model = torch.compile(model, mode='reduce-overhead')
+                    logger.info("Model compiled with torch.compile")
+            except Exception as e:
+                logger.debug(f"torch.compile not available: {e}")
+            
+            model.eval()
+            self._wav2lip_model = model
+            
+            logger.info("✅ Wav2Lip model loaded and ready in GPU memory (will be reused for all requests)")
+            
+        except Exception as e:
+            logger.error(f"Failed to load Wav2Lip model: {e}, will use subprocess method")
+            self._wav2lip_model = None
+    
     def _detect_optimal_batch_size(self) -> int:
         """GPU 메모리에 따라 최적 배치 크기 자동 감지 (L4 GPU 최적화)"""
         if not torch.cuda.is_available():
@@ -171,7 +249,7 @@ class AIService:
         use_gpu: bool = True,
         target_fps: int = 18
     ) -> Optional[str]:
-        """Wav2Lip 립싱크 (GPU 최적화 + Static Face Detection)"""
+        """Wav2Lip 립싱크 (모델 재사용 - GPU 메모리 상주)"""
         try:
             with tempfile.TemporaryDirectory() as tmp_dir:
                 # 오디오 파일 처리
@@ -186,15 +264,6 @@ class AIService:
                 original_resolution = await self._get_video_resolution(face_local)
                 logger.info(f"Original video resolution: {original_resolution}")
                 
-                # 모델 경로
-                model_local = os.path.join(settings.LOCAL_WAV2LIP_PATH, "checkpoints", "wav2lip_gan.pth")
-                if not os.path.exists(model_local):
-                    logger.error(f"Wav2Lip model not found: {model_local}")
-                    return None
-                
-                # Wav2Lip 실행
-                wav2lip_dir = settings.LOCAL_WAV2LIP_PATH
-                inference_path = os.path.join(wav2lip_dir, "inference.py")
                 output_temp = os.path.join(tmp_dir, "lipsynced_temp.mp4")  # 임시 출력
                 output_local = os.path.join(tmp_dir, "lipsynced.mp4")  # 최종 출력
                 
@@ -204,43 +273,77 @@ class AIService:
                 
                 # GPU 파라미터 설정 (L4 GPU 최적화)
                 if device == "cuda":
-                    # L4 GPU (24GB): STT 모델과 공존 고려하여 최적 배치 크기 활용
-                    # L4는 24GB이므로 Wav2Lip에 충분한 메모리 할당 가능
-                    batch_size = str(self._optimal_batch_size)  # 자동 감지된 최적 크기 사용
-                    face_det_batch = str(min(self._optimal_batch_size // 2, 24))  # 얼굴 감지 배치 증가 (최대 24)
+                    batch_size = self._optimal_batch_size
+                    face_det_batch = min(self._optimal_batch_size // 2, 24)
                     logger.info(f"L4 GPU detected: Using batch_size={batch_size}, face_det_batch={face_det_batch}")
                 else:
-                    # CPU: 보수적 배치 크기
-                    batch_size = "8"
-                    face_det_batch = "4"
+                    batch_size = 8
+                    face_det_batch = 4
                 
-                # Python 실행 경로 확인 (venv 사용 시)
-                python_exec = sys.executable if hasattr(sys, 'executable') else "python3"
-                
-                cmd = [
-                    python_exec, inference_path,
-                    "--checkpoint_path", model_local,
-                    "--face", face_local,
-                    "--audio", audio_local,
-                    "--outfile", output_temp,  # 임시 파일로 출력
-                    "--pads", "0", "15", "0", "0",  # 아래쪽 패딩 15픽셀 (턱 포함, 경계 최소화)
-                    "--wav2lip_batch_size", batch_size,
-                    "--face_det_batch_size", face_det_batch,
-                    "--resize_factor", "1",  # 원본 해상도 유지 (품질 우선)
-                    "--box", "-1", "-1", "-1", "-1",  # 자동 얼굴 감지
-                    "--face_detector", "scrfd",  # SCRFD GPU detector 사용 (2-3배 빠름)
-                ]
-                
-                logger.info(f"Running Wav2Lip inference: {' '.join(cmd)}")
-                result = subprocess.run(cmd, capture_output=True, text=True, cwd=wav2lip_dir)
-                
-                if result.returncode != 0:
-                    logger.error(f"Wav2Lip inference failed: {result.stderr}")
-                    return None
-                
-                if not os.path.exists(output_temp):
-                    logger.error(f"Wav2Lip output file not found: {output_temp}")
-                    return None
+                # 모델이 메모리에 로드되어 있으면 직접 사용 (빠름!)
+                if self._wav2lip_model is not None and WAV2LIP_AVAILABLE and hasattr(self, '_run_wav2lip_inference_func'):
+                    logger.info("🚀 Using pre-loaded model from GPU memory (fast path - no model reload!)")
+                    
+                    # temp 디렉토리 생성
+                    temp_dir = os.path.join(settings.LOCAL_WAV2LIP_PATH, "temp")
+                    os.makedirs(temp_dir, exist_ok=True)
+                    
+                    # 직접 inference 함수 호출 (모델 재사용)
+                    self._run_wav2lip_inference_func(
+                        model=self._wav2lip_model,
+                        face_video_path=face_local,
+                        audio_path=audio_local,
+                        output_path=output_temp,
+                        device=device,
+                        wav2lip_batch_size=batch_size,
+                        face_det_batch_size=face_det_batch,
+                        face_detector='scrfd',
+                        pads=[0, 15, 0, 0],
+                        resize_factor=1,
+                        box=[-1, -1, -1, -1],
+                        static=False,
+                        nosmooth=False
+                    )
+                    
+                    if not os.path.exists(output_temp):
+                        logger.error(f"Wav2Lip output file not found: {output_temp}")
+                        return None
+                else:
+                    # Fallback: subprocess 방식 (모델 로드 실패 시)
+                    logger.warning("Using subprocess method (model not pre-loaded)")
+                    model_local = os.path.join(settings.LOCAL_WAV2LIP_PATH, "checkpoints", "wav2lip_gan.pth")
+                    if not os.path.exists(model_local):
+                        logger.error(f"Wav2Lip model not found: {model_local}")
+                        return None
+                    
+                    wav2lip_dir = settings.LOCAL_WAV2LIP_PATH
+                    inference_path = os.path.join(wav2lip_dir, "inference.py")
+                    python_exec = sys.executable if hasattr(sys, 'executable') else "python3"
+                    
+                    cmd = [
+                        python_exec, inference_path,
+                        "--checkpoint_path", model_local,
+                        "--face", face_local,
+                        "--audio", audio_local,
+                        "--outfile", output_temp,
+                        "--pads", "0", "15", "0", "0",
+                        "--wav2lip_batch_size", str(batch_size),
+                        "--face_det_batch_size", str(face_det_batch),
+                        "--resize_factor", "1",
+                        "--box", "-1", "-1", "-1", "-1",
+                        "--face_detector", "scrfd",
+                    ]
+                    
+                    logger.info(f"Running Wav2Lip inference (subprocess): {' '.join(cmd)}")
+                    result = subprocess.run(cmd, capture_output=True, text=True, cwd=wav2lip_dir)
+                    
+                    if result.returncode != 0:
+                        logger.error(f"Wav2Lip inference failed: {result.stderr}")
+                        return None
+                    
+                    if not os.path.exists(output_temp):
+                        logger.error(f"Wav2Lip output file not found: {output_temp}")
+                        return None
                 
                 # 후처리: 원본 해상도로 리사이즈 (고품질 스케일링) + FPS 조정
                 logger.info(f"Resizing output to original resolution: {original_resolution} @ {target_fps}fps with HIGH QUALITY (GPU accel: {torch.cuda.is_available()})")
