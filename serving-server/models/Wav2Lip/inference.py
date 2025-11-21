@@ -50,6 +50,9 @@ parser.add_argument('--rotate', default=False, action='store_true',
 parser.add_argument('--nosmooth', default=False, action='store_true',
 					help='Prevent smoothing face detections over a short temporal window')
 
+parser.add_argument('--face_detector', type=str, default='scrfd',
+					help='Face detector to use: sfd (S3FD, slower) or scrfd (SCRFD, faster GPU)', choices=['sfd', 'scrfd'])
+
 args = parser.parse_args()
 args.img_size = 96
 
@@ -67,7 +70,8 @@ def get_smoothened_boxes(boxes, T):
 
 def face_detect(images):
 	detector = face_detection.FaceAlignment(face_detection.LandmarksType._2D, 
-											flip_input=False, device=device)
+											flip_input=False, device=device,
+											face_detector=args.face_detector)
 
 	batch_size = args.face_det_batch_size
 	
