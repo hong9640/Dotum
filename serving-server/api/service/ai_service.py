@@ -404,7 +404,8 @@ class AIService:
                     "-i", input_path,
                     "-vf", f"scale={resolution}:flags=lanczos,fps={target_fps}",  # 고품질 스케일링 + FPS 설정
                     "-c:v", "libx264",  # H.264 코덱
-                    "-preset", "fast",  # 느리지만 최고 품질 (medium -> slow)
+                    "-preset", "fast",  # preset 조정
+                    "-threads", "0",    # 사용 가능한 모든 CPU 스레드 활용
                 ]
                 cmd.extend(_build_bitrate_args())
                 cmd.extend([
