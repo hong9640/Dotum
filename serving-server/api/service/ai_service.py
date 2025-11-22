@@ -303,6 +303,7 @@ class AIService:
                         box=[-1, -1, -1, -1],
                         static=False,
                         nosmooth=False,
+                        video_speed=1.0,  # 영상 배속 (1.0 = 정상)
                         audio_speed=0.8  # 오디오를 0.8배속으로 느리게 (1.25배 느리게)
                     )
                     

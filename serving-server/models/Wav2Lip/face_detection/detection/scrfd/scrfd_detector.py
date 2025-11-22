@@ -8,6 +8,8 @@ import cv2
 import numpy as np
 import torch
 from torch.utils.model_zoo import load_url
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 
 from ..core import FaceDetector
 
@@ -71,6 +73,16 @@ class SCRFDDetector(FaceDetector):
         
         if self.verbose:
             print(f"SCRFD detector initialized on {device}")
+        
+        # Check batch support once during initialization and cache the result
+        self._batch_supported = None
+        self._check_batch_support()
+        
+        # Thread lock for thread-safe access to self.app (optional)
+        # ONNX Runtime is thread-safe, so lock is not necessary for performance
+        # Set to True if you encounter thread safety issues (default: False for better performance)
+        self._use_lock = False
+        self._app_lock = threading.Lock() if self._use_lock else None
     
     def detect_from_image(self, tensor_or_path):
         """Detect faces from a single image"""
@@ -97,8 +109,67 @@ class SCRFDDetector(FaceDetector):
         
         return bboxlist
     
+    def _check_batch_support(self):
+        """Check if the ONNX model supports batch processing (cache the result)"""
+        if self._batch_supported is not None:
+            return self._batch_supported
+        
+        try:
+            # Try to access the detection model
+            det_model = None
+            if hasattr(self.app, 'models') and isinstance(self.app.models, dict):
+                det_model = self.app.models.get('detection', None)
+            elif hasattr(self.app, 'det_model'):
+                det_model = self.app.det_model
+            
+            if det_model is None:
+                self._batch_supported = False
+                if self.verbose:
+                    print("[SCRFD] ⚠️ Cannot access detection model, batch processing disabled")
+                return False
+            
+            # Get ONNX session
+            onnx_model = None
+            if hasattr(det_model, 'session'):
+                onnx_model = det_model.session
+            elif hasattr(det_model, 'get_inputs'):
+                onnx_model = det_model
+            
+            if onnx_model is None or not hasattr(onnx_model, 'get_inputs'):
+                self._batch_supported = False
+                if self.verbose:
+                    print("[SCRFD] ⚠️ Cannot access ONNX model, batch processing disabled")
+                return False
+            
+            # Check input shape
+            inputs = onnx_model.get_inputs()
+            if len(inputs) > 0:
+                input_shape = inputs[0].shape
+                if isinstance(input_shape, (list, tuple)) and len(input_shape) > 0:
+                    # If first dimension is fixed to 1, batch processing is not supported
+                    if input_shape[0] == 1 or (isinstance(input_shape[0], int) and input_shape[0] == 1):
+                        self._batch_supported = False
+                        if self.verbose:
+                            print(f"[SCRFD] ⚠️ Model input shape is fixed to batch_size=1: {input_shape}")
+                            print("[SCRFD] ⚠️ Batch processing disabled, will use optimized parallel sequential processing")
+                        return False
+                    else:
+                        # Dynamic batch or fixed batch > 1
+                        self._batch_supported = True
+                        if self.verbose:
+                            print(f"[SCRFD] ✅ Model supports batch processing: {input_shape}")
+                        return True
+            
+            self._batch_supported = False
+            return False
+        except Exception as e:
+            if self.verbose:
+                print(f"[SCRFD] ⚠️ Error checking batch support: {e}")
+            self._batch_supported = False
+            return False
+    
     def detect_from_batch(self, images):
-        """Detect faces from a batch of images (True GPU batch processing)"""
+        """Detect faces from a batch of images (True GPU batch processing or optimized parallel sequential)"""
         if len(images) == 0:
             return []
         
@@ -115,14 +186,17 @@ class SCRFDDetector(FaceDetector):
                 image_rgb = self.tensor_or_path_to_ndarray(image, rgb=True)
             images_rgb.append(image_rgb)
         
-        bboxlists = []
+        # Check if batch processing is supported (use cached result)
+        if self._batch_supported is None:
+            self._check_batch_support()
         
-        # Try to access InsightFace's internal detection model for batch processing
-        # InsightFace structure: app.models['detection'] or app.det_model
-        # 강제로 verbose 출력 (항상 로그 확인)
-        print(f"[SCRFD Batch] Starting batch processing for {len(images)} images")
-        print(f"[SCRFD Batch] Attempting to access detection model...")
-        print(f"[SCRFD Batch] app type: {type(self.app)}")
+        # If batch processing is not supported, use parallel processing (batch_size=1 per thread)
+        if not self._batch_supported:
+            return self._detect_parallel_sequential(images_rgb)
+        
+        # Try true batch processing
+        bboxlists = []
+        print(f"[SCRFD Batch] Starting TRUE batch processing for {len(images)} images")
         
         try:
             det_model = None
@@ -214,7 +288,7 @@ class SCRFDDetector(FaceDetector):
                 
                 if onnx_model is not None:
                     det_model = onnx_model
-                    # Check if it's an ONNX model
+                    # Check if it's an ONNX model and supports batch processing
                     if hasattr(det_model, 'get_inputs'):
                         try:
                             inputs = det_model.get_inputs()
@@ -223,6 +297,14 @@ class SCRFDDetector(FaceDetector):
                             if len(inputs) > 0:
                                 input_shape = inputs[0].shape if hasattr(inputs[0], 'shape') else 'dynamic'
                                 print(f"[SCRFD Batch] Input shape: {input_shape}")
+                                
+                                # Check if model supports batch processing
+                                # If first dimension is fixed to 1, it doesn't support batch processing
+                                if isinstance(input_shape, (list, tuple)) and len(input_shape) > 0:
+                                    if input_shape[0] == 1 or (isinstance(input_shape[0], int) and input_shape[0] == 1):
+                                        print(f"[SCRFD Batch] ⚠️ Model input shape is fixed to batch_size=1, batch processing not supported")
+                                        print(f"[SCRFD Batch] ⚠️ Falling back to optimized sequential processing")
+                                        det_model = None  # Force sequential processing
                         except Exception as e:
                             print(f"[SCRFD Batch] Error getting inputs: {e}")
                     else:
@@ -230,7 +312,8 @@ class SCRFDDetector(FaceDetector):
                         det_model = None
                 else:
                     print(f"[SCRFD Batch] ⚠️ Cannot find ONNX Runtime InferenceSession in RetinaFace object")
-                    print(f"[SCRFD Batch] RetinaFace attributes: {[attr for attr in dir(det_model) if not attr.startswith('_')][:20]}")
+                    if det_model is not None:
+                        print(f"[SCRFD Batch] RetinaFace attributes: {[attr for attr in dir(det_model) if not attr.startswith('_')][:20]}")
                     det_model = None
                 
                 # Get detection size from app if available
@@ -389,15 +472,53 @@ class SCRFDDetector(FaceDetector):
             traceback.print_exc()
             print(f"[SCRFD Batch] Using sequential processing")
         
-        # Fallback: Sequential processing (original method)
-        # This is still faster than before because we pre-converted all images
-        for image_rgb in images_rgb:
+        # Fallback: Parallel processing (batch_size=1 per thread)
+        return self._detect_parallel_sequential(images_rgb)
+    
+    def _detect_parallel_sequential(self, images_rgb):
+        """
+        Parallel processing using ThreadPoolExecutor (batch_size=1 per thread)
+        Since SCRFD ONNX model doesn't support batch processing (fixed batch_size=1),
+        we process images in parallel using multiple threads to maximize GPU utilization.
+        
+        ONNX Runtime is generally thread-safe, so parallel calls to self.app.get()
+        should work correctly.
+        """
+        import time
+        seq_start = time.time()
+        num_images = len(images_rgb)
+        
+        # Determine optimal number of workers
+        # For GPU inference, balance between parallelism and overhead
+        # Too many threads can cause GPU contention, too few wastes GPU resources
+        # Use adaptive worker count based on number of images
+        if num_images <= 4:
+            max_workers = num_images  # Small batches: use all images
+        elif num_images <= 16:
+            max_workers = min(4, num_images)  # Medium batches: 4 workers
+        else:
+            max_workers = min(8, num_images)  # Large batches: 8 workers
+        
+        print(f"[SCRFD Parallel] Processing {num_images} images in parallel ({max_workers} workers, batch_size=1 per thread)")
+        print(f"[SCRFD Parallel] Note: ONNX model doesn't support batch processing, using parallel sequential calls")
+        
+        bboxlists = [None] * num_images
+        
+        def detect_single_image(idx_image_pair):
+            """Detect faces in a single image (thread-safe)"""
+            idx, image_rgb = idx_image_pair
             try:
-                faces = self.app.get(image_rgb)
+                # ONNX Runtime is thread-safe, so lock is optional
+                # Lock can be disabled for better performance if no issues occur
+                if self._app_lock is not None:
+                    with self._app_lock:
+                        faces = self.app.get(image_rgb)
+                else:
+                    # No lock - ONNX Runtime handles thread safety internally
+                    faces = self.app.get(image_rgb)
                 
                 if len(faces) == 0:
-                    bboxlists.append([])
-                    continue
+                    return idx, []
                 
                 bboxlist = []
                 for face in faces:
@@ -406,11 +527,29 @@ class SCRFDDetector(FaceDetector):
                     bboxlist.append([bbox[0], bbox[1], bbox[2], bbox[3], confidence])
                 
                 bboxlist = [x for x in bboxlist if x[-1] > 0.5]
-                bboxlists.append(bboxlist)
+                return idx, bboxlist
             except Exception as img_e:
                 if self.verbose:
-                    print(f"Error processing image: {img_e}")
-                bboxlists.append([])
+                    print(f"[SCRFD Parallel] Error processing image {idx}: {img_e}")
+                return idx, []
+        
+        # Process images in parallel using ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all tasks
+            future_to_idx = {
+                executor.submit(detect_single_image, (idx, img)): idx 
+                for idx, img in enumerate(images_rgb)
+            }
+            
+            # Collect results as they complete
+            for future in as_completed(future_to_idx):
+                idx, bboxlist = future.result()
+                bboxlists[idx] = bboxlist
+        
+        seq_time = time.time() - seq_start
+        avg_time = seq_time / num_images if num_images > 0 else 0
+        print(f"[SCRFD Parallel] ✅ Processed {num_images} images in {seq_time:.3f}s (avg: {avg_time:.3f}s per image)")
+        print(f"[SCRFD Parallel] Throughput: {num_images/seq_time:.2f} images/sec")
         
         return bboxlists
     
