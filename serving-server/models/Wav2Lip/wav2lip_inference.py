@@ -11,6 +11,7 @@ import face_detection
 import audio
 from models import Wav2Lip
 from tqdm import tqdm
+import time
 
 mel_step_size = 16
 
@@ -246,16 +247,23 @@ def run_wav2lip_inference(
 		video_speed: 영상 배속 조절 (1.0 = 정상, 0.5 = 2배 느리게, 2.0 = 2배 빠르게)
 		audio_speed: 오디오 배속 조절 (1.0 = 정상, 0.8 = 1.25배 느리게, 0.5 = 2배 느리게)
 	"""
-	# 영상 읽기 (FPS 하드코딩: 18fps)
+	pipeline_start = time.time()  # 전체 파이프라인 시작 시간
+	
+	# ============================================
+	# 0단계: 영상 읽기
+	# ============================================
+	step_start = time.time()
 	fps = 18.0  # 무조건 18fps로 고정
 	if os.path.isfile(face_video_path) and face_video_path.split('.')[-1] in ['jpg', 'png', 'jpeg']:
 		full_frames = [cv2.imread(face_video_path)]
 		static = True
+		print(f"[Step 0] Reading image file: {face_video_path}")
 	else:
 		video_stream = cv2.VideoCapture(face_video_path)
 		# 원본 FPS는 읽기만 하고 사용하지 않음 (18fps로 고정)
 		original_fps_read = video_stream.get(cv2.CAP_PROP_FPS)
-		print(f"Original video FPS (not used): {original_fps_read:.2f}, using fixed 18.0 fps")
+		print(f"[Step 0] Reading video file: {face_video_path}")
+		print(f"  - Original video FPS (not used): {original_fps_read:.2f}, using fixed 18.0 fps")
 
 		full_frames = []
 		while 1:
@@ -268,22 +276,33 @@ def run_wav2lip_inference(
 				frame = cv2.resize(frame, (frame.shape[1]//resize_factor, frame.shape[0]//resize_factor))
 			full_frames.append(frame)
 
-	print(f"Number of frames available for inference: {len(full_frames)}")
+	step_time = time.time() - step_start
+	print(f"[Step 0] Video reading completed: {len(full_frames)} frames in {step_time:.2f}s")
 
 	# ============================================
 	# 1단계: 오디오 처리 및 배속 조정
 	# ============================================
+	step_start = time.time()
+	print(f"[Step 1] Audio processing started")
+	
+	# 1-1. 오디오 변환 (필요한 경우)
 	if not audio_path.endswith('.wav'):
-		print('Extracting raw audio...')
+		convert_start = time.time()
+		print(f"  [1-1] Converting audio to WAV format...")
 		temp_wav = 'temp/temp.wav'
 		os.makedirs('temp', exist_ok=True)
 		command = f'ffmpeg -y -i {audio_path} -strict -2 {temp_wav}'
 		subprocess.call(command, shell=platform.system() != 'Windows')
 		audio_path = temp_wav
+		convert_time = time.time() - convert_start
+		print(f"  [1-1] Audio conversion completed in {convert_time:.2f}s")
+	else:
+		print(f"  [1-1] Audio already in WAV format, skipping conversion")
 
-	# 오디오 배속 조정 (느리게 만들기)
+	# 1-2. 오디오 배속 조정 (느리게 만들기)
 	if audio_speed != 1.0:
-		print(f'Adjusting audio speed to {audio_speed}x (slower)')
+		speed_start = time.time()
+		print(f"  [1-2] Adjusting audio speed to {audio_speed}x (slower)...")
 		slowed_audio_path = 'temp/temp_slowed.wav'
 		os.makedirs('temp', exist_ok=True)
 		# atempo 필터 사용 (0.5 ~ 2.0 범위, 그 이상은 체인 필요)
@@ -303,15 +322,25 @@ def run_wav2lip_inference(
 		command = f'ffmpeg -y -i {audio_path} -af "{atempo_filter}" -strict -2 {slowed_audio_path}'
 		subprocess.call(command, shell=platform.system() != 'Windows')
 		audio_path = slowed_audio_path
-		print(f'Audio slowed to {audio_speed}x speed')
+		speed_time = time.time() - speed_start
+		print(f"  [1-2] Audio speed adjustment completed in {speed_time:.2f}s")
+	else:
+		print(f"  [1-2] Audio speed adjustment skipped (audio_speed=1.0)")
 
+	# 1-3. Mel spectrogram 생성
+	mel_start = time.time()
+	print(f"  [1-3] Generating mel spectrogram...")
 	wav = audio.load_wav(audio_path, 16000)
 	mel = audio.melspectrogram(wav)
+	mel_time = time.time() - mel_start
+	print(f"  [1-3] Mel spectrogram generated: shape {mel.shape} in {mel_time:.2f}s")
 
 	if np.isnan(mel.reshape(-1)).sum() > 0:
 		raise ValueError('Mel contains nan! Using a TTS voice? Add a small epsilon noise to the wav file and try again')
 
-	# Mel chunks 생성 (느려진 오디오 길이 기준)
+	# 1-4. Mel chunks 생성 (느려진 오디오 길이 기준)
+	chunks_start = time.time()
+	print(f"  [1-4] Creating mel chunks...")
 	mel_chunks = []
 	mel_idx_multiplier = 80./fps  # 원본 FPS 기준
 	i = 0
@@ -322,54 +351,102 @@ def run_wav2lip_inference(
 			break
 		mel_chunks.append(mel[:, start_idx : start_idx + mel_step_size])
 		i += 1
-
+	chunks_time = time.time() - chunks_start
 	target_frame_count = len(mel_chunks)
-	print(f"Audio length: {target_frame_count} frames (mel chunks)")
-	print(f"Original video frames: {len(full_frames)}")
+	
+	step_time = time.time() - step_start
+	print(f"[Step 1] Audio processing completed in {step_time:.2f}s")
+	print(f"  - Audio length: {target_frame_count} frames (mel chunks)")
+	print(f"  - Original video frames: {len(full_frames)}")
 
 	# ============================================
 	# 2단계: 배속 조정된 오디오 길이에 맞춰 영상 길이 조정
 	# ============================================
+	step_start = time.time()
+	print(f"[Step 2] Video frame adjustment started")
 	original_frames = full_frames.copy()
 	# 원본 FPS는 그대로 유지 (24fps 등)
 	
 	if len(full_frames) < target_frame_count:
-		print(f"Extending video frames from {len(full_frames)} to {target_frame_count} to match slowed audio length")
+		extend_start = time.time()
+		print(f"  [2-1] Extending video frames from {len(full_frames)} to {target_frame_count} to match slowed audio length...")
 		full_frames = increase_frames(full_frames, target_frame_count)
+		extend_time = time.time() - extend_start
 		# FPS는 원본 그대로 유지 (24fps 등) - 빠르게 재생되지 않도록
-		print(f"Maintaining original FPS: {fps:.2f} (frames extended but FPS unchanged)")
+		print(f"  [2-1] Frame extension completed in {extend_time:.2f}s")
+		print(f"  - Maintaining original FPS: {fps:.2f} (frames extended but FPS unchanged)")
 	elif len(full_frames) > target_frame_count:
-		print(f"Trimming video frames from {len(full_frames)} to {target_frame_count} to match audio length")
+		trim_start = time.time()
+		print(f"  [2-1] Trimming video frames from {len(full_frames)} to {target_frame_count} to match audio length...")
 		full_frames = full_frames[:target_frame_count]
+		trim_time = time.time() - trim_start
+		print(f"  [2-1] Frame trimming completed in {trim_time:.2f}s")
 		# FPS는 그대로 유지 (프레임 수만 줄임)
 	else:
-		print("Video and audio lengths match perfectly")
+		print(f"  [2-1] Video and audio lengths match perfectly, no adjustment needed")
+	
+	step_time = time.time() - step_start
+	print(f"[Step 2] Video frame adjustment completed in {step_time:.2f}s")
+	print(f"  - Final frame count: {len(full_frames)}")
 
 	# ============================================
 	# 3단계: 조정된 영상에서 얼굴 탐지 (최적화)
 	# ============================================
+	step_start = time.time()
+	print(f"[Step 3] Face detection started")
 	if box[0] == -1:
 		if not static:
 			# 최적화: 원본 프레임만 얼굴 감지 후 결과 확장
 			if len(original_frames) < target_frame_count:
 				# 영상이 확장된 경우: 원본만 감지 후 결과 확장
-				print(f"Optimized face detection: detecting {len(original_frames)} original frames, then expanding results")
+				print(f"  [3-1] Optimized face detection: detecting {len(original_frames)} original frames, then expanding results...")
+				face_det_start = time.time()
 				face_det_results_original = face_detect(original_frames, device, face_detector, face_det_batch_size, pads, nosmooth)
+				face_det_time = time.time() - face_det_start
+				print(f"  [3-1] Face detection completed in {face_det_time:.2f}s")
+				
+				expand_start = time.time()
+				print(f"  [3-2] Expanding face detection results from {len(original_frames)} to {target_frame_count}...")
 				face_det_results = expand_face_det_results(face_det_results_original, target_frame_count)
+				expand_time = time.time() - expand_start
+				print(f"  [3-2] Result expansion completed in {expand_time:.2f}s")
 			else:
 				# 영상이 잘린 경우: 잘린 프레임에 대해 감지
+				print(f"  [3-1] Face detection on {len(full_frames)} frames...")
+				face_det_start = time.time()
 				face_det_results = face_detect(full_frames, device, face_detector, face_det_batch_size, pads, nosmooth)
+				face_det_time = time.time() - face_det_start
+				print(f"  [3-1] Face detection completed in {face_det_time:.2f}s")
 		else:
+			print(f"  [3-1] Static mode: detecting face on first frame only...")
+			face_det_start = time.time()
 			face_det_results = face_detect([full_frames[0]], device, face_detector, face_det_batch_size, pads, nosmooth)
+			face_det_time = time.time() - face_det_start
+			print(f"  [3-1] Face detection completed in {face_det_time:.2f}s")
 			# static 모드에서도 확장 필요
 			if target_frame_count > 1:
+				expand_start = time.time()
+				print(f"  [3-2] Expanding face detection results from 1 to {target_frame_count}...")
 				face_det_results = expand_face_det_results(face_det_results, target_frame_count)
+				expand_time = time.time() - expand_start
+				print(f"  [3-2] Result expansion completed in {expand_time:.2f}s")
 	else:
-		print('Using the specified bounding box instead of face detection...')
+		print('  [3-1] Using the specified bounding box instead of face detection...')
+		bbox_start = time.time()
 		y1, y2, x1, x2 = box
 		face_det_results = [[f[y1: y2, x1:x2], (y1, y2, x1, x2)] for f in full_frames]
+		bbox_time = time.time() - bbox_start
+		print(f"  [3-1] Bounding box extraction completed in {bbox_time:.2f}s")
+	
+	step_time = time.time() - step_start
+	print(f"[Step 3] Face detection completed in {step_time:.2f}s")
+	print(f"  - Total face detection results: {len(face_det_results)}")
 
-	# Inference 실행
+	# ============================================
+	# 4단계: Inference 실행
+	# ============================================
+	step_start = time.time()
+	print(f"[Step 4] Wav2Lip inference started")
 	batch_size = wav2lip_batch_size
 	gen = datagen(full_frames.copy(), mel_chunks, static, box, face_det_results, img_size=96, batch_size=batch_size)
 	
@@ -378,12 +455,49 @@ def run_wav2lip_inference(
 	
 	# FPS 하드코딩: 무조건 18fps
 	fps = 18.0
-	print(f"Writing video with fixed FPS: {fps:.2f}")
+	print(f"  - Video output settings: {frame_w}x{frame_h} @ {fps:.2f}fps")
 	out = cv2.VideoWriter('temp/result.avi', 
 							cv2.VideoWriter_fourcc(*'DIVX'), fps, (frame_w, frame_h))
 
+	inference_start = time.time()
+	postprocess_start = None
+	postprocess_time = 0
+	
 	for i, (img_batch, mel_batch, frames, coords) in enumerate(tqdm(gen, 
 										total=int(np.ceil(float(len(mel_chunks))/batch_size)))):
+		if i == 0:
+			batch_start = time.time()
+		
+		# 4-1. 입력 변환
+		if i == 0:
+			convert_start = time.time()
+		if next(model.parameters()).dtype == torch.float16:
+			img_batch = torch.HalfTensor(np.transpose(img_batch, (0, 3, 1, 2))).to(device)
+			mel_batch = torch.HalfTensor(np.transpose(mel_batch, (0, 3, 1, 2))).to(device)
+		else:
+			img_batch = torch.FloatTensor(np.transpose(img_batch, (0, 3, 1, 2))).to(device)
+			mel_batch = torch.FloatTensor(np.transpose(mel_batch, (0, 3, 1, 2))).to(device)
+		if i == 0:
+			convert_time = time.time() - convert_start
+			print(f"  [4-1] First batch input conversion: {convert_time:.3f}s")
+
+		# 4-2. 모델 Inference
+		if i == 0:
+			model_start = time.time()
+		with torch.no_grad():
+			if device == 'cuda' and next(model.parameters()).dtype == torch.float16:
+				with torch.amp.autocast('cuda'):
+					pred = model(mel_batch, img_batch)
+			else:
+				pred = model(mel_batch, img_batch)
+		if i == 0:
+			model_time = time.time() - model_start
+			print(f"  [4-2] First batch model inference: {model_time:.3f}s")
+
+		# 4-3. 후처리
+		if postprocess_start is None:
+			postprocess_start = time.time()
+		pred = pred.cpu().numpy().transpose(0, 2, 3, 1) * 255.
 		# Mixed Precision 입력 변환
 		if next(model.parameters()).dtype == torch.float16:
 			img_batch = torch.HalfTensor(np.transpose(img_batch, (0, 3, 1, 2))).to(device)
@@ -400,9 +514,7 @@ def run_wav2lip_inference(
 			else:
 				pred = model(mel_batch, img_batch)
 
-		pred = pred.cpu().numpy().transpose(0, 2, 3, 1) * 255.
-		
-		# 후처리
+		# 4-3. 후처리 (리사이즈, 페더링, 블렌딩)
 		for p, f, c in zip(pred, frames, coords):
 			y1, y2, x1, x2 = c
 			y1, y2, x1, x2 = int(y1), int(y2), int(x1), int(x2)
@@ -432,12 +544,28 @@ def run_wav2lip_inference(
 				f[y1:y2, x1:x2] = p
 			
 			out.write(f)
-
+	
+	postprocess_time = time.time() - postprocess_start if postprocess_start else 0
+	inference_time = time.time() - inference_start
 	out.release()
+	
+	step_time = time.time() - step_start
+	print(f"[Step 4] Wav2Lip inference completed in {step_time:.2f}s")
+	print(f"  - Total inference time: {inference_time:.2f}s")
+	print(f"  - Post-processing time: {postprocess_time:.2f}s")
+	print(f"  - Processed {len(mel_chunks)} frames in {int(np.ceil(float(len(mel_chunks))/batch_size))} batches")
 
-	# 오디오 합성
+	# ============================================
+	# 5단계: 오디오 합성
+	# ============================================
+	step_start = time.time()
+	print(f"[Step 5] Audio-video synthesis started")
 	command = f'ffmpeg -y -i {audio_path} -i temp/result.avi -strict -2 -q:v 1 {output_path}'
 	subprocess.call(command, shell=platform.system() != 'Windows')
+	step_time = time.time() - step_start
+	print(f"[Step 5] Audio-video synthesis completed in {step_time:.2f}s")
 	
-	print(f"Output saved to: {output_path}")
+	total_time = time.time() - pipeline_start
+	print(f"\n[Summary] Output saved to: {output_path}")
+	print(f"  - Total pipeline time: {total_time:.2f}s")
 
