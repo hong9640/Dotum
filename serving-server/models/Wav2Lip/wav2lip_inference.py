@@ -16,7 +16,7 @@ mel_step_size = 16
 
 def increase_frames(frames, target_length):
 	"""
-	영상 프레임을 오디오 길이에 맞춰 균등하게 확장
+	영상 프레임을 오디오 길이에 맞춰 균등하게 확장 (벡터화 최적화)
 	프레임을 복제하여 목표 길이까지 늘림 (순환 재생이 아닌 연속 확장)
 	
 	Args:
@@ -29,24 +29,80 @@ def increase_frames(frames, target_length):
 	if len(frames) >= target_length:
 		return frames[:target_length]
 	
-	# 프레임을 균등하게 복제하여 확장
-	while len(frames) < target_length:
-		dup_every = float(target_length) / len(frames)
-		
-		final_frames = []
-		next_duplicate = 0.
-		
-		for i, f in enumerate(frames):
-			final_frames.append(f)
-			
-			if int(np.ceil(next_duplicate)) == i:
-				final_frames.append(f)
-			
-			next_duplicate += dup_every
-		
-		frames = final_frames
+	# 벡터화된 확장: 각 프레임의 반복 횟수를 미리 계산
+	original_len = len(frames)
+	ratio = target_length / original_len
 	
-	return frames[:target_length]
+	# 각 프레임이 몇 번 반복되어야 하는지 계산
+	repeat_counts = np.ones(original_len, dtype=int)
+	remaining = target_length - original_len
+	
+	# 균등하게 분배
+	if remaining > 0:
+		dup_every = original_len / remaining
+		next_dup = 0.0
+		added = 0
+		
+		while added < remaining and next_dup < original_len:
+			idx = int(next_dup)
+			if idx < original_len:
+				repeat_counts[idx] += 1
+				added += 1
+			next_dup += dup_every
+	
+	# NumPy 배열로 변환하여 벡터화된 확장 수행
+	frames_array = np.array(frames)
+	expanded_frames = []
+	
+	for i, count in enumerate(repeat_counts):
+		for _ in range(count):
+			expanded_frames.append(frames[i])
+	
+	return expanded_frames[:target_length]
+
+def expand_face_det_results(face_det_results, target_length):
+	"""
+	얼굴 감지 결과를 목표 길이로 확장
+	프레임 확장과 동일한 비율로 얼굴 감지 결과도 확장
+	
+	Args:
+		face_det_results: 원본 얼굴 감지 결과 리스트
+		target_length: 목표 길이
+		
+	Returns:
+		확장된 얼굴 감지 결과 리스트
+	"""
+	if len(face_det_results) >= target_length:
+		return face_det_results[:target_length]
+	
+	original_len = len(face_det_results)
+	ratio = target_length / original_len
+	
+	# 각 결과의 반복 횟수 계산
+	repeat_counts = np.ones(original_len, dtype=int)
+	remaining = target_length - original_len
+	
+	if remaining > 0:
+		dup_every = original_len / remaining
+		next_dup = 0.0
+		added = 0
+		
+		while added < remaining and next_dup < original_len:
+			idx = int(next_dup)
+			if idx < original_len:
+				repeat_counts[idx] += 1
+				added += 1
+			next_dup += dup_every
+	
+	# 얼굴 감지 결과 확장 (이미지 복사보다 훨씬 빠름)
+	expanded_results = []
+	for i, count in enumerate(repeat_counts):
+		for _ in range(count):
+			# 얼굴 영역과 좌표를 복사 (이미지 자체는 참조)
+			face_img, coords = face_det_results[i]
+			expanded_results.append([face_img, coords])
+	
+	return expanded_results[:target_length]
 
 def get_smoothened_boxes(boxes, T):
 	for i in range(len(boxes)):
@@ -229,7 +285,9 @@ def run_wav2lip_inference(
 
 	print(f"Number of frames available for inference: {len(full_frames)}")
 
-	# 오디오 처리
+	# ============================================
+	# 1단계: 오디오 처리 및 길이 확인
+	# ============================================
 	if not audio_path.endswith('.wav'):
 		print('Extracting raw audio...')
 		temp_wav = 'temp/temp.wav'
@@ -244,7 +302,7 @@ def run_wav2lip_inference(
 	if np.isnan(mel.reshape(-1)).sum() > 0:
 		raise ValueError('Mel contains nan! Using a TTS voice? Add a small epsilon noise to the wav file and try again')
 
-	# Mel chunks 생성
+	# Mel chunks 생성 (오디오 길이 확인용)
 	mel_chunks = []
 	mel_idx_multiplier = 80./fps 
 	i = 0
@@ -256,26 +314,43 @@ def run_wav2lip_inference(
 		mel_chunks.append(mel[:, start_idx : start_idx + mel_step_size])
 		i += 1
 
-	print(f"Length of mel chunks: {len(mel_chunks)}")
+	target_frame_count = len(mel_chunks)
+	print(f"Audio length: {target_frame_count} frames (mel chunks)")
 	print(f"Original video frames: {len(full_frames)}")
+
+	# ============================================
+	# 2단계: 오디오 길이에 맞춰 영상 길이 조정
+	# ============================================
+	original_frames = full_frames.copy()
 	
-	# 오디오 길이에 맞춰 영상 프레임 확장 (자르는 것이 아님!)
-	if len(full_frames) < len(mel_chunks):
-		print(f"Extending video frames from {len(full_frames)} to {len(mel_chunks)} to match audio length")
-		full_frames = increase_frames(full_frames, len(mel_chunks))
-	elif len(full_frames) > len(mel_chunks):
-		# 오디오가 더 짧으면 영상을 자름
-		print(f"Trimming video frames from {len(full_frames)} to {len(mel_chunks)} to match audio length")
-		full_frames = full_frames[:len(mel_chunks)]
+	if len(full_frames) < target_frame_count:
+		print(f"Extending video frames from {len(full_frames)} to {target_frame_count} to match audio length")
+		full_frames = increase_frames(full_frames, target_frame_count)
+	elif len(full_frames) > target_frame_count:
+		print(f"Trimming video frames from {len(full_frames)} to {target_frame_count} to match audio length")
+		full_frames = full_frames[:target_frame_count]
 	else:
 		print("Video and audio lengths match perfectly")
 
-	# 얼굴 감지
+	# ============================================
+	# 3단계: 조정된 영상에서 얼굴 탐지 (최적화)
+	# ============================================
 	if box[0] == -1:
 		if not static:
-			face_det_results = face_detect(full_frames, device, face_detector, face_det_batch_size, pads, nosmooth)
+			# 최적화: 원본 프레임만 얼굴 감지 후 결과 확장
+			if len(original_frames) < target_frame_count:
+				# 영상이 확장된 경우: 원본만 감지 후 결과 확장
+				print(f"Optimized face detection: detecting {len(original_frames)} original frames, then expanding results")
+				face_det_results_original = face_detect(original_frames, device, face_detector, face_det_batch_size, pads, nosmooth)
+				face_det_results = expand_face_det_results(face_det_results_original, target_frame_count)
+			else:
+				# 영상이 잘린 경우: 잘린 프레임에 대해 감지
+				face_det_results = face_detect(full_frames, device, face_detector, face_det_batch_size, pads, nosmooth)
 		else:
 			face_det_results = face_detect([full_frames[0]], device, face_detector, face_det_batch_size, pads, nosmooth)
+			# static 모드에서도 확장 필요
+			if target_frame_count > 1:
+				face_det_results = expand_face_det_results(face_det_results, target_frame_count)
 	else:
 		print('Using the specified bounding box instead of face detection...')
 		y1, y2, x1, x2 = box

@@ -110,14 +110,25 @@ def face_detect(images):
 	del detector
 	return results 
 
-def datagen(frames, mels):
+def datagen(frames, mels, original_frames=None):
 	img_batch, mel_batch, frame_batch, coords_batch = [], [], [], []
 
+	# 최적화: 원본 프레임만 얼굴 감지 후 결과 확장
 	if args.box[0] == -1:
 		if not args.static:
-			face_det_results = face_detect(frames) # BGR2RGB for CNN face detection
+			# 원본 프레임이 제공되고 확장된 경우 최적화
+			if original_frames is not None and len(original_frames) < len(frames):
+				print("Optimized face detection: detecting {} original frames, then expanding results".format(len(original_frames)))
+				face_det_results_original = face_detect(original_frames)
+				face_det_results = expand_face_det_results(face_det_results_original, len(frames))
+			else:
+				face_det_results = face_detect(frames) # BGR2RGB for CNN face detection
 		else:
-			face_det_results = face_detect([frames[0]])
+			face_det_results_original = face_detect([frames[0]])
+			if len(frames) > 1:
+				face_det_results = expand_face_det_results(face_det_results_original, len(frames))
+			else:
+				face_det_results = face_det_results_original
 	else:
 		print('Using the specified bounding box instead of face detection...')
 		y1, y2, x1, x2 = args.box
@@ -171,7 +182,7 @@ print('Using {} for inference.'.format(device))
 
 def increase_frames(frames, target_length):
 	"""
-	영상 프레임을 오디오 길이에 맞춰 균등하게 확장
+	영상 프레임을 오디오 길이에 맞춰 균등하게 확장 (벡터화 최적화)
 	프레임을 복제하여 목표 길이까지 늘림 (순환 재생이 아닌 연속 확장)
 	
 	Args:
@@ -184,24 +195,78 @@ def increase_frames(frames, target_length):
 	if len(frames) >= target_length:
 		return frames[:target_length]
 	
-	# 프레임을 균등하게 복제하여 확장
-	while len(frames) < target_length:
-		dup_every = float(target_length) / len(frames)
-		
-		final_frames = []
-		next_duplicate = 0.
-		
-		for i, f in enumerate(frames):
-			final_frames.append(f)
-			
-			if int(np.ceil(next_duplicate)) == i:
-				final_frames.append(f)
-			
-			next_duplicate += dup_every
-		
-		frames = final_frames
+	# 벡터화된 확장: 각 프레임의 반복 횟수를 미리 계산
+	original_len = len(frames)
+	ratio = target_length / original_len
 	
-	return frames[:target_length]
+	# 각 프레임이 몇 번 반복되어야 하는지 계산
+	repeat_counts = np.ones(original_len, dtype=int)
+	remaining = target_length - original_len
+	
+	# 균등하게 분배
+	if remaining > 0:
+		dup_every = original_len / remaining
+		next_dup = 0.0
+		added = 0
+		
+		while added < remaining and next_dup < original_len:
+			idx = int(next_dup)
+			if idx < original_len:
+				repeat_counts[idx] += 1
+				added += 1
+			next_dup += dup_every
+	
+	# 벡터화된 확장 수행
+	expanded_frames = []
+	for i, count in enumerate(repeat_counts):
+		for _ in range(count):
+			expanded_frames.append(frames[i])
+	
+	return expanded_frames[:target_length]
+
+def expand_face_det_results(face_det_results, target_length):
+	"""
+	얼굴 감지 결과를 목표 길이로 확장
+	프레임 확장과 동일한 비율로 얼굴 감지 결과도 확장
+	
+	Args:
+		face_det_results: 원본 얼굴 감지 결과 리스트
+		target_length: 목표 길이
+		
+	Returns:
+		확장된 얼굴 감지 결과 리스트
+	"""
+	if len(face_det_results) >= target_length:
+		return face_det_results[:target_length]
+	
+	original_len = len(face_det_results)
+	ratio = target_length / original_len
+	
+	# 각 결과의 반복 횟수 계산
+	repeat_counts = np.ones(original_len, dtype=int)
+	remaining = target_length - original_len
+	
+	if remaining > 0:
+		dup_every = original_len / remaining
+		next_dup = 0.0
+		added = 0
+		
+		while added < remaining and next_dup < original_len:
+			idx = int(next_dup)
+			if idx < original_len:
+				repeat_counts[idx] += 1
+				added += 1
+			next_dup += dup_every
+	
+	# 얼굴 감지 결과 확장 (이미지 복사보다 훨씬 빠름)
+	expanded_results = []
+	for i, count in enumerate(repeat_counts):
+		for _ in range(count):
+			# 얼굴 영역과 좌표를 복사 (이미지 자체는 참조)
+			face_img, coords = face_det_results[i]
+			expanded_results.append([face_img, coords])
+	
+	return expanded_results[:target_length]
 
 def _load(checkpoint_path):
 	if device == 'cuda':
@@ -277,6 +342,9 @@ def main():
 
 	print ("Number of frames available for inference: "+str(len(full_frames)))
 
+	# ============================================
+	# 1단계: 오디오 처리 및 길이 확인
+	# ============================================
 	if not args.audio.endswith('.wav'):
 		print('Extracting raw audio...')
 		command = 'ffmpeg -y -i {} -strict -2 {}'.format(args.audio, 'temp/temp.wav')
@@ -302,22 +370,31 @@ def main():
 		mel_chunks.append(mel[:, start_idx : start_idx + mel_step_size])
 		i += 1
 
-	print("Length of mel chunks: {}".format(len(mel_chunks)))
+	target_frame_count = len(mel_chunks)
+	print("Audio length: {} frames (mel chunks)".format(target_frame_count))
 	print("Original video frames: {}".format(len(full_frames)))
+
+	# ============================================
+	# 2단계: 오디오 길이에 맞춰 영상 길이 조정
+	# ============================================
+	original_frames = full_frames.copy()
 	
-	# 오디오 길이에 맞춰 영상 프레임 확장 (자르는 것이 아님!)
-	if len(full_frames) < len(mel_chunks):
-		print("Extending video frames from {} to {} to match audio length".format(len(full_frames), len(mel_chunks)))
-		full_frames = increase_frames(full_frames, len(mel_chunks))
-	elif len(full_frames) > len(mel_chunks):
-		# 오디오가 더 짧으면 영상을 자름
-		print("Trimming video frames from {} to {} to match audio length".format(len(full_frames), len(mel_chunks)))
-		full_frames = full_frames[:len(mel_chunks)]
+	if len(full_frames) < target_frame_count:
+		print("Extending video frames from {} to {} to match audio length".format(len(full_frames), target_frame_count))
+		full_frames = increase_frames(full_frames, target_frame_count)
+	elif len(full_frames) > target_frame_count:
+		print("Trimming video frames from {} to {} to match audio length".format(len(full_frames), target_frame_count))
+		full_frames = full_frames[:target_frame_count]
 	else:
 		print("Video and audio lengths match perfectly")
 
+	# ============================================
+	# 3단계: 조정된 영상에서 얼굴 탐지 (최적화)
+	# ============================================
+	# datagen 함수 내부에서 얼굴 감지 수행
+	# 최적화: 원본 프레임만 감지 후 결과 확장
 	batch_size = args.wav2lip_batch_size
-	gen = datagen(full_frames.copy(), mel_chunks)
+	gen = datagen(full_frames.copy(), mel_chunks, original_frames=original_frames if len(original_frames) < target_frame_count else None)
 
 	for i, (img_batch, mel_batch, frames, coords) in enumerate(tqdm(gen, 
 											total=int(np.ceil(float(len(mel_chunks))/batch_size)))):
