@@ -138,7 +138,8 @@ def face_detect(images, device, face_detector='scrfd', face_det_batch_size=16, p
 			_detector_cache[cache_key] = face_detection.FaceAlignment(
 				face_detection.LandmarksType._2D, 
 				flip_input=False, device=device,
-				face_detector=face_detector
+				face_detector=face_detector,
+				verbose=True  # 배치 처리 디버깅을 위해 강제 활성화
 			)
 			print(f"[Face Detection] ✅ {face_detector} detector initialized and cached")
 		else:
