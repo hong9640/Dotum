@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..schemas.training_sessions import (
     TrainingSessionResponse,
     TrainingSessionSummaryResponse,
+    TrainingSessionDailyResponse,
 )
 from ..schemas.training_items import CurrentItemResponse, TrainingItemResponse
 from ..schemas.media import MediaResponse
@@ -587,6 +588,39 @@ def convert_session_to_summary_response(session) -> TrainingSessionSummaryRespon
         average_score=session.average_score,
         overall_feedback=session.overall_feedback,
         session_praat_result=empty_praat_result,
+        session_metadata=session.session_metadata,
+        created_at=session.created_at,
+        updated_at=session.updated_at,
+        started_at=session.started_at,
+        completed_at=session.completed_at,
+        training_items=[]
+    )
+
+
+def convert_session_to_daily_response(session) -> TrainingSessionDailyResponse:
+    """일별 훈련 기록용 세션 응답 생성 (overall_feedback 및 session_praat_result 제외)"""
+    # 실제 training_items 관계에서 아이템 개수와 완료된 아이템 개수 계산
+    # training_items가 로드되어 있으면 실제 데이터를 사용, 없으면 세션 필드 값 사용
+    if hasattr(session, 'training_items') and session.training_items is not None:
+        actual_total_items = len(session.training_items)
+        actual_completed_items = sum(1 for item in session.training_items if item.is_completed)
+    else:
+        # training_items가 로드되지 않은 경우 세션 필드 값 사용
+        actual_total_items = session.total_items
+        actual_completed_items = session.completed_items
+
+    return TrainingSessionDailyResponse(
+        session_id=session.id,
+        user_id=session.user_id,
+        session_name=session.session_name,
+        type=session.type,
+        status=session.status,
+        training_date=session.training_date,
+        total_items=actual_total_items,
+        completed_items=actual_completed_items,
+        current_item_index=session.current_item_index,
+        progress_percentage=session.progress_percentage,
+        average_score=session.average_score,
         session_metadata=session.session_metadata,
         created_at=session.created_at,
         updated_at=session.updated_at,
