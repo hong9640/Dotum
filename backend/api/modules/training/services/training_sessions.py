@@ -573,7 +573,8 @@ class TrainingSessionService:
     ) -> Dict[str, Any]:
         """내부 메서드: 특정 아이템에 동영상 업로드 및 완료 처리"""
         start_time = time.time()
-        temp_video_path = None
+        original_video_path = None
+        encoded_video_path = None
         processing_result = None
         audio_path = None
 
@@ -589,15 +590,37 @@ class TrainingSessionService:
         try:
             # 1. UploadFile을 임시 파일로 저장
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_video:
-                temp_video_path = temp_video.name
+                original_video_path = temp_video.name
                 # 비동기적으로 파일 쓰기
-                async with aiofiles.open(temp_video_path, 'wb') as out_file:
+                async with aiofiles.open(original_video_path, 'wb') as out_file:
                     while content := await video_file.read(1024 * 1024):  # 1MB씩 읽기
                         await out_file.write(content)
             
-            # 2. GCS에 동영상 업로드 (로컬 경로 사용)
+            # 2. h264 인코딩 (nvenc, 18fps, 원본 해상도 유지)
+            video_processor = VideoProcessor()
+            encoded_video_path = None
+            try:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_encoded:
+                    encoded_video_path = temp_encoded.name
+                
+                logger.info(f"[_submit_item_with_video] h264 인코딩 시작 - 원본: {original_video_path}, 출력: {encoded_video_path}")
+                await video_processor.encode_video_h264(
+                    input_path=original_video_path,
+                    output_path=encoded_video_path,
+                    fps=18
+                )
+                logger.info(f"[_submit_item_with_video] h264 인코딩 완료")
+                
+                # 인코딩된 파일을 사용하여 업로드
+                upload_video_path = encoded_video_path
+            except Exception as e:
+                logger.warning(f"[_submit_item_with_video] h264 인코딩 실패, 원본 파일 사용: {e}")
+                # 인코딩 실패 시 원본 파일 사용
+                upload_video_path = original_video_path
+            
+            # 3. GCS에 동영상 업로드 (인코딩된 파일 또는 원본 파일 사용)
             upload_result = await gcs_service.upload_video(
-                file_path=temp_video_path,
+                file_path=upload_video_path,
                 username=user.username,
                 session_id=str(session.id),
                 train_id=item.id,
@@ -614,13 +637,12 @@ class TrainingSessionService:
             if not video_url:
                 raise RuntimeError("동영상 URL 생성에 실패했습니다.")
 
-            # 3. 로컬 임시 파일을 사용하여 미디어 처리
-            video_processor = VideoProcessor()
-            logger.info(f"[_submit_item_with_video] 로컬 파일로 음성 처리 시작 - path: {temp_video_path}")
-            processing_result = await video_processor.process_uploaded_video_with_audio(temp_video_path)
+            # 4. 로컬 임시 파일을 사용하여 미디어 처리 (원본 파일 사용 - 오디오 추출용)
+            logger.info(f"[_submit_item_with_video] 로컬 파일로 음성 처리 시작 - path: {original_video_path}")
+            processing_result = await video_processor.process_uploaded_video_with_audio(original_video_path)
             logger.info(f"[_submit_item_with_video] 로컬 파일 음성 처리 완료")
 
-            # 4. 동영상 파일 정보 DB 저장
+            # 5. 동영상 파일 정보 DB 저장
             media_file = await self.media_repo.create_and_flush(
                 user_id=user.id,
                 object_key=object_key,
@@ -665,7 +687,7 @@ class TrainingSessionService:
             else:
                 logger.warning(f"[_submit_item_with_video] 경고: 음성 파일이 생성되지 않았습니다.")
 
-            # 6. STT 백그라운드 처리 추가 (WORD/SENTENCE 타입) - 병렬 처리!
+            # 7. STT 백그라운드 처리 추가 (WORD/SENTENCE 타입) - 병렬 처리!
             if audio_media_file and session.type in (TrainingType.WORD, TrainingType.SENTENCE):
                 audio_gs_path = f"gs://{settings.GCS_BUCKET_NAME}/{audio_media_file.object_key}"
                 logger.info(f"[_submit_item_with_video] STT 백그라운드 처리 예약 (병렬) - item_id: {item.id}, audio_gs_path: {audio_gs_path}")
@@ -675,7 +697,7 @@ class TrainingSessionService:
                     self._process_stt_with_independent_session(audio_gs_path, item.id)
                 )
 
-            # 6-1. 가이드 음성 생성 백그라운드 작업 추가 (STT 이후 처리)
+            # 7-1. 가이드 음성 생성 백그라운드 작업 추가 (STT 이후 처리)
             if (item.word or item.sentence) and audio_media_file:
                 logger.info(f"[_submit_item_with_video] 가이드 음성 생성 백그라운드 작업 추가 (우선순위 2) - item_id: {item.id}")
                 text_for_guide = item.word.word if item.word else item.sentence.sentence
@@ -690,7 +712,7 @@ class TrainingSessionService:
                     original_video_object_key=object_key
                 )
 
-            # 7. 아이템 완료 처리
+            # 8. 아이템 완료 처리
             await self.item_repo.complete_item(
                 item_id=item.id, video_url=video_url, media_file_id=media_file.id, is_completed=True
             )
@@ -714,10 +736,13 @@ class TrainingSessionService:
                 "video_url": video_url, "has_next": has_next
             }
         finally:
-            # 8. 임시 파일 정리
-            if temp_video_path and os.path.exists(temp_video_path):
-                os.remove(temp_video_path)
-                logger.info(f"임시 동영상 파일 삭제: {temp_video_path}")
+            # 9. 임시 파일 정리
+            if original_video_path and os.path.exists(original_video_path):
+                os.remove(original_video_path)
+                logger.info(f"임시 원본 동영상 파일 삭제: {original_video_path}")
+            if encoded_video_path and os.path.exists(encoded_video_path):
+                os.remove(encoded_video_path)
+                logger.info(f"임시 인코딩된 동영상 파일 삭제: {encoded_video_path}")
             if audio_path and os.path.exists(audio_path):
                 os.remove(audio_path)
                 logger.info(f"임시 음성 파일 삭제: {audio_path}")
@@ -783,7 +808,8 @@ class TrainingSessionService:
         같은 경로에 새 파일을 업로드하여 기존 파일을 덮어쓴다.
         """
         start_time = time.time()
-        temp_video_path = None
+        original_video_path = None
+        encoded_video_path = None
         processing_result = None
         audio_path = None
         logger.info(f"[resubmit_item_video] 시작 - session_id: {session_id}, item_id: {item_id}")
@@ -804,14 +830,35 @@ class TrainingSessionService:
         try:
             # 1. UploadFile을 임시 파일로 저장
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_video:
-                temp_video_path = temp_video.name
-                async with aiofiles.open(temp_video_path, 'wb') as out_file:
+                original_video_path = temp_video.name
+                async with aiofiles.open(original_video_path, 'wb') as out_file:
                     while content := await video_file.read(1024 * 1024):
                         await out_file.write(content)
 
-            # 2. GCS에 동영상 업로드 (덮어쓰기)
+            # 2. h264 인코딩 (libx264, 18fps, 원본 해상도 유지)
+            video_processor = VideoProcessor()
+            try:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_encoded:
+                    encoded_video_path = temp_encoded.name
+                
+                logger.info(f"[resubmit_item_video] h264 인코딩 시작 - 원본: {original_video_path}, 출력: {encoded_video_path}")
+                await video_processor.encode_video_h264(
+                    input_path=original_video_path,
+                    output_path=encoded_video_path,
+                    fps=18
+                )
+                logger.info(f"[resubmit_item_video] h264 인코딩 완료")
+                
+                # 인코딩된 파일을 사용하여 업로드
+                upload_video_path = encoded_video_path
+            except Exception as e:
+                logger.warning(f"[resubmit_item_video] h264 인코딩 실패, 원본 파일 사용: {e}")
+                # 인코딩 실패 시 원본 파일 사용
+                upload_video_path = original_video_path
+
+            # 3. GCS에 동영상 업로드 (덮어쓰기, 인코딩된 파일 또는 원본 파일 사용)
             upload_result = await gcs_service.upload_video(
-                file_path=temp_video_path,
+                file_path=upload_video_path,
                 username=user.username,
                 session_id=str(session_id),
                 train_id=item.id,
@@ -828,7 +875,7 @@ class TrainingSessionService:
             if not video_url:
                 raise RuntimeError("동영상 URL 생성에 실패했습니다.")
 
-            # 3. 기존 미디어 파일이 있으면 업데이트, 없으면 새로 생성
+            # 4. 기존 미디어 파일이 있으면 업데이트, 없으면 새로 생성
             if old_media_file:
                 media_file = await self.media_repo.update_media_file(
                     media_file=old_media_file,
@@ -844,13 +891,12 @@ class TrainingSessionService:
                     format=(content_type.split('/')[-1] if '/' in content_type else content_type)
                 )
 
-            # 4. 로컬 임시 파일을 사용하여 미디어 처리
-            video_processor = VideoProcessor()
-            logger.info(f"[resubmit_item_video] 로컬 파일로 음성 처리 시작 - path: {temp_video_path}")
-            processing_result = await video_processor.process_uploaded_video_with_audio(temp_video_path)
+            # 5. 로컬 임시 파일을 사용하여 미디어 처리 (원본 파일 사용 - 오디오 추출용)
+            logger.info(f"[resubmit_item_video] 로컬 파일로 음성 처리 시작 - path: {original_video_path}")
+            processing_result = await video_processor.process_uploaded_video_with_audio(original_video_path)
             logger.info(f"[resubmit_item_video] 로컬 파일 음성 처리 완료")
 
-            # 5. 추출된 음성 파일 처리
+            # 6. 추출된 음성 파일 처리
             audio_media_file = None
             new_praat_record = None
             audio_path = processing_result.get('audio_path')
@@ -898,7 +944,7 @@ class TrainingSessionService:
             else:
                 logger.warning(f"[resubmit_item_video] 경고: 음성 파일이 생성되지 않았습니다.")
 
-            # 6. 가이드 음성 생성 백그라운드 작업 추가
+            # 7. 가이드 음성 생성 백그라운드 작업 추가
             if (item.word or item.sentence) and audio_media_file:
                 logger.info(f"[resubmit_item_video] 가이드 음성 생성 백그라운드 작업 추가 - item_id: {item.id}")
                 text_for_guide = item.word.word if item.word else item.sentence.sentence
@@ -909,7 +955,7 @@ class TrainingSessionService:
                     gcs_service=gcs_service, original_video_object_key=object_key
                 )
 
-            # 7. 아이템의 동영상 정보 업데이트 (완료 상태 유지)
+            # 8. 아이템의 동영상 정보 업데이트 (완료 상태 유지)
             await self.item_repo.complete_item(
                 item_id=item.id, video_url=video_url, media_file_id=media_file.id, is_completed=True
             )
@@ -929,10 +975,13 @@ class TrainingSessionService:
                 "video_url": video_url, "has_next": False
             }
         finally:
-            # 8. 임시 파일 정리
-            if temp_video_path and os.path.exists(temp_video_path):
-                os.remove(temp_video_path)
-                logger.info(f"임시 동영상 파일 삭제: {temp_video_path}")
+            # 9. 임시 파일 정리
+            if original_video_path and os.path.exists(original_video_path):
+                os.remove(original_video_path)
+                logger.info(f"임시 원본 동영상 파일 삭제: {original_video_path}")
+            if encoded_video_path and os.path.exists(encoded_video_path):
+                os.remove(encoded_video_path)
+                logger.info(f"임시 인코딩된 동영상 파일 삭제: {encoded_video_path}")
             if audio_path and os.path.exists(audio_path):
                 os.remove(audio_path)
                 logger.info(f"임시 음성 파일 삭제: {audio_path}")
