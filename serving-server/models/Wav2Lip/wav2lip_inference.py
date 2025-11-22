@@ -153,7 +153,24 @@ def face_detect(images, device, face_detector='scrfd', face_det_batch_size=16, p
 		predictions = []
 		try:
 			for i in tqdm(range(0, len(images), batch_size)):
-				predictions.extend(detector.get_detections_for_batch(np.array(images[i:i + batch_size])))
+				batch_end = min(i + batch_size, len(images))
+				batch = images[i:batch_end]
+				
+				# 작은 마지막 배치 최적화: 마지막 배치가 8개 이하이면 이전 배치와 합치기
+				if len(batch) < batch_size and len(batch) <= 8 and i > 0 and len(predictions) > 0:
+					# 이전 배치의 마지막 부분과 합쳐서 처리 (중복 허용, 나중에 제거)
+					prev_start = max(0, i - len(batch))
+					combined_batch = images[prev_start:batch_end]
+					if len(combined_batch) <= batch_size:
+						# 합친 배치 처리
+						batch_results = detector.get_detections_for_batch(np.array(combined_batch))
+						# 새로 추가된 부분만 predictions에 추가
+						overlap = i - prev_start
+						predictions.extend(batch_results[overlap:])
+						break
+				
+				# 일반 배치 처리
+				predictions.extend(detector.get_detections_for_batch(np.array(batch)))
 		except RuntimeError:
 			if batch_size == 1: 
 				raise RuntimeError('Image too big to run face detection on GPU. Please use the --resize_factor argument')

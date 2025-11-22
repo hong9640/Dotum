@@ -185,25 +185,53 @@ class SCRFDDetector(FaceDetector):
             if det_model is not None:
                 print(f"[SCRFD Batch] ✅ Successfully found detection model: {type(det_model)}")
                 
-                # Check if it's an ONNX model
-                if hasattr(det_model, 'get_inputs'):
-                    try:
-                        inputs = det_model.get_inputs()
-                        input_names = [inp.name for inp in inputs]
-                        print(f"[SCRFD Batch] ONNX model inputs: {input_names}")
-                        if len(inputs) > 0:
-                            input_shape = inputs[0].shape if hasattr(inputs[0], 'shape') else 'dynamic'
-                            print(f"[SCRFD Batch] Input shape: {input_shape}")
-                    except Exception as e:
-                        print(f"[SCRFD Batch] Error getting inputs: {e}")
-                else:
-                    print(f"[SCRFD Batch] ⚠️ Model doesn't have 'get_inputs' method, checking alternatives...")
-                    # ONNX Runtime 모델이 아닐 수도 있음
-                    if hasattr(det_model, 'run'):
-                        print(f"[SCRFD Batch] Model has 'run' method, attempting direct batch inference")
+                # RetinaFace는 래퍼 클래스이므로 내부 ONNX 모델 찾기
+                onnx_model = None
+                if hasattr(det_model, 'session'):
+                    # InsightFace의 RetinaFace는 일반적으로 session 속성에 ONNX Runtime InferenceSession을 가짐
+                    onnx_model = det_model.session
+                    print(f"[SCRFD Batch] Found ONNX model via .session: {type(onnx_model)}")
+                elif hasattr(det_model, 'model'):
+                    onnx_model = det_model.model
+                    print(f"[SCRFD Batch] Found ONNX model via .model: {type(onnx_model)}")
+                elif hasattr(det_model, 'onnx_model'):
+                    onnx_model = det_model.onnx_model
+                    print(f"[SCRFD Batch] Found ONNX model via .onnx_model: {type(onnx_model)}")
+                elif hasattr(det_model, '__dict__'):
+                    # RetinaFace 객체의 모든 속성 검색
+                    for attr_name in ['session', 'model', 'onnx_model', 'inference_session', 'ort_session']:
+                        if hasattr(det_model, attr_name):
+                            attr_value = getattr(det_model, attr_name)
+                            if hasattr(attr_value, 'run') or hasattr(attr_value, 'get_inputs'):
+                                onnx_model = attr_value
+                                print(f"[SCRFD Batch] Found ONNX model via .{attr_name}: {type(onnx_model)}")
+                                break
+                
+                # ONNX 모델이 직접 접근 가능한 경우 (이미 ONNX Runtime InferenceSession)
+                if onnx_model is None and hasattr(det_model, 'get_inputs'):
+                    onnx_model = det_model
+                    print(f"[SCRFD Batch] Model itself is ONNX Runtime InferenceSession")
+                
+                if onnx_model is not None:
+                    det_model = onnx_model
+                    # Check if it's an ONNX model
+                    if hasattr(det_model, 'get_inputs'):
+                        try:
+                            inputs = det_model.get_inputs()
+                            input_names = [inp.name for inp in inputs]
+                            print(f"[SCRFD Batch] ONNX model inputs: {input_names}")
+                            if len(inputs) > 0:
+                                input_shape = inputs[0].shape if hasattr(inputs[0], 'shape') else 'dynamic'
+                                print(f"[SCRFD Batch] Input shape: {input_shape}")
+                        except Exception as e:
+                            print(f"[SCRFD Batch] Error getting inputs: {e}")
                     else:
-                        print(f"[SCRFD Batch] ❌ Model doesn't have 'run' method either")
+                        print(f"[SCRFD Batch] ⚠️ ONNX model doesn't have 'get_inputs' method")
                         det_model = None
+                else:
+                    print(f"[SCRFD Batch] ⚠️ Cannot find ONNX Runtime InferenceSession in RetinaFace object")
+                    print(f"[SCRFD Batch] RetinaFace attributes: {[attr for attr in dir(det_model) if not attr.startswith('_')][:20]}")
+                    det_model = None
                 
                 # Get detection size from app if available
                 if hasattr(self.app, 'det_size'):

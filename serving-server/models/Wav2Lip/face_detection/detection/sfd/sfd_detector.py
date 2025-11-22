@@ -1,6 +1,8 @@
 import os
 import cv2
 import time
+import torch
+import numpy as np
 from torch.utils.model_zoo import load_url
 
 from ..core import FaceDetector
@@ -28,6 +30,21 @@ class SFDDetector(FaceDetector):
         self.face_detector.load_state_dict(model_weights)
         self.face_detector.to(device)
         self.face_detector.eval()
+        
+        # GPU warm-up: 첫 번째 배치의 느린 속도 방지
+        if 'cuda' in device:
+            if verbose:
+                print(f"[SFD] Performing GPU warm-up...")
+            try:
+                dummy_img = np.zeros((1, 256, 256, 3), dtype=np.uint8)
+                _ = batch_detect(self.face_detector, dummy_img, device=device)
+                if 'cuda' in device:
+                    torch.cuda.synchronize()  # GPU 작업 완료 대기
+                if verbose:
+                    print(f"[SFD] ✅ GPU warm-up completed")
+            except Exception as e:
+                if verbose:
+                    print(f"[SFD] ⚠️ GPU warm-up failed (non-critical): {e}")
 
     def detect_from_image(self, tensor_or_path):
         image = self.tensor_or_path_to_ndarray(tensor_or_path)

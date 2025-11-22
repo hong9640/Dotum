@@ -23,6 +23,25 @@ FastAPI 기반 음성/영상 변환 서비스 (FreeVC + Wav2Lip)
 
 ## 📋 빠른 시작
 
+### 0. 의존성 설치 (중요)
+
+**onnxruntime-gpu 설치** (InsightFace/SCRFD 사용 시 필수):
+
+CUDA 버전에 따라 적절한 인덱스를 사용하여 설치하세요:
+
+```bash
+# CUDA 12.x 사용 시 (권장)
+pip install onnxruntime-gpu --extra-index-url https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-12/pypi/simple/
+
+# CUDA 11.x 사용 시
+pip install onnxruntime-gpu --extra-index-url https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-11/pypi/simple/
+
+# 또는 최신 버전 (자동 CUDA 감지)
+pip install onnxruntime-gpu
+```
+
+> **참고**: `requirements.txt`에 `onnxruntime-gpu`가 포함되어 있지 않습니다. CUDA 버전 호환성 문제로 인해 위 명령어로 별도 설치가 필요합니다.
+
 ### 1. 환경 변수 설정
 
 `.env` 파일 생성:

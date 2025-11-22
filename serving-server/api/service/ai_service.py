@@ -274,7 +274,7 @@ class AIService:
                 # GPU 파라미터 설정 (L4 GPU 최적화)
                 if device == "cuda":
                     batch_size = self._optimal_batch_size
-                    face_det_batch = min(self._optimal_batch_size // 2, 24)
+                    face_det_batch = min(self._optimal_batch_size, 24)
                     logger.info(f"L4 GPU detected: Using batch_size={batch_size}, face_det_batch={face_det_batch}")
                 else:
                     batch_size = 8
