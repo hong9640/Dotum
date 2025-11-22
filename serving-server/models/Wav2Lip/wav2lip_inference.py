@@ -223,7 +223,8 @@ def run_wav2lip_inference(
 	box: list = [-1, -1, -1, -1],
 	static: bool = False,
 	nosmooth: bool = False,
-	video_speed: float = 1.0
+	video_speed: float = 1.0,
+	audio_speed: float = 0.8
 ):
 	"""
 	Wav2Lip inference 실행 (모델 재사용)
@@ -243,50 +244,34 @@ def run_wav2lip_inference(
 		static: 정적 이미지 모드
 		nosmooth: 얼굴 감지 스무딩 비활성화
 		video_speed: 영상 배속 조절 (1.0 = 정상, 0.5 = 2배 느리게, 2.0 = 2배 빠르게)
+		audio_speed: 오디오 배속 조절 (1.0 = 정상, 0.8 = 1.25배 느리게, 0.5 = 2배 느리게)
 	"""
-	# 영상 읽기
+	# 영상 읽기 (원본 FPS 유지)
 	if os.path.isfile(face_video_path) and face_video_path.split('.')[-1] in ['jpg', 'png', 'jpeg']:
 		full_frames = [cv2.imread(face_video_path)]
-		fps = 25.0
+		original_fps = 25.0
+		fps = original_fps  # 원본 FPS 유지
 		static = True
 	else:
 		video_stream = cv2.VideoCapture(face_video_path)
 		original_fps = video_stream.get(cv2.CAP_PROP_FPS)
-		
-		# 배속 조절: video_speed에 따라 프레임 샘플링
-		# video_speed > 1.0: 빠르게 (프레임 건너뛰기)
-		# video_speed < 1.0: 느리게 (프레임 반복)
-		fps = original_fps * video_speed
+		fps = original_fps  # 원본 FPS 유지 (변경하지 않음)
 
 		full_frames = []
-		frame_idx = 0
 		while 1:
 			still_reading, frame = video_stream.read()
 			if not still_reading:
 				video_stream.release()
 				break
 			
-			# 배속 조절: video_speed에 따라 프레임 선택
-			if video_speed >= 1.0:
-				# 빠르게: 일부 프레임 건너뛰기
-				if frame_idx % int(video_speed) == 0:
-					if resize_factor > 1:
-						frame = cv2.resize(frame, (frame.shape[1]//resize_factor, frame.shape[0]//resize_factor))
-					full_frames.append(frame)
-			else:
-				# 느리게: 프레임 반복
-				repeat_count = int(1.0 / video_speed)
-				if resize_factor > 1:
-					frame = cv2.resize(frame, (frame.shape[1]//resize_factor, frame.shape[0]//resize_factor))
-				for _ in range(repeat_count):
-					full_frames.append(frame.copy())
-			
-			frame_idx += 1
+			if resize_factor > 1:
+				frame = cv2.resize(frame, (frame.shape[1]//resize_factor, frame.shape[0]//resize_factor))
+			full_frames.append(frame)
 
 	print(f"Number of frames available for inference: {len(full_frames)}")
 
 	# ============================================
-	# 1단계: 오디오 처리 및 길이 확인
+	# 1단계: 오디오 처리 및 배속 조정
 	# ============================================
 	if not audio_path.endswith('.wav'):
 		print('Extracting raw audio...')
@@ -296,15 +281,39 @@ def run_wav2lip_inference(
 		subprocess.call(command, shell=platform.system() != 'Windows')
 		audio_path = temp_wav
 
+	# 오디오 배속 조정 (느리게 만들기)
+	if audio_speed != 1.0:
+		print(f'Adjusting audio speed to {audio_speed}x (slower)')
+		slowed_audio_path = 'temp/temp_slowed.wav'
+		os.makedirs('temp', exist_ok=True)
+		# atempo 필터 사용 (0.5 ~ 2.0 범위, 그 이상은 체인 필요)
+		if audio_speed < 0.5:
+			# 0.5보다 작으면 여러 번 체인
+			atempo_value = 0.5
+			chain_count = int(np.ceil(np.log(audio_speed) / np.log(0.5)))
+			atempo_filter = ','.join(['atempo=0.5'] * chain_count)
+		elif audio_speed > 2.0:
+			# 2.0보다 크면 여러 번 체인
+			atempo_value = 2.0
+			chain_count = int(np.ceil(np.log(audio_speed) / np.log(2.0)))
+			atempo_filter = ','.join(['atempo=2.0'] * chain_count)
+		else:
+			atempo_filter = f'atempo={audio_speed}'
+		
+		command = f'ffmpeg -y -i {audio_path} -af "{atempo_filter}" -strict -2 {slowed_audio_path}'
+		subprocess.call(command, shell=platform.system() != 'Windows')
+		audio_path = slowed_audio_path
+		print(f'Audio slowed to {audio_speed}x speed')
+
 	wav = audio.load_wav(audio_path, 16000)
 	mel = audio.melspectrogram(wav)
 
 	if np.isnan(mel.reshape(-1)).sum() > 0:
 		raise ValueError('Mel contains nan! Using a TTS voice? Add a small epsilon noise to the wav file and try again')
 
-	# Mel chunks 생성 (오디오 길이 확인용)
+	# Mel chunks 생성 (느려진 오디오 길이 기준)
 	mel_chunks = []
-	mel_idx_multiplier = 80./fps 
+	mel_idx_multiplier = 80./fps  # 원본 FPS 기준
 	i = 0
 	while 1:
 		start_idx = int(i * mel_idx_multiplier)
@@ -319,16 +328,20 @@ def run_wav2lip_inference(
 	print(f"Original video frames: {len(full_frames)}")
 
 	# ============================================
-	# 2단계: 오디오 길이에 맞춰 영상 길이 조정
+	# 2단계: 배속 조정된 오디오 길이에 맞춰 영상 길이 조정
 	# ============================================
 	original_frames = full_frames.copy()
+	# 원본 FPS는 그대로 유지 (24fps 등)
 	
 	if len(full_frames) < target_frame_count:
-		print(f"Extending video frames from {len(full_frames)} to {target_frame_count} to match audio length")
+		print(f"Extending video frames from {len(full_frames)} to {target_frame_count} to match slowed audio length")
 		full_frames = increase_frames(full_frames, target_frame_count)
+		# FPS는 원본 그대로 유지 (24fps 등) - 빠르게 재생되지 않도록
+		print(f"Maintaining original FPS: {fps:.2f} (frames extended but FPS unchanged)")
 	elif len(full_frames) > target_frame_count:
 		print(f"Trimming video frames from {len(full_frames)} to {target_frame_count} to match audio length")
 		full_frames = full_frames[:target_frame_count]
+		# FPS는 그대로 유지 (프레임 수만 줄임)
 	else:
 		print("Video and audio lengths match perfectly")
 

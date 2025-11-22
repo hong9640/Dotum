@@ -216,7 +216,7 @@ class AIService:
         elif gpu_memory_gb >= 22:  # L4 GPU (약 22-24GB 실제 사용 가능)
             batch_size = 48  # L4: 메모리 여유 있으므로 48로 증가 (32 → 48)
         elif gpu_memory_gb >= 15:  # T4 GPU (15.75GB)
-            batch_size = 24  # T4: 증가 (16 → 24)
+            batch_size = 32  # T4: 증가 (16 → 24)
         elif gpu_memory_gb >= 12:
             batch_size = 16  # 12GB GPU
         else:
@@ -302,7 +302,8 @@ class AIService:
                         resize_factor=1,
                         box=[-1, -1, -1, -1],
                         static=False,
-                        nosmooth=False
+                        nosmooth=False,
+                        audio_speed=0.8  # 오디오를 0.8배속으로 느리게 (1.25배 느리게)
                     )
                     
                     if not os.path.exists(output_temp):

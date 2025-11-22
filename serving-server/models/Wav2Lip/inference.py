@@ -343,14 +343,34 @@ def main():
 	print ("Number of frames available for inference: "+str(len(full_frames)))
 
 	# ============================================
-	# 1단계: 오디오 처리 및 길이 확인
+	# 1단계: 오디오 처리 및 배속 조정
 	# ============================================
 	if not args.audio.endswith('.wav'):
 		print('Extracting raw audio...')
 		command = 'ffmpeg -y -i {} -strict -2 {}'.format(args.audio, 'temp/temp.wav')
-
 		subprocess.call(command, shell=True)
 		args.audio = 'temp/temp.wav'
+
+	# 오디오 배속 조정 (기본값 0.8 = 1.25배 느리게)
+	audio_speed = getattr(args, 'audio_speed', 0.8)
+	if audio_speed != 1.0:
+		print('Adjusting audio speed to {}x (slower)'.format(audio_speed))
+		slowed_audio_path = 'temp/temp_slowed.wav'
+		os.makedirs('temp', exist_ok=True)
+		# atempo 필터 사용 (0.5 ~ 2.0 범위, 그 이상은 체인 필요)
+		if audio_speed < 0.5:
+			chain_count = int(np.ceil(np.log(audio_speed) / np.log(0.5)))
+			atempo_filter = ','.join(['atempo=0.5'] * chain_count)
+		elif audio_speed > 2.0:
+			chain_count = int(np.ceil(np.log(audio_speed) / np.log(2.0)))
+			atempo_filter = ','.join(['atempo=2.0'] * chain_count)
+		else:
+			atempo_filter = 'atempo={}'.format(audio_speed)
+		
+		command = 'ffmpeg -y -i {} -af "{}" -strict -2 {}'.format(args.audio, atempo_filter, slowed_audio_path)
+		subprocess.call(command, shell=True)
+		args.audio = slowed_audio_path
+		print('Audio slowed to {}x speed'.format(audio_speed))
 
 	wav = audio.load_wav(args.audio, 16000)
 	mel = audio.melspectrogram(wav)
@@ -359,8 +379,9 @@ def main():
 	if np.isnan(mel.reshape(-1)).sum() > 0:
 		raise ValueError('Mel contains nan! Using a TTS voice? Add a small epsilon noise to the wav file and try again')
 
+	# Mel chunks 생성 (느려진 오디오 길이 기준)
 	mel_chunks = []
-	mel_idx_multiplier = 80./fps 
+	mel_idx_multiplier = 80./fps  # 원본 FPS 기준
 	i = 0
 	while 1:
 		start_idx = int(i * mel_idx_multiplier)
@@ -375,16 +396,20 @@ def main():
 	print("Original video frames: {}".format(len(full_frames)))
 
 	# ============================================
-	# 2단계: 오디오 길이에 맞춰 영상 길이 조정
+	# 2단계: 배속 조정된 오디오 길이에 맞춰 영상 길이 조정
 	# ============================================
 	original_frames = full_frames.copy()
+	# 원본 FPS는 그대로 유지 (24fps 등)
 	
 	if len(full_frames) < target_frame_count:
-		print("Extending video frames from {} to {} to match audio length".format(len(full_frames), target_frame_count))
+		print("Extending video frames from {} to {} to match slowed audio length".format(len(full_frames), target_frame_count))
 		full_frames = increase_frames(full_frames, target_frame_count)
+		# FPS는 원본 그대로 유지 (24fps 등) - 빠르게 재생되지 않도록
+		print("Maintaining original FPS: {:.2f} (frames extended but FPS unchanged)".format(fps))
 	elif len(full_frames) > target_frame_count:
 		print("Trimming video frames from {} to {} to match audio length".format(len(full_frames), target_frame_count))
 		full_frames = full_frames[:target_frame_count]
+		# FPS는 그대로 유지 (프레임 수만 줄임)
 	else:
 		print("Video and audio lengths match perfectly")
 
