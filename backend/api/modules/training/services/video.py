@@ -321,3 +321,72 @@ class VideoProcessor:
         finally:
             if temp_mp3_path and os.path.exists(temp_mp3_path): os.remove(temp_mp3_path)
             if temp_wav_path and os.path.exists(temp_wav_path): os.remove(temp_wav_path)
+
+    async def encode_video_h264(
+        self,
+        input_path: str,
+        output_path: str,
+        fps: int = 18
+    ) -> bool:
+        """
+        동영상을 h264로 인코딩합니다 (libx264 사용, 18fps, 원본 해상도 유지).
+        wav2lip 서버의 nvenc 인코딩과 호환 가능한 포맷입니다.
+        
+        Args:
+            input_path: 입력 비디오 파일 경로
+            output_path: 출력 비디오 파일 경로
+            fps: 프레임 레이트 (기본값: 18)
+        
+        Returns:
+            인코딩 성공 여부
+        """
+        try:
+            if not self.check_ffmpeg_availability():
+                raise Exception("FFmpeg가 설치되어 있지 않습니다.")
+            
+            # 원본 해상도 정보 추출
+            metadata = await self.extract_metadata(input_path)
+            width = metadata.get('width_px')
+            height = metadata.get('height_px')
+            
+            if not width or not height:
+                raise Exception("원본 비디오의 해상도를 확인할 수 없습니다.")
+            
+            cmd = [
+                'ffmpeg',
+                '-i', input_path,
+                '-c:v', 'libx264',         # 소프트웨어 h264 인코더
+                '-preset', 'medium',       # x264 프리셋 (medium: balanced)
+                '-crf', '23',              # Constant Rate Factor (18-28 권장, 낮을수록 고화질)
+                '-b:v', '5M',              # 비트레이트 5Mbps
+                '-maxrate', '5M',
+                '-bufsize', '10M',
+                '-r', str(fps),            # 프레임 레이트
+                '-vf', f'scale={width}:{height}',  # 원본 해상도 유지
+                '-c:a', 'copy',            # 오디오는 그대로 복사
+                '-pix_fmt', 'yuv420p',     # 호환성을 위한 픽셀 포맷
+                '-y',                      # 덮어쓰기
+                output_path
+            ]
+            
+            result = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            
+            stdout, stderr = await result.communicate()
+            
+            if result.returncode != 0:
+                error_msg = stderr.decode()
+                print(f"[H264] FFmpeg 인코딩 에러: {error_msg}")
+                raise Exception(f"H264 인코딩 실패: {error_msg}")
+            
+            # 출력 파일 생성 확인
+            if not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
+                raise Exception(f"인코딩된 파일이 생성되지 않았거나 파일 크기가 0입니다: {output_path}")
+            
+            return True
+            
+        except Exception as e:
+            raise Exception(f"H264 인코딩 실패: {str(e)}")

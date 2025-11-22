@@ -10,7 +10,7 @@ interface UseMediaRecorderProps {
 }
 
 export const useMediaRecorder = ({
-  preferredFps = 25,
+  preferredFps = 18,
   preferredWidth = 1280,
   preferredHeight = 720,
   onSave,
@@ -48,29 +48,29 @@ export const useMediaRecorder = ({
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       mediaStreamRef.current = stream;
-      
+
       // MediaStream을 Blob URL로 변환하여 ReactPlayer에서 사용할 수 있도록 함
       const mediaRecorder = new MediaRecorder(stream);
       const chunks: Blob[] = [];
-      
+
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           chunks.push(event.data);
         }
       };
-      
+
       mediaRecorder.onstop = () => {
         const blob = new Blob(chunks, { type: 'video/webm' });
         const url = URL.createObjectURL(blob);
         setLiveStreamUrl(url);
       };
-      
+
       // 짧은 시간 녹화하여 라이브 스트림 URL 생성
       mediaRecorder.start();
       setTimeout(() => {
         mediaRecorder.stop();
       }, 100);
-      
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.playsInline = true;
@@ -183,7 +183,7 @@ export const useMediaRecorder = ({
         const file = new File([blob], `pronunciation_${Date.now()}.${ext}`, { type: blob.type });
         onSave?.(file, url);
         setRecordingState("idle");
-        
+
         // 녹화 종료 후 카메라 닫기
         closeCamera();
       };
