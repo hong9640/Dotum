@@ -16,7 +16,7 @@ import type { RefObject } from "react";
 
 interface PracticeComponentProps {
   recordingState: 'idle' | 'recording' | 'processing' | 'error';
-  elapsed: number;
+
   blobUrl: string | null;
   permissionError: string | null;
   onStartRecording: () => void;
@@ -31,7 +31,7 @@ interface PracticeComponentProps {
 
 const PracticeComponent: React.FC<PracticeComponentProps> = ({
   recordingState,
-  elapsed,
+
   blobUrl,
   permissionError,
   onStartRecording,
@@ -78,13 +78,13 @@ const PracticeComponent: React.FC<PracticeComponentProps> = ({
               </div>
             </AlertDialogHeader>
             <AlertDialogFooter className="flex-col gap-3 sm:flex-col">
-              <AlertDialogAction 
+              <AlertDialogAction
                 onClick={() => window.location.reload()}
                 className="w-full text-[30px] h-16"
               >
                 페이지 새로고침
               </AlertDialogAction>
-              <AlertDialogCancel 
+              <AlertDialogCancel
                 onClick={() => window.history.back()}
                 className="w-full text-[30px] h-16 m-0"
               >
@@ -102,7 +102,7 @@ const PracticeComponent: React.FC<PracticeComponentProps> = ({
       {/* 녹화 미리보기 */}
       <RecordingPreview
         recordingState={recordingState}
-        elapsed={elapsed}
+
         isCameraReady={isCameraReady}
         videoRef={videoRef}
       />
@@ -139,13 +139,13 @@ const PracticeComponent: React.FC<PracticeComponentProps> = ({
             </div>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col gap-3 sm:flex-col">
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={() => window.location.reload()}
               className="w-full text-[30px] h-16"
             >
               페이지 새로고침
             </AlertDialogAction>
-            <AlertDialogCancel 
+            <AlertDialogCancel
               onClick={() => window.history.back()}
               className="w-full text-[30px] h-16 m-0"
             >
