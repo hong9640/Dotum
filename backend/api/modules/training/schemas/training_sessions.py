@@ -141,10 +141,37 @@ class CalendarResponse(BaseModel):
     data: Dict[str, int] = Field(description="날짜별 세션 수")
 
 
+class TrainingSessionDailyResponse(BaseModel):
+    """일별 훈련 기록용 세션 응답 (경량, overall_feedback 및 session_praat_result 제외)"""
+    session_id: int
+    user_id: int
+    session_name: str
+    type: TrainingType
+    status: TrainingSessionStatus
+    training_date: datetime
+    total_items: int
+    completed_items: int
+    current_item_index: int
+    progress_percentage: float
+    average_score: Optional[float] = None
+    session_metadata: Dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    training_items: List[TrainingItemResponse] = Field(default_factory=list)
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @field_serializer("type", mode="plain")
+    def _serialize_type(self, value: TrainingType) -> str:
+        return value.value.upper()
+
+
 class DailyTrainingResponse(BaseModel):
     """일별 훈련 기록 응답"""
     date: str
-    sessions: List[Union[TrainingSessionSummaryResponse, TrainingSessionResponse]]
+    sessions: List[TrainingSessionDailyResponse]
     total_sessions: int
     completed_sessions: int
     in_progress_sessions: int

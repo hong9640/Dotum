@@ -31,6 +31,7 @@ from ..services.response_converters import (
     convert_praat_to_response,
     build_current_item_response,
     convert_session_to_summary_response,
+    convert_session_to_daily_response,
 )
 from api.core.database import get_session
 from api.modules.auth.routes.router import get_current_user
@@ -321,7 +322,7 @@ async def get_daily_training_records(
     ),
     include_praat: bool = Query(
         False,
-        description="세션 Praat 요약 및 전체 피드백 포함 여부 (기본값: 제외)"
+        description="세션 Praat 요약 및 전체 피드백 포함 여부 (기본값: 제외, 이 API에서는 무시됨)"
     ),
     current_user: User = Depends(get_current_user),
     service: TrainingSessionService = Depends(get_training_service),
@@ -341,31 +342,17 @@ async def get_daily_training_records(
         query_elapsed_ms = (time.perf_counter() - query_start) * 1000
         
         # 🚀 성능 개선: 여러 세션을 병렬로 변환
+        # 일별 훈련 기록 API는 overall_feedback과 session_praat_result를 제외한 경량 응답 사용
         if not sessions:
             converted_sessions = []
             conversion_elapsed_ms = 0.0
         else:
             conversion_start = time.perf_counter()
-            use_detailed_response = include_items or include_praat
-            if use_detailed_response:
-                conversion_tasks = [
-                    convert_session_to_response(
-                        session,
-                        service.db,
-                        gcs_service,
-                        current_user.username,
-                        include_media_urls=include_media_urls if include_items else False,
-                        include_training_items=include_items,
-                        include_praat_summary=include_praat
-                    )
-                    for session in sessions
-                ]
-                converted_sessions = await asyncio.gather(*conversion_tasks)
-            else:
-                converted_sessions = [
-                    convert_session_to_summary_response(session)
-                    for session in sessions
-                ]
+            # 일별 기록용 경량 응답 사용 (overall_feedback, session_praat_result 제외)
+            converted_sessions = [
+                convert_session_to_daily_response(session)
+                for session in sessions
+            ]
             conversion_elapsed_ms = (time.perf_counter() - conversion_start) * 1000
 
         total_elapsed_ms = (time.perf_counter() - overall_start) * 1000
