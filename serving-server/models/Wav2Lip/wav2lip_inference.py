@@ -246,16 +246,16 @@ def run_wav2lip_inference(
 		video_speed: 영상 배속 조절 (1.0 = 정상, 0.5 = 2배 느리게, 2.0 = 2배 빠르게)
 		audio_speed: 오디오 배속 조절 (1.0 = 정상, 0.8 = 1.25배 느리게, 0.5 = 2배 느리게)
 	"""
-	# 영상 읽기 (원본 FPS 유지)
+	# 영상 읽기 (FPS 하드코딩: 18fps)
+	fps = 18.0  # 무조건 18fps로 고정
 	if os.path.isfile(face_video_path) and face_video_path.split('.')[-1] in ['jpg', 'png', 'jpeg']:
 		full_frames = [cv2.imread(face_video_path)]
-		original_fps = 25.0
-		fps = original_fps  # 원본 FPS 유지
 		static = True
 	else:
 		video_stream = cv2.VideoCapture(face_video_path)
-		original_fps = video_stream.get(cv2.CAP_PROP_FPS)
-		fps = original_fps  # 원본 FPS 유지 (변경하지 않음)
+		# 원본 FPS는 읽기만 하고 사용하지 않음 (18fps로 고정)
+		original_fps_read = video_stream.get(cv2.CAP_PROP_FPS)
+		print(f"Original video FPS (not used): {original_fps_read:.2f}, using fixed 18.0 fps")
 
 		full_frames = []
 		while 1:
@@ -375,6 +375,10 @@ def run_wav2lip_inference(
 	
 	frame_h, frame_w = full_frames[0].shape[:-1]
 	os.makedirs('temp', exist_ok=True)
+	
+	# FPS 하드코딩: 무조건 18fps
+	fps = 18.0
+	print(f"Writing video with fixed FPS: {fps:.2f}")
 	out = cv2.VideoWriter('temp/result.avi', 
 							cv2.VideoWriter_fourcc(*'DIVX'), fps, (frame_w, frame_h))
 

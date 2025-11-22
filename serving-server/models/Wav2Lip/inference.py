@@ -312,13 +312,15 @@ def main():
 
 	elif args.face.split('.')[1] in ['jpg', 'png', 'jpeg']:
 		full_frames = [cv2.imread(args.face)]
-		fps = args.fps
+		fps = 18.0  # 무조건 18fps로 고정
 
 	else:
 		video_stream = cv2.VideoCapture(args.face)
-		fps = video_stream.get(cv2.CAP_PROP_FPS)
-
+		# 원본 FPS는 읽기만 하고 사용하지 않음 (18fps로 고정)
+		original_fps_read = video_stream.get(cv2.CAP_PROP_FPS)
+		fps = 18.0  # 무조건 18fps로 고정
 		print('Reading video frames...')
+		print("Original video FPS (not used): {:.2f}, using fixed 18.0 fps".format(original_fps_read))
 
 		full_frames = []
 		while 1:
@@ -428,6 +430,10 @@ def main():
 			print ("Model loaded")
 
 			frame_h, frame_w = full_frames[0].shape[:-1]
+			
+			# FPS 하드코딩: 무조건 18fps
+			fps = 18.0
+			print("Writing video with fixed FPS: {:.2f}".format(fps))
 			out = cv2.VideoWriter('temp/result.avi', 
 									cv2.VideoWriter_fourcc(*'DIVX'), fps, (frame_w, frame_h))
 
