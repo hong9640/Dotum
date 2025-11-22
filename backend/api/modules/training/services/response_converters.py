@@ -510,6 +510,16 @@ async def convert_session_to_response(
             )
             training_items.append(item_response)
     
+    # 실제 training_items 관계에서 아이템 개수와 완료된 아이템 개수 계산
+    # training_items가 로드되어 있으면 실제 데이터를 사용, 없으면 세션 필드 값 사용
+    if hasattr(session, 'training_items') and session.training_items is not None:
+        actual_total_items = len(session.training_items)
+        actual_completed_items = sum(1 for item in session.training_items if item.is_completed)
+    else:
+        # training_items가 로드되지 않은 경우 세션 필드 값 사용
+        actual_total_items = session.total_items
+        actual_completed_items = session.completed_items
+    
     return TrainingSessionResponse(
         session_id=session.id,
         user_id=session.user_id,
@@ -517,8 +527,8 @@ async def convert_session_to_response(
         type=session.type,
         status=session.status,
         training_date=session.training_date,
-        total_items=session.total_items,
-        completed_items=session.completed_items,
+        total_items=actual_total_items,
+        completed_items=actual_completed_items,
         current_item_index=session.current_item_index,
         progress_percentage=session.progress_percentage,
         overall_feedback=overall_feedback,  # 세션 피드백 추가
@@ -553,6 +563,16 @@ def convert_session_to_summary_response(session) -> TrainingSessionSummaryRespon
         updated_at=None
     )
 
+    # 실제 training_items 관계에서 아이템 개수와 완료된 아이템 개수 계산
+    # training_items가 로드되어 있으면 실제 데이터를 사용, 없으면 세션 필드 값 사용
+    if hasattr(session, 'training_items') and session.training_items is not None:
+        actual_total_items = len(session.training_items)
+        actual_completed_items = sum(1 for item in session.training_items if item.is_completed)
+    else:
+        # training_items가 로드되지 않은 경우 세션 필드 값 사용
+        actual_total_items = session.total_items
+        actual_completed_items = session.completed_items
+
     return TrainingSessionSummaryResponse(
         session_id=session.id,
         user_id=session.user_id,
@@ -560,8 +580,8 @@ def convert_session_to_summary_response(session) -> TrainingSessionSummaryRespon
         type=session.type,
         status=session.status,
         training_date=session.training_date,
-        total_items=session.total_items,
-        completed_items=session.completed_items,
+        total_items=actual_total_items,
+        completed_items=actual_completed_items,
         current_item_index=session.current_item_index,
         progress_percentage=session.progress_percentage,
         average_score=session.average_score,
