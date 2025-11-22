@@ -114,10 +114,37 @@ def get_smoothened_boxes(boxes, T):
 		boxes[i] = np.mean(window, axis=0)
 	return boxes
 
+# 전역 detector 캐시 (요청 간 재사용)
+_detector_cache = {}
+_detector_cache_lock = None
+
+def _get_thread_lock():
+	"""Thread-safe lock 초기화"""
+	global _detector_cache_lock
+	if _detector_cache_lock is None:
+		import threading
+		_detector_cache_lock = threading.Lock()
+	return _detector_cache_lock
+
 def face_detect(images, device, face_detector='scrfd', face_det_batch_size=16, pads=[0, 10, 0, 0], nosmooth=False):
-	detector = face_detection.FaceAlignment(face_detection.LandmarksType._2D, 
-											flip_input=False, device=device,
-											face_detector=face_detector)
+	# Detector 캐싱: 동일한 device와 face_detector 조합은 재사용
+	cache_key = (device, face_detector)
+	
+	# Thread-safe 캐시 조회
+	lock = _get_thread_lock()
+	with lock:
+		if cache_key not in _detector_cache:
+			print(f"[Face Detection] Initializing {face_detector} detector on {device} (first time, will be cached)...")
+			_detector_cache[cache_key] = face_detection.FaceAlignment(
+				face_detection.LandmarksType._2D, 
+				flip_input=False, device=device,
+				face_detector=face_detector
+			)
+			print(f"[Face Detection] ✅ {face_detector} detector initialized and cached")
+		else:
+			print(f"[Face Detection] 🚀 Using cached {face_detector} detector on {device} (fast path)")
+		
+		detector = _detector_cache[cache_key]
 
 	batch_size = face_det_batch_size
 	

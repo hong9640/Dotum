@@ -123,18 +123,56 @@ class SCRFDDetector(FaceDetector):
             det_model = None
             det_size = (640, 640)
             
+            # Debug: Print app structure
+            if self.verbose:
+                print(f"[SCRFD Batch] Attempting to access detection model...")
+                print(f"[SCRFD Batch] app type: {type(self.app)}")
+                print(f"[SCRFD Batch] app attributes: {[attr for attr in dir(self.app) if not attr.startswith('_')]}")
+            
             # Try different ways to access the detection model
             if hasattr(self.app, 'models') and isinstance(self.app.models, dict):
+                if self.verbose:
+                    print(f"[SCRFD Batch] Found app.models: {list(self.app.models.keys())}")
                 det_model = self.app.models.get('detection', None)
             elif hasattr(self.app, 'det_model'):
+                if self.verbose:
+                    print(f"[SCRFD Batch] Found app.det_model: {type(self.app.det_model)}")
                 det_model = self.app.det_model
             elif hasattr(self.app, 'detector'):
+                if self.verbose:
+                    print(f"[SCRFD Batch] Found app.detector: {type(self.app.detector)}")
                 det_model = self.app.detector
+            else:
+                # Try to access through app's internal structure
+                # InsightFace may store models differently
+                if hasattr(self.app, '__dict__'):
+                    app_dict = self.app.__dict__
+                    if self.verbose:
+                        print(f"[SCRFD Batch] app.__dict__ keys: {list(app_dict.keys())}")
+                    # Look for any attribute that might be the detection model
+                    for key, value in app_dict.items():
+                        if 'det' in key.lower() and hasattr(value, 'run'):
+                            if self.verbose:
+                                print(f"[SCRFD Batch] Found potential det model: {key} = {type(value)}")
+                            det_model = value
+                            break
             
             if det_model is not None:
+                if self.verbose:
+                    print(f"[SCRFD Batch] Successfully found detection model: {type(det_model)}")
+                    # Check if it's an ONNX model
+                    if hasattr(det_model, 'get_inputs'):
+                        inputs = det_model.get_inputs()
+                        print(f"[SCRFD Batch] ONNX model inputs: {[inp.name for inp in inputs]}")
+                        print(f"[SCRFD Batch] Input shape: {inputs[0].shape if hasattr(inputs[0], 'shape') else 'dynamic'}")
+                
                 # Get detection size from app if available
                 if hasattr(self.app, 'det_size'):
                     det_size = self.app.det_size
+                elif hasattr(self.app, 'input_size'):
+                    det_size = self.app.input_size
+                else:
+                    det_size = (640, 640)  # Default
                 
                 # Prepare batch input: (batch_size, 3, height, width)
                 batch_inputs = []
@@ -254,7 +292,8 @@ class SCRFDDetector(FaceDetector):
                     # Fall through to sequential processing
             else:
                 if self.verbose:
-                    print("Detection model not accessible, using sequential processing")
+                    print("[SCRFD Batch] Detection model not accessible, using sequential processing")
+                    print(f"[SCRFD Batch] Available app attributes: {[attr for attr in dir(self.app) if not attr.startswith('_') and 'det' in attr.lower()]}")
         except Exception as e:
             if self.verbose:
                 print(f"Batch processing setup failed: {e}, using sequential processing")
