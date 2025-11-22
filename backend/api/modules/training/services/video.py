@@ -356,11 +356,11 @@ class VideoProcessor:
                 'ffmpeg',
                 '-i', input_path,
                 '-c:v', 'libx264',         # 소프트웨어 h264 인코더
-                '-preset', 'medium',       # x264 프리셋 (medium: balanced)
-                '-crf', '23',              # Constant Rate Factor (18-28 권장, 낮을수록 고화질)
-                '-b:v', '5M',              # 비트레이트 5Mbps
-                '-maxrate', '5M',
-                '-bufsize', '10M',
+                '-preset', 'fast',         # x264 프리셋 (fast: 빠른 인코딩)
+                '-crf', '28',              # Constant Rate Factor (18-28 권장, 높을수록 낮은 화질/작은 파일)
+                '-b:v', '2M',              # 비트레이트 2Mbps (낮춤)
+                '-maxrate', '2M',
+                '-bufsize', '4M',
                 '-r', str(fps),            # 프레임 레이트
                 '-vf', f'scale={width}:{height}',  # 원본 해상도 유지
                 '-c:a', 'copy',            # 오디오는 그대로 복사
