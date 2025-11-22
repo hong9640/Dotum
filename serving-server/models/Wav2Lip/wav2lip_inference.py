@@ -14,6 +14,40 @@ from tqdm import tqdm
 
 mel_step_size = 16
 
+def increase_frames(frames, target_length):
+	"""
+	영상 프레임을 오디오 길이에 맞춰 균등하게 확장
+	프레임을 복제하여 목표 길이까지 늘림 (순환 재생이 아닌 연속 확장)
+	
+	Args:
+		frames: 원본 프레임 리스트
+		target_length: 목표 프레임 수
+		
+	Returns:
+		확장된 프레임 리스트
+	"""
+	if len(frames) >= target_length:
+		return frames[:target_length]
+	
+	# 프레임을 균등하게 복제하여 확장
+	while len(frames) < target_length:
+		dup_every = float(target_length) / len(frames)
+		
+		final_frames = []
+		next_duplicate = 0.
+		
+		for i, f in enumerate(frames):
+			final_frames.append(f)
+			
+			if int(np.ceil(next_duplicate)) == i:
+				final_frames.append(f)
+			
+			next_duplicate += dup_every
+		
+		frames = final_frames
+	
+	return frames[:target_length]
+
 def get_smoothened_boxes(boxes, T):
 	for i in range(len(boxes)):
 		if i + T > len(boxes):
@@ -78,7 +112,14 @@ def datagen(frames, mels, static=False, box=[-1, -1, -1, -1], face_det_results=N
 		face_det_results = [[f[y1: y2, x1:x2], (y1, y2, x1, x2)] for f in frames]
 
 	for i, m in enumerate(mels):
-		idx = 0 if static else i%len(frames)
+		# static 모드가 아니면 인덱스 직접 사용 (이미 확장된 프레임이므로 순환 불필요)
+		# static 모드면 첫 프레임만 사용
+		if static:
+			idx = 0
+		else:
+			# 프레임이 이미 오디오 길이에 맞춰 확장되었으므로 직접 인덱스 사용
+			idx = min(i, len(frames) - 1)
+		
 		frame_to_save = frames[idx].copy()
 		face, coords = face_det_results[idx].copy()
 
@@ -125,7 +166,8 @@ def run_wav2lip_inference(
 	resize_factor: int = 1,
 	box: list = [-1, -1, -1, -1],
 	static: bool = False,
-	nosmooth: bool = False
+	nosmooth: bool = False,
+	video_speed: float = 1.0
 ):
 	"""
 	Wav2Lip inference 실행 (모델 재사용)
@@ -144,6 +186,7 @@ def run_wav2lip_inference(
 		box: [y1, y2, x1, x2] 고정 바운딩 박스
 		static: 정적 이미지 모드
 		nosmooth: 얼굴 감지 스무딩 비활성화
+		video_speed: 영상 배속 조절 (1.0 = 정상, 0.5 = 2배 느리게, 2.0 = 2배 빠르게)
 	"""
 	# 영상 읽기
 	if os.path.isfile(face_video_path) and face_video_path.split('.')[-1] in ['jpg', 'png', 'jpeg']:
@@ -152,17 +195,37 @@ def run_wav2lip_inference(
 		static = True
 	else:
 		video_stream = cv2.VideoCapture(face_video_path)
-		fps = video_stream.get(cv2.CAP_PROP_FPS)
+		original_fps = video_stream.get(cv2.CAP_PROP_FPS)
+		
+		# 배속 조절: video_speed에 따라 프레임 샘플링
+		# video_speed > 1.0: 빠르게 (프레임 건너뛰기)
+		# video_speed < 1.0: 느리게 (프레임 반복)
+		fps = original_fps * video_speed
 
 		full_frames = []
+		frame_idx = 0
 		while 1:
 			still_reading, frame = video_stream.read()
 			if not still_reading:
 				video_stream.release()
 				break
-			if resize_factor > 1:
-				frame = cv2.resize(frame, (frame.shape[1]//resize_factor, frame.shape[0]//resize_factor))
-			full_frames.append(frame)
+			
+			# 배속 조절: video_speed에 따라 프레임 선택
+			if video_speed >= 1.0:
+				# 빠르게: 일부 프레임 건너뛰기
+				if frame_idx % int(video_speed) == 0:
+					if resize_factor > 1:
+						frame = cv2.resize(frame, (frame.shape[1]//resize_factor, frame.shape[0]//resize_factor))
+					full_frames.append(frame)
+			else:
+				# 느리게: 프레임 반복
+				repeat_count = int(1.0 / video_speed)
+				if resize_factor > 1:
+					frame = cv2.resize(frame, (frame.shape[1]//resize_factor, frame.shape[0]//resize_factor))
+				for _ in range(repeat_count):
+					full_frames.append(frame.copy())
+			
+			frame_idx += 1
 
 	print(f"Number of frames available for inference: {len(full_frames)}")
 
@@ -194,7 +257,18 @@ def run_wav2lip_inference(
 		i += 1
 
 	print(f"Length of mel chunks: {len(mel_chunks)}")
-	full_frames = full_frames[:len(mel_chunks)]
+	print(f"Original video frames: {len(full_frames)}")
+	
+	# 오디오 길이에 맞춰 영상 프레임 확장 (자르는 것이 아님!)
+	if len(full_frames) < len(mel_chunks):
+		print(f"Extending video frames from {len(full_frames)} to {len(mel_chunks)} to match audio length")
+		full_frames = increase_frames(full_frames, len(mel_chunks))
+	elif len(full_frames) > len(mel_chunks):
+		# 오디오가 더 짧으면 영상을 자름
+		print(f"Trimming video frames from {len(full_frames)} to {len(mel_chunks)} to match audio length")
+		full_frames = full_frames[:len(mel_chunks)]
+	else:
+		print("Video and audio lengths match perfectly")
 
 	# 얼굴 감지
 	if box[0] == -1:

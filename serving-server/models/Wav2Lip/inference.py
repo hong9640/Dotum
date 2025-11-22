@@ -124,7 +124,14 @@ def datagen(frames, mels):
 		face_det_results = [[f[y1: y2, x1:x2], (y1, y2, x1, x2)] for f in frames]
 
 	for i, m in enumerate(mels):
-		idx = 0 if args.static else i%len(frames)
+		# static 모드가 아니면 인덱스 직접 사용 (이미 확장된 프레임이므로 순환 불필요)
+		# static 모드면 첫 프레임만 사용
+		if args.static:
+			idx = 0
+		else:
+			# 프레임이 이미 오디오 길이에 맞춰 확장되었으므로 직접 인덱스 사용
+			idx = min(i, len(frames) - 1)
+		
 		frame_to_save = frames[idx].copy()
 		face, coords = face_det_results[idx].copy()
 
@@ -161,6 +168,40 @@ def datagen(frames, mels):
 mel_step_size = 16
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print('Using {} for inference.'.format(device))
+
+def increase_frames(frames, target_length):
+	"""
+	영상 프레임을 오디오 길이에 맞춰 균등하게 확장
+	프레임을 복제하여 목표 길이까지 늘림 (순환 재생이 아닌 연속 확장)
+	
+	Args:
+		frames: 원본 프레임 리스트
+		target_length: 목표 프레임 수
+		
+	Returns:
+		확장된 프레임 리스트
+	"""
+	if len(frames) >= target_length:
+		return frames[:target_length]
+	
+	# 프레임을 균등하게 복제하여 확장
+	while len(frames) < target_length:
+		dup_every = float(target_length) / len(frames)
+		
+		final_frames = []
+		next_duplicate = 0.
+		
+		for i, f in enumerate(frames):
+			final_frames.append(f)
+			
+			if int(np.ceil(next_duplicate)) == i:
+				final_frames.append(f)
+			
+			next_duplicate += dup_every
+		
+		frames = final_frames
+	
+	return frames[:target_length]
 
 def _load(checkpoint_path):
 	if device == 'cuda':
@@ -262,8 +303,18 @@ def main():
 		i += 1
 
 	print("Length of mel chunks: {}".format(len(mel_chunks)))
-
-	full_frames = full_frames[:len(mel_chunks)]
+	print("Original video frames: {}".format(len(full_frames)))
+	
+	# 오디오 길이에 맞춰 영상 프레임 확장 (자르는 것이 아님!)
+	if len(full_frames) < len(mel_chunks):
+		print("Extending video frames from {} to {} to match audio length".format(len(full_frames), len(mel_chunks)))
+		full_frames = increase_frames(full_frames, len(mel_chunks))
+	elif len(full_frames) > len(mel_chunks):
+		# 오디오가 더 짧으면 영상을 자름
+		print("Trimming video frames from {} to {} to match audio length".format(len(full_frames), len(mel_chunks)))
+		full_frames = full_frames[:len(mel_chunks)]
+	else:
+		print("Video and audio lengths match perfectly")
 
 	batch_size = args.wav2lip_batch_size
 	gen = datagen(full_frames.copy(), mel_chunks)
