@@ -494,27 +494,13 @@ def run_wav2lip_inference(
 			model_time = time.time() - model_start
 			print(f"  [4-2] First batch model inference: {model_time:.3f}s")
 
-		# 4-3. 후처리
+		# 4-3. 후처리 시작 시간 측정
 		if postprocess_start is None:
 			postprocess_start = time.time()
+		
+		# CUDA 텐서를 CPU로 이동 후 numpy로 변환
 		pred = pred.cpu().numpy().transpose(0, 2, 3, 1) * 255.
-		# Mixed Precision 입력 변환
-		if next(model.parameters()).dtype == torch.float16:
-			img_batch = torch.HalfTensor(np.transpose(img_batch, (0, 3, 1, 2))).to(device)
-			mel_batch = torch.HalfTensor(np.transpose(mel_batch, (0, 3, 1, 2))).to(device)
-		else:
-			img_batch = torch.FloatTensor(np.transpose(img_batch, (0, 3, 1, 2))).to(device)
-			mel_batch = torch.FloatTensor(np.transpose(mel_batch, (0, 3, 1, 2))).to(device)
-
-		# Inference
-		with torch.no_grad():
-			if device == 'cuda' and next(model.parameters()).dtype == torch.float16:
-				with torch.amp.autocast('cuda'):
-					pred = model(mel_batch, img_batch)
-			else:
-				pred = model(mel_batch, img_batch)
-
-		# 4-3. 후처리 (리사이즈, 페더링, 블렌딩)
+		
 		for p, f, c in zip(pred, frames, coords):
 			y1, y2, x1, x2 = c
 			y1, y2, x1, x2 = int(y1), int(y2), int(x1), int(x2)
