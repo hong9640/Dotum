@@ -36,11 +36,11 @@ const ResultHeader: React.FC<ResultHeaderProps> = ({ type, date, onBack, title }
   const isDetailPage = location.pathname === '/result-detail';
   const backButtonText = dateParam || isDetailPage ? "돌아가기" : "홈으로";
   return (
-    <div className="px-0 sm:px-8 pt-0 pb-7 sm:pt-7 relative w-full max-w-7xl mx-auto flex flex-col sm:inline-flex sm:justify-center items-start gap-2.5">
-      {/* 돌아가기/홈으로 버튼 - sm 미만일 때는 일반 플로우, sm 이상일 때는 absolute */}
+    <div className="px-0 sm:px-8 pt-0 pb-7 sm:pt-7 w-full max-w-7xl mx-auto flex flex-col sm:inline-flex sm:justify-center items-start gap-2.5">
+      {/* 돌아가기/홈으로 버튼 */}
       <Button
         variant="ghost"
-        className="px-2 md:px-4 py-2 md:py-3.5 sm:absolute sm:left-4 md:left-[32px] sm:top-4 md:top-[30px] rounded-lg flex justify-center items-center gap-2 md:gap-3 group transition-opacity hover:opacity-80 mb-4 sm:mb-0"
+        className="px-2 md:px-4 py-2 md:py-3.5 rounded-lg flex justify-center items-center gap-2 md:gap-3 group transition-opacity hover:opacity-80 mb-4"
         onClick={onBack}
       >
         <ChevronLeft className="w-6 h-6 md:w-8 md:h-8 text-slate-500" strokeWidth={3} />

@@ -5,7 +5,7 @@ import { FaceDetector, FilesetResolver } from "@mediapipe/tasks-vision";
 
 interface RecordingPreviewProps {
   recordingState: "idle" | "recording" | "processing" | "error";
-  elapsed: number;
+
   isCameraReady: boolean;
   videoRef: RefObject<HTMLVideoElement | null>;
 }
@@ -14,7 +14,7 @@ type GuidanceLevel = "idle" | "aligning" | "almost" | "ok";
 
 const RecordingPreview: React.FC<RecordingPreviewProps> = ({
   recordingState,
-  elapsed,
+
   isCameraReady,
   videoRef,
 }) => {
@@ -314,15 +314,6 @@ const RecordingPreview: React.FC<RecordingPreviewProps> = ({
             {/* 녹화 중 상태 배지 (정상/이탈) */}
             {recordingBadge}
 
-            {/* 녹화 상태 표시 */}
-            {recordingState === "recording" && (
-              <div className="absolute top-0 left-0 right-0 p-3">
-                <div className="flex justify-between text-white/90 text-sm">
-                  <span>녹화 중…</span>
-                  <span>{elapsed.toString().padStart(2, "0")}s</span>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
