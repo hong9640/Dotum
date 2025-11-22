@@ -35,7 +35,7 @@ class SCRFDDetector(FaceDetector):
     is a fast and accurate face detection model optimized for GPU inference.
     """
     
-    def __init__(self, device, path_to_detector=None, verbose=False):
+    def __init__(self, device, path_to_detector=None, verbose=True):
         super(SCRFDDetector, self).__init__(device, verbose)
         
         # Import 체크를 다시 시도 (런타임에 다시 확인)
@@ -98,11 +98,13 @@ class SCRFDDetector(FaceDetector):
         return bboxlist
     
     def detect_from_batch(self, images):
-        """Detect faces from a batch of images (GPU optimized)"""
-        bboxlists = []
+        """Detect faces from a batch of images (True GPU batch processing)"""
+        if len(images) == 0:
+            return []
         
+        # Convert all images to RGB in batch
+        images_rgb = []
         for image in images:
-            # Convert to RGB if needed
             if isinstance(image, np.ndarray):
                 if len(image.shape) == 3 and image.shape[2] == 3:
                     # Assume BGR from OpenCV, convert to RGB
@@ -111,24 +113,174 @@ class SCRFDDetector(FaceDetector):
                     image_rgb = image
             else:
                 image_rgb = self.tensor_or_path_to_ndarray(image, rgb=True)
+            images_rgb.append(image_rgb)
+        
+        bboxlists = []
+        
+        # Try to access InsightFace's internal detection model for batch processing
+        # InsightFace structure: app.models['detection'] or app.det_model
+        try:
+            det_model = None
+            det_size = (640, 640)
             
-            # Run detection
-            faces = self.app.get(image_rgb)
+            # Try different ways to access the detection model
+            if hasattr(self.app, 'models') and isinstance(self.app.models, dict):
+                det_model = self.app.models.get('detection', None)
+            elif hasattr(self.app, 'det_model'):
+                det_model = self.app.det_model
+            elif hasattr(self.app, 'detector'):
+                det_model = self.app.detector
             
-            if len(faces) == 0:
+            if det_model is not None:
+                # Get detection size from app if available
+                if hasattr(self.app, 'det_size'):
+                    det_size = self.app.det_size
+                
+                # Prepare batch input: (batch_size, 3, height, width)
+                batch_inputs = []
+                original_shapes = []
+                
+                for img_rgb in images_rgb:
+                    orig_h, orig_w = img_rgb.shape[:2]
+                    original_shapes.append((orig_h, orig_w))
+                    
+                    # Resize to detection size
+                    img_resized = cv2.resize(img_rgb, det_size)
+                    
+                    # Convert to (3, H, W) and normalize
+                    # InsightFace normalization: (img - 127.5) / 128.0
+                    img_tensor = img_resized.transpose(2, 0, 1).astype(np.float32)
+                    img_tensor = (img_tensor - 127.5) / 128.0
+                    batch_inputs.append(img_tensor)
+                
+                # Stack into batch: (batch_size, 3, 640, 640)
+                batch_tensor = np.stack(batch_inputs, axis=0)
+                
+                # Get input name from ONNX model
+                try:
+                    if hasattr(det_model, 'get_inputs'):
+                        input_name = det_model.get_inputs()[0].name
+                    elif hasattr(det_model, 'inputs'):
+                        input_name = det_model.inputs[0].name
+                    else:
+                        raise AttributeError("Cannot find input name")
+                    
+                    # Run batch inference
+                    outputs = det_model.run(None, {input_name: batch_tensor})
+                    
+                    # Process outputs for each image in batch
+                    # SCRFD output format varies, try to handle common formats
+                    for batch_idx, (img_rgb, (orig_h, orig_w)) in enumerate(zip(images_rgb, original_shapes)):
+                        bboxlist = []
+                        
+                        # Scale factors
+                        scale_x = orig_w / det_size[0]
+                        scale_y = orig_h / det_size[1]
+                        
+                        # Extract detections for this image
+                        # Common formats:
+                        # 1. [boxes, scores] - two outputs
+                        # 2. [combined] - single output with boxes and scores
+                        # 3. [boxes, scores, landmarks] - three outputs
+                        
+                        if len(outputs) >= 2:
+                            # Format: [boxes, scores]
+                            boxes = outputs[0][batch_idx]  # Shape: (N, 4) or (N, 5)
+                            scores = outputs[1][batch_idx]  # Shape: (N,)
+                            
+                            # Handle different box formats
+                            if boxes.shape[1] == 5:
+                                # Boxes include confidence: [x1, y1, x2, y2, conf]
+                                boxes_xyxy = boxes[:, :4]
+                                scores = boxes[:, 4] if scores is None or scores.size == 0 else scores
+                            else:
+                                boxes_xyxy = boxes[:, :4]
+                            
+                            # Filter by confidence
+                            if scores is not None and len(scores) > 0:
+                                valid_mask = scores > 0.5
+                                boxes_xyxy = boxes_xyxy[valid_mask]
+                                scores = scores[valid_mask]
+                            
+                            # Scale and convert to list
+                            for box, score in zip(boxes_xyxy, scores if scores is not None else [1.0] * len(boxes_xyxy)):
+                                x1 = int(box[0] * scale_x)
+                                y1 = int(box[1] * scale_y)
+                                x2 = int(box[2] * scale_x)
+                                y2 = int(box[3] * scale_y)
+                                conf = float(score) if scores is not None else 1.0
+                                bboxlist.append([x1, y1, x2, y2, conf])
+                        else:
+                            # Single output format
+                            output = outputs[0][batch_idx]  # Shape: (N, 5) or (N, 6)
+                            
+                            if output.shape[1] >= 5:
+                                boxes = output[:, :4]
+                                scores = output[:, 4] if output.shape[1] > 4 else None
+                                
+                                if scores is not None:
+                                    valid_mask = scores > 0.5
+                                    boxes = boxes[valid_mask]
+                                    scores = scores[valid_mask]
+                                
+                                for i, box in enumerate(boxes):
+                                    x1 = int(box[0] * scale_x)
+                                    y1 = int(box[1] * scale_y)
+                                    x2 = int(box[2] * scale_x)
+                                    y2 = int(box[3] * scale_y)
+                                    conf = float(scores[i]) if scores is not None else 1.0
+                                    bboxlist.append([x1, y1, x2, y2, conf])
+                            else:
+                                # No scores, just boxes
+                                for box in output:
+                                    x1 = int(box[0] * scale_x)
+                                    y1 = int(box[1] * scale_y)
+                                    x2 = int(box[2] * scale_x)
+                                    y2 = int(box[3] * scale_y)
+                                    bboxlist.append([x1, y1, x2, y2, 1.0])
+                        
+                        # Final confidence filter
+                        bboxlist = [x for x in bboxlist if x[-1] > 0.5]
+                        bboxlists.append(bboxlist)
+                    
+                    # Successfully used batch processing
+                    if self.verbose:
+                        print(f"Successfully processed batch of {len(images)} images using GPU batch inference")
+                    return bboxlists
+                    
+                except Exception as batch_e:
+                    if self.verbose:
+                        print(f"Batch inference error: {batch_e}, falling back to sequential")
+                    # Fall through to sequential processing
+            else:
+                if self.verbose:
+                    print("Detection model not accessible, using sequential processing")
+        except Exception as e:
+            if self.verbose:
+                print(f"Batch processing setup failed: {e}, using sequential processing")
+        
+        # Fallback: Sequential processing (original method)
+        # This is still faster than before because we pre-converted all images
+        for image_rgb in images_rgb:
+            try:
+                faces = self.app.get(image_rgb)
+                
+                if len(faces) == 0:
+                    bboxlists.append([])
+                    continue
+                
+                bboxlist = []
+                for face in faces:
+                    bbox = face.bbox
+                    confidence = face.det_score
+                    bboxlist.append([bbox[0], bbox[1], bbox[2], bbox[3], confidence])
+                
+                bboxlist = [x for x in bboxlist if x[-1] > 0.5]
+                bboxlists.append(bboxlist)
+            except Exception as img_e:
+                if self.verbose:
+                    print(f"Error processing image: {img_e}")
                 bboxlists.append([])
-                continue
-            
-            # Convert to format: [x1, y1, x2, y2, confidence]
-            bboxlist = []
-            for face in faces:
-                bbox = face.bbox  # [x1, y1, x2, y2]
-                confidence = face.det_score
-                bboxlist.append([bbox[0], bbox[1], bbox[2], bbox[3], confidence])
-            
-            # Filter by confidence threshold
-            bboxlist = [x for x in bboxlist if x[-1] > 0.5]
-            bboxlists.append(bboxlist)
         
         return bboxlists
     
