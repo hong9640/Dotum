@@ -33,7 +33,7 @@ export interface TrainingSessionResponse {
   session_id: number;
   user_id: number;
   session_name?: string | null;
-  type: 'word' | 'sentence';
+  type: string; // 'word' | 'sentence' | 'SENTENCE' etc.
   status: 'completed' | 'in_progress';
   training_date: string;
   total_items: number;
@@ -73,12 +73,12 @@ export async function getDailyRecordSearch(
   type?: 'word' | 'sentence'
 ): Promise<DailyRecordSearchResponse> {
   let url = `/train/training-sessions/daily/${dateStr}`;
-  
+
   // type 파라미터가 있는 경우 쿼리 파라미터로 추가
   if (type) {
     url += `?type=${type}`;
   }
-  
+
   const response = await apiClient.get<DailyRecordSearchResponse>(url);
   return response.data;
 }
