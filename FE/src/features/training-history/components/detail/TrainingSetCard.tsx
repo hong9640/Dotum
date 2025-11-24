@@ -18,7 +18,7 @@ export function TrainingSetCard({ trainingSet, onClick }: TrainingSetCardProps) 
 
 
   return (
-    <Card 
+    <Card
       className={`
         w-full h-[144.8px] sm:h-[163px] cursor-pointer transition-all duration-200
         hover:shadow-md hover:scale-[1.02] active:scale-[0.98]
@@ -35,27 +35,34 @@ export function TrainingSetCard({ trainingSet, onClick }: TrainingSetCardProps) 
           <ScoreChip score={trainingSet.score} />
         </div>
       </CardHeader>
-      
+
       <CardContent className="pt-0">
         <div className="space-y-3 sm:space-y-4">
           <div>
             <h4 className={`text-sm sm:text-base font-medium text-gray-600 mb-2 sm:mb-2.5 ${trainingSet.type === 'vocal' ? 'invisible' : ''}`}>
-              {trainingSet.type === 'word' ? '연습한 단어' : trainingSet.type === 'vocal' ? '발성 연습' : '연습한 문장'} ({trainingSet.totalItems}개 중 {Math.min(trainingSet.words.length, trainingSet.totalItems)}개 표시):
+              {trainingSet.words.length > 0
+                ? `${trainingSet.type === 'word' ? '연습한 단어' : trainingSet.type === 'vocal' ? '발성 연습' : '연습한 문장'} (${trainingSet.totalItems}개 중 ${Math.min(trainingSet.words.length, trainingSet.totalItems)}개 표시):`
+                : trainingSet.completedItems && trainingSet.completedItems > 0
+                  ? `${trainingSet.type === 'word' ? '단어 연습' : trainingSet.type === 'vocal' ? '발성 연습' : '문장 연습'} 진행 상황:`
+                  : `${trainingSet.type === 'word' ? '단어 연습' : trainingSet.type === 'vocal' ? '발성 연습' : '문장 연습'} 미진행:`
+              }
             </h4>
             <div className="flex flex-wrap gap-2 sm:gap-2.5">
               {trainingSet.words.length > 0 ? (
                 trainingSet.words.map((word, index) => (
-                  <WordChip 
-                    key={`${word}-${index}`} 
-                    word={word} 
+                  <WordChip
+                    key={`${word}-${index}`}
+                    word={word}
                     isSentence={trainingSet.type === 'sentence' || trainingSet.type === 'vocal'}
                   />
                 ))
               ) : (
                 <span className="text-sm sm:text-base text-gray-500">
-                {trainingSet.type === 'vocal' && trainingSet.created_at 
-                  ? `연습일: ${formatDateTime(trainingSet.created_at)}`
-                  : '표시할 항목이 없습니다.'}
+                  {trainingSet.completedItems && trainingSet.completedItems > 0
+                    ? `${trainingSet.completedItems} / ${trainingSet.totalItems} 완료`
+                    : trainingSet.type === 'vocal' && trainingSet.created_at
+                      ? `연습일: ${formatDateTime(trainingSet.created_at)}`
+                      : '표시할 항목이 없습니다.'}
                 </span>
               )}
             </div>
