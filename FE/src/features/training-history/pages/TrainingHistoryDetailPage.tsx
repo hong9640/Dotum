@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import type { TrainingSet } from '@/features/training-history/types';
 import { Header, TrainingSetGrid } from '../components/detail';
 import { convertSessionsToTrainingSets } from '@/features/training-history/utils';
-import { useTrainingDayDetail } from '@/features/training-history/hooks';
+
 import { getDailyRecordSearch } from '@/features/training-history/api/daily-record-search';
 import { completeTrainingSession } from '@/features/training-session/api';
 import { toast } from 'sonner';
@@ -28,7 +28,7 @@ export default function TrainingDayDetail({
   const [totalSessions, setTotalSessions] = useState<number>(0);
   const [isCompleting, setIsCompleting] = useState(false);
 
-  const { statistics } = useTrainingDayDetail({ trainingSets: actualTrainingSets });
+
 
   // API 호출
   useEffect(() => {
@@ -81,35 +81,12 @@ export default function TrainingDayDetail({
   const handleTrainingSetClick = async (trainingSet: TrainingSet) => {
     // 이미 세션 완료 처리 중이면 중복 실행 방지
     if (isCompleting) return;
-    
-    // 세션이 완료되지 않은 경우
-    if (trainingSet.status !== 'completed') {
-      // 총 아이템 수와 완료된 아이템 수가 같은 경우 (실제로는 완료되었지만 status가 in_progress인 경우)
-      if (trainingSet.completedItems !== undefined && trainingSet.totalItems === trainingSet.completedItems) {
-        try {
-          setIsCompleting(true);
-          
-          // 세션 종료 API 호출
-          await completeTrainingSession(trainingSet.sessionId);
 
-          // result-list 페이지로 이동
-          const dateParam = formatDateForUrl(date);
-          navigate(`/result-list?sessionId=${trainingSet.sessionId}&type=${trainingSet.type}&date=${dateParam}`);
+    // 완료 여부 판단: API 상태가 completed이거나 아이템 수가 일치하면 완료된 것으로 간주
+    const isCompleted = trainingSet.status === 'completed' || (trainingSet.totalItems > 0 && trainingSet.totalItems === trainingSet.completedItems);
 
-          // 부모 컴포넌트에서 전달받은 onClick 핸들러가 있으면 호출
-          if (onTrainingSetClick) {
-            onTrainingSetClick(trainingSet);
-          }
-        } catch (error: unknown) {
-          console.error('세션 종료 실패:', error);
-          const errorWithMessage = error as { message?: string };
-          toast.error(errorWithMessage.message || '세션을 종료하는데 실패했습니다.');
-          setIsCompleting(false);
-        }
-        return;
-      }
-
-      // 총 아이템 수와 완료된 아이템 수가 다른 경우 (실제로 진행 중인 경우)
+    // 완료되지 않은 경우 (진행 중)
+    if (!isCompleted) {
       const message = '아직 연습이 완료되지 않았습니다.\n연습을 이어서 진행할까요? 😊';
       const shouldNavigate = window.confirm(message); // 확인 버튼 클릭 시 true, 취소 버튼 클릭 시 false
 
@@ -156,7 +133,34 @@ export default function TrainingDayDetail({
       return;
     }
 
-    // 완료된 세션은 result-list 페이지로 이동 (date 파라미터도 함께 전달)
+    // 완료된 경우 (아이템 수가 일치함)
+    // 하지만 API 상으로는 아직 완료되지 않은 경우 (status !== 'completed')
+    if (trainingSet.status !== 'completed') {
+      try {
+        setIsCompleting(true);
+
+        // 세션 종료 API 호출
+        await completeTrainingSession(trainingSet.sessionId);
+
+        // result-list 페이지로 이동
+        const dateParam = formatDateForUrl(date);
+        navigate(`/result-list?sessionId=${trainingSet.sessionId}&type=${trainingSet.type}&date=${dateParam}`);
+
+        // 부모 컴포넌트에서 전달받은 onClick 핸들러가 있으면 호출
+        if (onTrainingSetClick) {
+          onTrainingSetClick(trainingSet);
+        }
+      } catch (error: unknown) {
+        console.error('세션 종료 실패:', error);
+        const errorWithMessage = error as { message?: string };
+        toast.error(errorWithMessage.message || '세션을 종료하는데 실패했습니다.');
+        setIsCompleting(false);
+      }
+      return;
+    }
+
+    // 이미 API 상으로도 완료된 경우
+    // result-list 페이지로 이동 (date 파라미터도 함께 전달)
     const dateParam = formatDateForUrl(date);
     navigate(`/result-list?sessionId=${trainingSet.sessionId}&type=${trainingSet.type}&date=${dateParam}`);
 
@@ -167,7 +171,7 @@ export default function TrainingDayDetail({
   };
 
   // totalSets는 API 응답의 total_sessions를 우선 사용
-  const displayTotalSets = totalSessions > 0 ? totalSessions : statistics.totalSets;
+  const displayTotalSets = totalSessions;
 
   if (isLoading) {
     return (
