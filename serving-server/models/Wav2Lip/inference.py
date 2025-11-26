@@ -110,21 +110,39 @@ def face_detect(images):
 	del detector
 	return results 
 
-def datagen(frames, mels):
+def datagen(frames, mels, original_frames=None):
 	img_batch, mel_batch, frame_batch, coords_batch = [], [], [], []
 
+	# 최적화: 원본 프레임만 얼굴 감지 후 결과 확장
 	if args.box[0] == -1:
 		if not args.static:
-			face_det_results = face_detect(frames) # BGR2RGB for CNN face detection
+			# 원본 프레임이 제공되고 확장된 경우 최적화
+			if original_frames is not None and len(original_frames) < len(frames):
+				print("Optimized face detection: detecting {} original frames, then expanding results".format(len(original_frames)))
+				face_det_results_original = face_detect(original_frames)
+				face_det_results = expand_face_det_results(face_det_results_original, len(frames))
+			else:
+				face_det_results = face_detect(frames) # BGR2RGB for CNN face detection
 		else:
-			face_det_results = face_detect([frames[0]])
+			face_det_results_original = face_detect([frames[0]])
+			if len(frames) > 1:
+				face_det_results = expand_face_det_results(face_det_results_original, len(frames))
+			else:
+				face_det_results = face_det_results_original
 	else:
 		print('Using the specified bounding box instead of face detection...')
 		y1, y2, x1, x2 = args.box
 		face_det_results = [[f[y1: y2, x1:x2], (y1, y2, x1, x2)] for f in frames]
 
 	for i, m in enumerate(mels):
-		idx = 0 if args.static else i%len(frames)
+		# static 모드가 아니면 인덱스 직접 사용 (이미 확장된 프레임이므로 순환 불필요)
+		# static 모드면 첫 프레임만 사용
+		if args.static:
+			idx = 0
+		else:
+			# 프레임이 이미 오디오 길이에 맞춰 확장되었으므로 직접 인덱스 사용
+			idx = min(i, len(frames) - 1)
+		
 		frame_to_save = frames[idx].copy()
 		face, coords = face_det_results[idx].copy()
 
@@ -161,6 +179,94 @@ def datagen(frames, mels):
 mel_step_size = 16
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print('Using {} for inference.'.format(device))
+
+def increase_frames(frames, target_length):
+	"""
+	영상 프레임을 오디오 길이에 맞춰 균등하게 확장 (벡터화 최적화)
+	프레임을 복제하여 목표 길이까지 늘림 (순환 재생이 아닌 연속 확장)
+	
+	Args:
+		frames: 원본 프레임 리스트
+		target_length: 목표 프레임 수
+		
+	Returns:
+		확장된 프레임 리스트
+	"""
+	if len(frames) >= target_length:
+		return frames[:target_length]
+	
+	# 벡터화된 확장: 각 프레임의 반복 횟수를 미리 계산
+	original_len = len(frames)
+	ratio = target_length / original_len
+	
+	# 각 프레임이 몇 번 반복되어야 하는지 계산
+	repeat_counts = np.ones(original_len, dtype=int)
+	remaining = target_length - original_len
+	
+	# 균등하게 분배
+	if remaining > 0:
+		dup_every = original_len / remaining
+		next_dup = 0.0
+		added = 0
+		
+		while added < remaining and next_dup < original_len:
+			idx = int(next_dup)
+			if idx < original_len:
+				repeat_counts[idx] += 1
+				added += 1
+			next_dup += dup_every
+	
+	# 벡터화된 확장 수행
+	expanded_frames = []
+	for i, count in enumerate(repeat_counts):
+		for _ in range(count):
+			expanded_frames.append(frames[i])
+	
+	return expanded_frames[:target_length]
+
+def expand_face_det_results(face_det_results, target_length):
+	"""
+	얼굴 감지 결과를 목표 길이로 확장
+	프레임 확장과 동일한 비율로 얼굴 감지 결과도 확장
+	
+	Args:
+		face_det_results: 원본 얼굴 감지 결과 리스트
+		target_length: 목표 길이
+		
+	Returns:
+		확장된 얼굴 감지 결과 리스트
+	"""
+	if len(face_det_results) >= target_length:
+		return face_det_results[:target_length]
+	
+	original_len = len(face_det_results)
+	ratio = target_length / original_len
+	
+	# 각 결과의 반복 횟수 계산
+	repeat_counts = np.ones(original_len, dtype=int)
+	remaining = target_length - original_len
+	
+	if remaining > 0:
+		dup_every = original_len / remaining
+		next_dup = 0.0
+		added = 0
+		
+		while added < remaining and next_dup < original_len:
+			idx = int(next_dup)
+			if idx < original_len:
+				repeat_counts[idx] += 1
+				added += 1
+			next_dup += dup_every
+	
+	# 얼굴 감지 결과 확장 (이미지 복사보다 훨씬 빠름)
+	expanded_results = []
+	for i, count in enumerate(repeat_counts):
+		for _ in range(count):
+			# 얼굴 영역과 좌표를 복사 (이미지 자체는 참조)
+			face_img, coords = face_det_results[i]
+			expanded_results.append([face_img, coords])
+	
+	return expanded_results[:target_length]
 
 def _load(checkpoint_path):
 	if device == 'cuda':
@@ -206,13 +312,15 @@ def main():
 
 	elif args.face.split('.')[1] in ['jpg', 'png', 'jpeg']:
 		full_frames = [cv2.imread(args.face)]
-		fps = args.fps
+		fps = 18.0  # 무조건 18fps로 고정
 
 	else:
 		video_stream = cv2.VideoCapture(args.face)
-		fps = video_stream.get(cv2.CAP_PROP_FPS)
-
+		# 원본 FPS는 읽기만 하고 사용하지 않음 (18fps로 고정)
+		original_fps_read = video_stream.get(cv2.CAP_PROP_FPS)
+		fps = 18.0  # 무조건 18fps로 고정
 		print('Reading video frames...')
+		print("Original video FPS (not used): {:.2f}, using fixed 18.0 fps".format(original_fps_read))
 
 		full_frames = []
 		while 1:
@@ -236,12 +344,35 @@ def main():
 
 	print ("Number of frames available for inference: "+str(len(full_frames)))
 
+	# ============================================
+	# 1단계: 오디오 처리 및 배속 조정
+	# ============================================
 	if not args.audio.endswith('.wav'):
 		print('Extracting raw audio...')
 		command = 'ffmpeg -y -i {} -strict -2 {}'.format(args.audio, 'temp/temp.wav')
-
 		subprocess.call(command, shell=True)
 		args.audio = 'temp/temp.wav'
+
+	# 오디오 배속 조정 (기본값 0.8 = 1.25배 느리게)
+	audio_speed = getattr(args, 'audio_speed', 0.8)
+	if audio_speed != 1.0:
+		print('Adjusting audio speed to {}x (slower)'.format(audio_speed))
+		slowed_audio_path = 'temp/temp_slowed.wav'
+		os.makedirs('temp', exist_ok=True)
+		# atempo 필터 사용 (0.5 ~ 2.0 범위, 그 이상은 체인 필요)
+		if audio_speed < 0.5:
+			chain_count = int(np.ceil(np.log(audio_speed) / np.log(0.5)))
+			atempo_filter = ','.join(['atempo=0.5'] * chain_count)
+		elif audio_speed > 2.0:
+			chain_count = int(np.ceil(np.log(audio_speed) / np.log(2.0)))
+			atempo_filter = ','.join(['atempo=2.0'] * chain_count)
+		else:
+			atempo_filter = 'atempo={}'.format(audio_speed)
+		
+		command = 'ffmpeg -y -i {} -af "{}" -strict -2 {}'.format(args.audio, atempo_filter, slowed_audio_path)
+		subprocess.call(command, shell=True)
+		args.audio = slowed_audio_path
+		print('Audio slowed to {}x speed'.format(audio_speed))
 
 	wav = audio.load_wav(args.audio, 16000)
 	mel = audio.melspectrogram(wav)
@@ -250,8 +381,9 @@ def main():
 	if np.isnan(mel.reshape(-1)).sum() > 0:
 		raise ValueError('Mel contains nan! Using a TTS voice? Add a small epsilon noise to the wav file and try again')
 
+	# Mel chunks 생성 (느려진 오디오 길이 기준)
 	mel_chunks = []
-	mel_idx_multiplier = 80./fps 
+	mel_idx_multiplier = 80./fps  # 원본 FPS 기준
 	i = 0
 	while 1:
 		start_idx = int(i * mel_idx_multiplier)
@@ -261,12 +393,35 @@ def main():
 		mel_chunks.append(mel[:, start_idx : start_idx + mel_step_size])
 		i += 1
 
-	print("Length of mel chunks: {}".format(len(mel_chunks)))
+	target_frame_count = len(mel_chunks)
+	print("Audio length: {} frames (mel chunks)".format(target_frame_count))
+	print("Original video frames: {}".format(len(full_frames)))
 
-	full_frames = full_frames[:len(mel_chunks)]
+	# ============================================
+	# 2단계: 배속 조정된 오디오 길이에 맞춰 영상 길이 조정
+	# ============================================
+	original_frames = full_frames.copy()
+	# 원본 FPS는 그대로 유지 (24fps 등)
+	
+	if len(full_frames) < target_frame_count:
+		print("Extending video frames from {} to {} to match slowed audio length".format(len(full_frames), target_frame_count))
+		full_frames = increase_frames(full_frames, target_frame_count)
+		# FPS는 원본 그대로 유지 (24fps 등) - 빠르게 재생되지 않도록
+		print("Maintaining original FPS: {:.2f} (frames extended but FPS unchanged)".format(fps))
+	elif len(full_frames) > target_frame_count:
+		print("Trimming video frames from {} to {} to match audio length".format(len(full_frames), target_frame_count))
+		full_frames = full_frames[:target_frame_count]
+		# FPS는 그대로 유지 (프레임 수만 줄임)
+	else:
+		print("Video and audio lengths match perfectly")
 
+	# ============================================
+	# 3단계: 조정된 영상에서 얼굴 탐지 (최적화)
+	# ============================================
+	# datagen 함수 내부에서 얼굴 감지 수행
+	# 최적화: 원본 프레임만 감지 후 결과 확장
 	batch_size = args.wav2lip_batch_size
-	gen = datagen(full_frames.copy(), mel_chunks)
+	gen = datagen(full_frames.copy(), mel_chunks, original_frames=original_frames if len(original_frames) < target_frame_count else None)
 
 	for i, (img_batch, mel_batch, frames, coords) in enumerate(tqdm(gen, 
 											total=int(np.ceil(float(len(mel_chunks))/batch_size)))):
@@ -275,6 +430,10 @@ def main():
 			print ("Model loaded")
 
 			frame_h, frame_w = full_frames[0].shape[:-1]
+			
+			# FPS 하드코딩: 무조건 18fps
+			fps = 18.0
+			print("Writing video with fixed FPS: {:.2f}".format(fps))
 			out = cv2.VideoWriter('temp/result.avi', 
 									cv2.VideoWriter_fourcc(*'DIVX'), fps, (frame_w, frame_h))
 

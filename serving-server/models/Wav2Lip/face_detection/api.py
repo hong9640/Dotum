@@ -61,18 +61,49 @@ class FaceAlignment:
         if face_detector == 'scrfd':
             try:
                 import insightface
-            except ImportError:
+                from insightface.app import FaceAnalysis
+                # 실제로 초기화가 가능한지 테스트 (빠른 체크)
+                # 실제 초기화는 SCRFDDetector.__init__에서 수행
+                if verbose:
+                    print(f"[Face Detection] ✅ InsightFace import successful, will use SCRFD detector")
+            except (ImportError, ModuleNotFoundError) as e:
                 if verbose:
                     import warnings
                     warnings.warn(
-                        "insightface not available. Falling back to SFD detector. "
+                        f"insightface not available (ImportError: {e}). Falling back to SFD detector. "
                         "Install insightface for faster GPU face detection: pip install insightface"
+                    )
+                face_detector = 'sfd'
+            except Exception as e:
+                # ImportError가 아닌 다른 에러 (예: 의존성 문제)
+                if verbose:
+                    import warnings
+                    warnings.warn(
+                        f"insightface import failed ({type(e).__name__}: {e}). Falling back to SFD detector."
                     )
                 face_detector = 'sfd'
         
         face_detector_module = __import__('face_detection.detection.' + face_detector,
                                           globals(), locals(), [face_detector], 0)
-        self.face_detector = face_detector_module.FaceDetector(device=device, verbose=verbose)
+        
+        # SCRFD 초기화 실패 시 SFD로 fallback
+        try:
+            self.face_detector = face_detector_module.FaceDetector(device=device, verbose=verbose)
+        except (RuntimeError, ImportError, Exception) as e:
+            if face_detector == 'scrfd':
+                if verbose:
+                    import warnings
+                    warnings.warn(
+                        f"SCRFD detector initialization failed ({type(e).__name__}: {e}). "
+                        "Falling back to SFD detector."
+                    )
+                # SFD로 fallback
+                face_detector = 'sfd'
+                face_detector_module = __import__('face_detection.detection.' + face_detector,
+                                                  globals(), locals(), [face_detector], 0)
+                self.face_detector = face_detector_module.FaceDetector(device=device, verbose=verbose)
+            else:
+                raise
 
     def get_detections_for_batch(self, images):
         images = images[..., ::-1]
