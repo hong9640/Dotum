@@ -83,7 +83,15 @@ const MetricCard: React.FC<MetricCardProps> = ({
   };
 
   return (
-    <div className="w-full p-4 rounded-xl outline outline-1 outline-offset-[-1px] outline-gray-200 inline-flex flex-col justify-start items-start gap-2 shadow-sm">
+    <div
+      className="
+        flex-shrink-0
+        w-[180px]
+        sm:w-[220px]
+        p-4 rounded-xl outline outline-1 outline-offset-[-1px] outline-gray-200
+        inline-flex flex-col justify-start items-start gap-2 shadow-sm
+      "
+    >
       {/* 제목 */}
       <div className="w-full inline-flex justify-start items-start">
         <div className="justify-center text-gray-700 text-xl font-semibold leading-6">
