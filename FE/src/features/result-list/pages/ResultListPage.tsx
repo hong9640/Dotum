@@ -370,7 +370,7 @@ const WordSetResults: React.FC = () => {
       <div className="p-4 md:p-8 flex flex-col justify-start items-center gap-8 w-full">
         
         {/* CPP/CSID 메트릭 카드 (기존 AverageScoreCard 구조 유지) */}
-        <div className="w-full max-w-[1220px] bg-gradient-to-br from-green-50 via-green-300 to-yellow-100 rounded-2xl outline outline-[3px] outline-offset-[-3px] outline-green-200 inline-flex flex-col md:flex-row justify-start items-stretch overflow-hidden">
+        <div className="w-full max-w-[1220px] bg-gradient-to-br from-green-50 via-green-300 to-yellow-100 rounded-2xl outline outline-[3px] outline-offset-[-3px] outline-green-200 flex flex-col md:flex-row justify-start items-stretch">
           <div className="p-6 flex flex-col md:flex-row justify-start items-center gap-6 w-full min-w-0">
             
             {/* 이미지 래퍼: 비율로 자리 확보 + 최대 폭 캡 */}
@@ -383,10 +383,10 @@ const WordSetResults: React.FC = () => {
             </div>
 
             {/* 메트릭 카드: 가변 영역 */}
-            <div className="p-8 bg-white rounded-2xl shadow-lg inline-flex flex-col justify-start items-start gap-3.5 flex-1 min-w-0">
-              <div className="w-full grid grid-cols-1 lg:grid-cols-2 lg:grid-cols-3 gap-4">
-                {isVoiceTraining ? (
-                  // 발성 연습: 8개 메트릭 카드
+            <div className="p-8 bg-white rounded-2xl shadow-lg flex flex-col justify-start items-start gap-3.5 flex-1 min-w-0 max-w-full">
+              {/* 공통 카드 리스트 생성 */}
+              {(() => {
+                const cards = isVoiceTraining ? (
                   <>
                     <MetricCard title="Jitter" value={voiceMetrics.jitter} unit="%"/>
                     <MetricCard title="Shimmer" value={voiceMetrics.shimmer} unit="%"/>
@@ -403,8 +403,20 @@ const WordSetResults: React.FC = () => {
                     <MetricCard title="CPP" value={voiceMetrics.cpp} />
                     <MetricCard title="CSID" value={voiceMetrics.csid} />
                   </>
-                )}
-              </div>
+                );
+
+                return (
+                  <div className="w-full overflow-x-auto pb-2">
+                    {/* 핵심: minWidth: 'max-content' 로 가로 길이 강제 */}
+                    <div
+                      className="flex gap-4"
+                      style={{ minWidth: 'max-content' }}
+                    >
+                      {cards}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* 전체 피드백 메시지 */}
               <div className="self-stretch p-6 bg-green-50 rounded-2xl flex flex-col justify-start items-start mt-4">
